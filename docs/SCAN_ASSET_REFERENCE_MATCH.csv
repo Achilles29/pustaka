@@ -1,0 +1,4 @@
+﻿"asset","referenced","existing","missing","source","base_path"
+"member_photo_by_PhotoUrl","5363","3008","2355","members.PhotoUrl","C:\xampp\htdocs\inlislite3\uploaded_files\foto_anggota"
+"member_photo_fallback_by_ID","26","0","26","members.ID when PhotoUrl empty","C:\xampp\htdocs\inlislite3\uploaded_files\foto_anggota"
+"book_cover_monograf_by_CoverURL","7795","7356","439","catalogs.CoverURL + worksheets.Name","C:\xampp\htdocs\inlislite3\uploaded_files\sampul_koleksi\original\Monograf"
