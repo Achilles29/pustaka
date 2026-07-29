@@ -2,16 +2,18 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 $is_edit = ! empty($edit_menu);
-$form_action = $is_edit ? base_url('sidebar/manage/update/' . (int) $edit_menu['id']) : base_url('sidebar/manage/store');
+$form_action = $is_edit ? base_url('rbac/sidebar/update/' . (int) $edit_menu['id']) : base_url('rbac/sidebar/store');
 $value = function ($key, $default = '') use ($edit_menu) {
 	return $edit_menu[$key] ?? $default;
 };
 $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 	foreach ($items as $item) {
-		echo '<div class="menu-tree-row" style="padding-left:' . ((int) $depth * 18) . 'px">';
-		echo '<span class="badge bg-secondary-lt me-2">' . (int) $item['sort_order'] . '</span>';
+		$icon = trim((string) ($item['icon'] ?? '')) ?: 'ti ti-circle';
+		echo '<div class="menu-tree-row" style="padding-left:' . ((int) $depth * 18 + 12) . 'px">';
+		echo '<span class="menu-tree-icon"><i class="' . html_escape($icon) . '"></i></span>';
 		echo '<span class="fw-semibold">' . html_escape($item['title']) . '</span>';
-		echo '<span class="text-secondary ms-2">' . html_escape($item['menu_key']) . '</span>';
+		echo '<span class="text-secondary ms-2"><code>' . html_escape($item['menu_key']) . '</code></span>';
+		echo '<span class="badge bg-secondary-lt ms-auto">' . (int) $item['sort_order'] . '</span>';
 		if (empty($item['is_active'])) {
 			echo '<span class="badge bg-red-lt ms-2">nonaktif</span>';
 		}
@@ -26,8 +28,8 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 	<div class="container-xl">
 		<div class="row g-2 align-items-center">
 			<div class="col">
-				<div class="page-pretitle">Sistem</div>
-				<h1 class="page-title">Manajemen Sidebar</h1>
+				<div class="page-pretitle">RBAC Foundation</div>
+				<h1 class="page-title">Sidebar</h1>
 			</div>
 		</div>
 	</div>
@@ -35,6 +37,7 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 
 <div class="page-body">
 	<div class="container-xl">
+		<?php $this->load->view('rbac/_tabs', ['active_rbac_tab' => $active_rbac_tab]); ?>
 		<?php if ($this->session->flashdata('success')): ?>
 			<div class="alert alert-success"><?= html_escape($this->session->flashdata('success')); ?></div>
 		<?php endif; ?>
@@ -44,7 +47,7 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 
 		<div class="row row-cards">
 			<div class="col-lg-4">
-				<div class="card">
+				<div class="card admin-card">
 					<div class="card-header">
 						<h2 class="card-title"><?= $is_edit ? 'Edit Menu' : 'Tambah Menu'; ?></h2>
 					</div>
@@ -87,7 +90,7 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 							<div class="row">
 								<div class="col-md-6 mb-3">
 									<label class="form-label">Ikon</label>
-									<input type="text" class="form-control" name="icon" value="<?= html_escape($value('icon')); ?>" placeholder="ti ti-books">
+									<input type="text" class="form-control" name="icon" value="<?= html_escape($value('icon', 'ti ti-circle')); ?>" placeholder="ti ti-books">
 								</div>
 								<div class="col-md-6 mb-3">
 									<label class="form-label">Urutan</label>
@@ -105,7 +108,7 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 							<div class="btn-list">
 								<button type="submit" class="btn btn-primary"><?= $is_edit ? 'Simpan Perubahan' : 'Tambah Menu'; ?></button>
 								<?php if ($is_edit): ?>
-									<a href="<?= base_url('sidebar/manage'); ?>" class="btn btn-outline-secondary">Batal</a>
+									<a href="<?= base_url('rbac/sidebar'); ?>" class="btn btn-outline-secondary">Batal</a>
 								<?php endif; ?>
 							</div>
 						<?= form_close(); ?>
@@ -114,9 +117,9 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 			</div>
 
 			<div class="col-lg-8">
-				<div class="card mb-3">
+				<div class="card admin-card mb-3">
 					<div class="card-header">
-						<h2 class="card-title">Preview Struktur</h2>
+						<h2 class="card-title">Preview Struktur Sidebar</h2>
 					</div>
 					<div class="card-body">
 						<div class="menu-tree">
@@ -125,7 +128,7 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 					</div>
 				</div>
 
-				<div class="card">
+				<div class="card admin-card">
 					<div class="card-header">
 						<h2 class="card-title">Data Menu</h2>
 					</div>
@@ -133,8 +136,7 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 						<table class="table table-vcenter card-table">
 							<thead>
 								<tr>
-									<th>Judul</th>
-									<th>Key</th>
+									<th>Menu</th>
 									<th>Halaman</th>
 									<th>Status</th>
 									<th class="w-1">Aksi</th>
@@ -143,18 +145,16 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 							<tbody>
 								<?php foreach ($menus as $menu): ?>
 									<tr>
-										<td><?= html_escape($menu['title']); ?></td>
-										<td><code><?= html_escape($menu['menu_key']); ?></code></td>
-										<td><?= html_escape($menu['page_code'] ?: '-'); ?></td>
 										<td>
-											<span class="badge <?= (int) $menu['is_active'] === 1 ? 'bg-green-lt' : 'bg-red-lt'; ?>">
-												<?= (int) $menu['is_active'] === 1 ? 'aktif' : 'nonaktif'; ?>
-											</span>
+											<div class="fw-semibold"><i class="<?= html_escape($menu['icon'] ?: 'ti ti-circle'); ?> me-1"></i><?= html_escape($menu['title']); ?></div>
+											<div class="text-secondary small"><code><?= html_escape($menu['menu_key']); ?></code> - <?= html_escape($menu['url'] ?: 'group'); ?></div>
 										</td>
+										<td><?= html_escape($menu['page_code'] ?: '-'); ?></td>
+										<td><span class="badge <?= (int) $menu['is_active'] === 1 ? 'bg-green-lt' : 'bg-red-lt'; ?>"><?= (int) $menu['is_active'] === 1 ? 'aktif' : 'nonaktif'; ?></span></td>
 										<td>
 											<div class="btn-list flex-nowrap">
-												<a class="btn btn-sm btn-outline-primary" href="<?= base_url('sidebar/manage?edit_id=' . (int) $menu['id']); ?>">Edit</a>
-												<?= form_open('sidebar/manage/toggle/' . (int) $menu['id'], ['class' => 'd-inline']); ?>
+												<a class="btn btn-sm btn-outline-primary" href="<?= base_url('rbac/sidebar?edit_id=' . (int) $menu['id']); ?>">Edit</a>
+												<?= form_open('rbac/sidebar/toggle/' . (int) $menu['id'], ['class' => 'd-inline']); ?>
 													<button class="btn btn-sm btn-outline-secondary" type="submit"><?= (int) $menu['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan'; ?></button>
 												<?= form_close(); ?>
 											</div>

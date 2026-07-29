@@ -5,8 +5,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 	<div class="container-xl">
 		<div class="row g-2 align-items-center">
 			<div class="col">
-				<div class="page-pretitle">Sistem</div>
-				<h1 class="page-title">Manajemen User</h1>
+				<div class="page-pretitle">RBAC Foundation</div>
+				<h1 class="page-title">User</h1>
 			</div>
 		</div>
 	</div>
@@ -14,6 +14,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 <div class="page-body">
 	<div class="container-xl">
+		<?php $this->load->view('rbac/_tabs', ['active_rbac_tab' => $active_rbac_tab]); ?>
 		<?php if ($this->session->flashdata('success')): ?>
 			<div class="alert alert-success"><?= html_escape($this->session->flashdata('success')); ?></div>
 		<?php endif; ?>
@@ -23,12 +24,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 		<div class="row row-cards">
 			<div class="col-lg-4">
-				<div class="card">
+				<div class="card admin-card">
 					<div class="card-header">
 						<h2 class="card-title">Tambah User</h2>
 					</div>
 					<div class="card-body">
-						<?= form_open('users/store'); ?>
+						<?= form_open('rbac/users/store'); ?>
 							<div class="mb-3">
 								<label class="form-label">Username</label>
 								<input type="text" class="form-control" name="username" required>
@@ -47,21 +48,25 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 							</div>
 							<div class="mb-3">
 								<label class="form-label">Role</label>
-								<?php foreach ($roles as $role): ?>
-									<label class="form-check">
-										<input class="form-check-input" type="checkbox" name="role_ids[]" value="<?= (int) $role['id']; ?>">
-										<span class="form-check-label"><?= html_escape($role['code'] . ' - ' . $role['name']); ?></span>
-									</label>
-								<?php endforeach; ?>
+								<div class="stacked-checks">
+									<?php foreach ($roles as $role): ?>
+										<label class="form-check">
+											<input class="form-check-input" type="checkbox" name="role_ids[]" value="<?= (int) $role['id']; ?>">
+											<span class="form-check-label"><?= html_escape($role['code'] . ' - ' . $role['name']); ?></span>
+										</label>
+									<?php endforeach; ?>
+								</div>
 							</div>
-							<button type="submit" class="btn btn-primary">Buat User</button>
+							<button type="submit" class="btn btn-primary w-100">
+								<i class="ti ti-user-plus me-1"></i>Buat User
+							</button>
 						<?= form_close(); ?>
 					</div>
 				</div>
 			</div>
 
 			<div class="col-lg-8">
-				<div class="card">
+				<div class="card admin-card">
 					<div class="card-header">
 						<h2 class="card-title">Daftar User</h2>
 					</div>
@@ -85,16 +90,17 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 									?>
 									<tr>
 										<td>
-											<div class="fw-semibold"><?= html_escape($user['full_name']); ?></div>
-											<div class="text-secondary small"><?= html_escape($user['username']); ?><?= $user['email'] ? ' - ' . html_escape($user['email']) : ''; ?></div>
+											<div class="d-flex align-items-center gap-2">
+												<span class="avatar avatar-sm"><?= html_escape(strtoupper(substr($user['full_name'], 0, 2))); ?></span>
+												<div>
+													<div class="fw-semibold"><?= html_escape($user['full_name']); ?></div>
+													<div class="text-secondary small"><?= html_escape($user['username']); ?><?= $user['email'] ? ' - ' . html_escape($user['email']) : ''; ?></div>
+												</div>
+											</div>
 										</td>
+										<td><span class="badge <?= $user['status'] === 'active' ? 'bg-green-lt' : 'bg-red-lt'; ?>"><?= html_escape($user['status']); ?></span></td>
 										<td>
-											<span class="badge <?= $user['status'] === 'active' ? 'bg-green-lt' : 'bg-red-lt'; ?>">
-												<?= html_escape($user['status']); ?>
-											</span>
-										</td>
-										<td>
-											<?= form_open('users/roles/' . (int) $user['id']); ?>
+											<?= form_open('rbac/users/roles/' . (int) $user['id']); ?>
 												<div class="role-check-grid">
 													<?php foreach ($roles as $role): ?>
 														<label class="form-check">
@@ -108,7 +114,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 										</td>
 										<td><?= html_escape($user['last_login_at'] ?: '-'); ?></td>
 										<td>
-											<?= form_open('users/toggle/' . (int) $user['id']); ?>
+											<?= form_open('rbac/users/toggle/' . (int) $user['id']); ?>
 												<input type="hidden" name="status" value="<?= html_escape($user['status']); ?>">
 												<button type="submit" class="btn btn-sm btn-outline-secondary"><?= $user['status'] === 'active' ? 'Nonaktifkan' : 'Aktifkan'; ?></button>
 											<?= form_close(); ?>

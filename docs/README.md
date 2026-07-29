@@ -9,6 +9,9 @@ Dokumentasi ini menjadi catatan kerja utama untuk proyek perpustakaan digital te
 - [INLISLITE_MAPPING.md](INLISLITE_MAPPING.md) - pemetaan awal data INLISLite ke domain aplikasi baru.
 - [SECURITY_AND_ACCESS.md](SECURITY_AND_ACCESS.md) - strategi hak akses, membership digital, GPS lock, kuota, dan proteksi konten.
 - [AUTH_RBAC_SIDEBAR.md](AUTH_RBAC_SIDEBAR.md) - fondasi role, permission, user, dan menu/sidebar berbasis database.
+- [RBAC_AND_SIDEBAR_STANDARD.md](RBAC_AND_SIDEBAR_STANDARD.md) - standar kanonis untuk registry halaman, permission, dan sidebar database.
+- [CODING_STANDARDS.md](CODING_STANDARDS.md) - aturan coding, struktur modul, migrasi SQL, CSS, dan Git.
+- [HANDOVER.md](HANDOVER.md) - catatan pindah device: lokasi proyek, database, route penting, akun demo, dan checklist validasi.
 - [LIBRARIES_GIS.md](LIBRARIES_GIS.md) - schema dan implementasi awal direktori perpustakaan berbasis GIS.
 - [SCAN_SUMMARY.md](SCAN_SUMMARY.md) - hasil scan ulang folder aplikasi INLISLite, database, aset, dan kesiapan CodeIgniter.
 - [THEME_REFERENCES.md](THEME_REFERENCES.md) - kandidat theme/admin template gratis untuk aplikasi.

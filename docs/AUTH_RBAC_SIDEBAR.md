@@ -2,6 +2,8 @@
 
 Tanggal: 2026-07-28
 
+Catatan 2026-07-29: dokumen ini adalah catatan fondasi awal. Standar implementasi kanonis terbaru ada di [RBAC_AND_SIDEBAR_STANDARD.md](RBAC_AND_SIDEBAR_STANDARD.md). Modul pengelolaan aktif sekarang berada di route `/rbac/roles`, `/rbac/users`, `/rbac/pages`, dan `/rbac/sidebar`.
+
 ## Keputusan
 
 - Database operasional aplikasi baru adalah `pustaka`.
@@ -59,11 +61,23 @@ Menu awal:
 
 ## Langkah Berikutnya
 
-- Memperluas Manajemen Sidebar dengan drag/drop urutan menu.
+- Menambahkan drag/drop urutan menu di `/rbac/sidebar`.
 - Menambahkan reset password dan wajib ganti password setelah login pertama.
 - Menambahkan audit log untuk perubahan user, role, permission, dan sidebar.
 - Menambahkan pembatasan `library_id` untuk admin unit/sekolah/desa/mitra.
 - Menambahkan UI override permission spesifik per user.
+
+## Implementasi 2026-07-29
+
+Penyempurnaan terbaru:
+
+- Modul RBAC dipusatkan di controller `Rbac`.
+- View lama `roles`, `users`, dan `sidebar` diganti dengan view terpadu di `application/views/rbac`.
+- Controller lama `Roles`, `Users`, dan `Sidebar` menjadi wrapper kompatibilitas agar route lama tetap aman.
+- Registry halaman bisa dikelola dari UI `/rbac/pages`.
+- Pengaturan sidebar bisa dikelola dari UI `/rbac/sidebar`.
+- Sidebar admin memakai ikon Tabler dari database dan struktur menu rekursif.
+- Menu sistem berganti menjadi `Pengaturan Akses` sebagai pusat user, role, halaman, dan sidebar.
 
 ## Implementasi 2026-07-28
 

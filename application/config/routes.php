@@ -70,15 +70,31 @@ $route['members'] = 'members/index';
 $route['reading-points'] = 'reading_points/index';
 $route['events'] = 'events/index';
 
-$route['sidebar/manage'] = 'sidebar/manage';
-$route['sidebar/manage/store'] = 'sidebar/store';
-$route['sidebar/manage/update/(:num)'] = 'sidebar/update/$1';
-$route['sidebar/manage/toggle/(:num)'] = 'sidebar/toggle/$1';
+$route['rbac'] = 'rbac/index';
+$route['rbac/users'] = 'rbac/users';
+$route['rbac/users/store'] = 'rbac/store_user';
+$route['rbac/users/roles/(:num)'] = 'rbac/update_user_roles/$1';
+$route['rbac/users/toggle/(:num)'] = 'rbac/toggle_user/$1';
+$route['rbac/roles'] = 'rbac/roles';
+$route['rbac/roles/save-permissions/(:num)'] = 'rbac/save_role_permissions/$1';
+$route['rbac/pages'] = 'rbac/pages';
+$route['rbac/pages/store'] = 'rbac/store_page';
+$route['rbac/pages/update/(:num)'] = 'rbac/update_page/$1';
+$route['rbac/pages/toggle/(:num)'] = 'rbac/toggle_page/$1';
+$route['rbac/sidebar'] = 'rbac/sidebar';
+$route['rbac/sidebar/store'] = 'rbac/store_menu';
+$route['rbac/sidebar/update/(:num)'] = 'rbac/update_menu/$1';
+$route['rbac/sidebar/toggle/(:num)'] = 'rbac/toggle_menu/$1';
 
-$route['roles'] = 'roles/index';
-$route['roles/save-permissions/(:num)'] = 'roles/save_permissions/$1';
+$route['sidebar/manage'] = 'rbac/sidebar';
+$route['sidebar/manage/store'] = 'rbac/store_menu';
+$route['sidebar/manage/update/(:num)'] = 'rbac/update_menu/$1';
+$route['sidebar/manage/toggle/(:num)'] = 'rbac/toggle_menu/$1';
 
-$route['users'] = 'users/index';
-$route['users/store'] = 'users/store';
-$route['users/roles/(:num)'] = 'users/update_roles/$1';
-$route['users/toggle/(:num)'] = 'users/toggle/$1';
+$route['roles'] = 'rbac/roles';
+$route['roles/save-permissions/(:num)'] = 'rbac/save_role_permissions/$1';
+
+$route['users'] = 'rbac/users';
+$route['users/store'] = 'rbac/store_user';
+$route['users/roles/(:num)'] = 'rbac/update_user_roles/$1';
+$route['users/toggle/(:num)'] = 'rbac/toggle_user/$1';

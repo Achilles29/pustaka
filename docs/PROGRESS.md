@@ -310,3 +310,43 @@ Catatan:
 
 - Folder source Tabler tidak boleh ikut repository.
 - Jika ingin aset offline, ambil hanya file dist CSS/JS yang dibutuhkan dan simpan di folder aset khusus tanpa file demo/config upstream.
+
+## 2026-07-29 07:35 WIB
+
+Status: sidebar admin dirapikan ulang dan modul RBAC/sidebar dibuat sebagai fondasi kanonis.
+
+Yang dilakukan:
+
+- Membuat migrasi `sql/2026-07-29c_rbac_sidebar_foundation_refine.sql`.
+- Menambahkan registry halaman `system.pages.index`.
+- Mengubah menu sistem menjadi `Pengaturan Akses` dengan submenu User, Role & Permission, Registry Halaman, dan Sidebar.
+- Memindahkan modul pengaturan akses ke controller utama `Rbac`.
+- Membuat route kanonis:
+  - `/rbac/roles`
+  - `/rbac/users`
+  - `/rbac/pages`
+  - `/rbac/sidebar`
+- Menjaga route lama `/roles`, `/users`, dan `/sidebar/manage` sebagai kompatibilitas.
+- Mengganti view lama dengan view baru di `application/views/rbac`.
+- Memperbaiki layout sidebar admin agar rapi, rekursif, memakai ikon dari database, dan siap menerima modul baru.
+- Menambahkan CSS dasar admin di `assets/css/pustaka.css`: sidebar, menu aktif, submenu, topbar, tab RBAC, form permission, dan preview tree.
+- Menambahkan dokumen standar:
+  - `docs/RBAC_AND_SIDEBAR_STANDARD.md`
+  - `docs/CODING_STANDARDS.md`
+  - `docs/HANDOVER.md`
+
+Standar penting:
+
+- Setiap modul baru harus didaftarkan dulu di `sys_page`.
+- Permission role diatur di `auth_role_permission`.
+- Menu/sidebar diatur di `sys_menu` dan sebaiknya mengarah ke `page_id`.
+- Controller admin harus extend `MY_Controller` dan memanggil `$this->require_permission('kode.halaman')`.
+- Sidebar tidak hardcode di view; semua item berasal dari database.
+
+Validasi:
+
+- Migrasi SQL berhasil dijalankan ke database `pustaka`.
+- Lint PHP bersih untuk controller, model, layout, dan view RBAC baru.
+- Smoke test login superadmin berhasil.
+- Route `/admin`, `/rbac/roles`, `/rbac/users`, `/rbac/pages`, `/rbac/sidebar`, `/roles`, `/users`, dan `/sidebar/manage` status 200.
+- Halaman RBAC memuat tab pengaturan dan ikon sidebar.

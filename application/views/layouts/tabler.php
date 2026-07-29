@@ -7,6 +7,7 @@ $menu_items = isset($menu_items) ? $menu_items : array();
 $current_user = isset($current_user) ? $current_user : array();
 $user_roles = isset($user_roles) ? $user_roles : array();
 $tabler_css = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css';
+$tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css';
 $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js';
 $role_labels = array_map(function ($role) {
 	return $role['code'];
@@ -24,6 +25,35 @@ $is_active_menu = function ($item) use (&$is_active_menu, $current_path) {
 	}
 	return false;
 };
+$render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_items, $is_active_menu) {
+	foreach ($items as $item) {
+		$has_children = ! empty($item['children']);
+		$is_active = $is_active_menu($item);
+		$icon = trim((string) ($item['icon'] ?? ''));
+		$icon = $icon !== '' ? $icon : 'ti ti-circle';
+		$url = empty($item['url']) ? '#' : base_url($item['url']);
+		$item_classes = 'admin-menu-item' . ($has_children ? ' has-children' : '') . ($is_active ? ' active' : '');
+		$link_classes = 'admin-menu-link' . ($has_children ? ' admin-menu-toggle' : '');
+		?>
+		<li class="<?= $item_classes; ?>">
+			<a class="<?= $link_classes; ?>" href="<?= $has_children ? '#' : $url; ?>"<?= $has_children ? ' data-bs-toggle="collapse" data-bs-target="#menu-' . (int) $item['id'] . '" role="button" aria-expanded="' . ($is_active ? 'true' : 'false') . '"' : ''; ?>>
+				<span class="admin-menu-icon"><i class="<?= html_escape($icon); ?>"></i></span>
+				<span class="admin-menu-title"><?= html_escape($item['title']); ?></span>
+				<?php if ($has_children): ?>
+					<span class="admin-menu-caret"><i class="ti ti-chevron-right"></i></span>
+				<?php endif; ?>
+			</a>
+			<?php if ($has_children): ?>
+				<div class="collapse admin-submenu<?= $is_active ? ' show' : ''; ?>" id="menu-<?= (int) $item['id']; ?>">
+					<ul class="admin-submenu-list">
+						<?php $render_sidebar_items($item['children'], $depth + 1); ?>
+					</ul>
+				</div>
+			<?php endif; ?>
+		</li>
+		<?php
+	}
+};
 ?>
 <!doctype html>
 <html lang="id">
@@ -33,42 +63,28 @@ $is_active_menu = function ($item) use (&$is_active_menu, $current_path) {
 	<meta name="description" content="Dashboard awal Pustaka Digital Rembang">
 	<title><?= html_escape($title); ?></title>
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
+	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
 </head>
 <body class="admin-body">
 	<div class="page">
-		<aside class="navbar navbar-vertical navbar-expand-lg navbar-dark admin-sidebar">
-			<div class="container-fluid">
+		<aside class="navbar navbar-vertical navbar-expand-lg admin-sidebar">
+			<div class="container-fluid admin-sidebar-inner">
 				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Toggle navigation">
 					<span class="navbar-toggler-icon"></span>
 				</button>
-				<a class="navbar-brand fw-semibold" href="<?= base_url(); ?>" aria-label="Pustaka Digital Rembang">
+				<a class="navbar-brand admin-brand" href="<?= base_url('admin'); ?>" aria-label="Pustaka Digital Rembang">
 					<span class="brand-mark">PR</span>
-					<span>Pustaka Digital Rembang</span>
+					<span class="admin-brand-text">
+						<span>Pustaka Digital</span>
+						<small>Rembang</small>
+					</span>
 				</a>
 
 				<div class="collapse navbar-collapse" id="sidebar-menu">
-					<ul class="navbar-nav pt-lg-3">
-						<?php foreach ($menu_items as $item): ?>
-							<?php $has_children = ! empty($item['children']); ?>
-							<?php $is_active = $is_active_menu($item); ?>
-							<li class="nav-item<?= $has_children ? ' dropdown' : ''; ?><?= $is_active ? ' active' : ''; ?>">
-								<a class="nav-link<?= $has_children ? ' dropdown-toggle' : ''; ?>" href="<?= $has_children || empty($item['url']) ? '#' : base_url($item['url']); ?>"<?= $has_children ? ' data-bs-toggle="dropdown" data-bs-auto-close="false" role="button" aria-expanded="' . ($is_active ? 'true' : 'false') . '"' : ''; ?>>
-									<span class="nav-link-icon d-md-none d-lg-inline-block"><?= html_escape(strtoupper(substr($item['title'], 0, 1))); ?></span>
-									<span class="nav-link-title"><?= html_escape($item['title']); ?></span>
-								</a>
-								<?php if ($has_children): ?>
-									<div class="dropdown-menu<?= $is_active ? ' show' : ''; ?>">
-										<?php foreach ($item['children'] as $child): ?>
-											<?php $child_active = $is_active_menu($child); ?>
-											<a class="dropdown-item<?= $child_active ? ' active' : ''; ?>" href="<?= empty($child['url']) ? '#' : base_url($child['url']); ?>">
-												<?= html_escape($child['title']); ?>
-											</a>
-										<?php endforeach; ?>
-									</div>
-								<?php endif; ?>
-							</li>
-						<?php endforeach; ?>
+					<div class="admin-sidebar-label">Menu Utama</div>
+					<ul class="admin-menu">
+						<?php $render_sidebar_items($menu_items); ?>
 					</ul>
 				</div>
 			</div>
