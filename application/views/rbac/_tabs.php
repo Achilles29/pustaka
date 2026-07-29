@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 $active_rbac_tab = isset($active_rbac_tab) ? $active_rbac_tab : 'roles';
 $tabs = [
-	'roles' => ['label' => 'Role & Permission', 'url' => 'rbac/roles', 'icon' => 'ti ti-key'],
+	'roles' => ['label' => 'Tipe User', 'url' => 'rbac/roles', 'icon' => 'ti ti-users-group'],
 	'users' => ['label' => 'User', 'url' => 'rbac/users', 'icon' => 'ti ti-users'],
 	'pages' => ['label' => 'Registry Halaman', 'url' => 'rbac/pages', 'icon' => 'ti ti-file-settings'],
 	'sidebar' => ['label' => 'Sidebar', 'url' => 'rbac/sidebar', 'icon' => 'ti ti-layout-sidebar'],

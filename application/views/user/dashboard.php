@@ -9,14 +9,17 @@ $tabler_css = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.m
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title><?= html_escape($title); ?></title>
+	<link rel="icon" href="<?= base_url('img/favicon.ico'); ?>" type="image/x-icon">
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar">
 		<a class="public-brand" href="<?= base_url(); ?>">
-			<span class="brand-mark">PR</span>
-			<span>Pustaka Digital Rembang</span>
+			<span class="brand-logo-shell">
+				<img class="brand-logo" src="<?= base_url('img/logo-small.jpeg'); ?>" alt="Logo Kabupaten Rembang">
+			</span>
+			<span class="public-brand-text">Pustaka Digital Rembang</span>
 		</a>
 		<div class="btn-list">
 			<a href="<?= base_url(); ?>" class="btn btn-outline-primary btn-sm">Beranda</a>

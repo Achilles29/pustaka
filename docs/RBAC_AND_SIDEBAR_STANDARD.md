@@ -12,6 +12,13 @@ RBAC dan sidebar adalah fondasi semua modul admin. Modul baru tidak boleh menamb
 4. Controller admin extend `MY_Controller`.
 5. Controller memanggil `require_permission($page_code, $action)`.
 
+Keputusan dasar:
+
+- Database operasional aplikasi baru adalah `pustaka`.
+- Database `inlislite_v3` hanya menjadi acuan, staging, dan sumber migrasi.
+- Hak akses aplikasi disimpan di database, bukan hardcoded di controller/view.
+- Sidebar/menu aplikasi disimpan di database agar bisa diatur lewat UI.
+
 ## Route Utama
 
 - `/` : landing page publik.
@@ -42,11 +49,30 @@ Route lama berikut hanya compatibility alias:
 - `auth_session_log`
 - `audit_log`
 
-## Role Awal
+## Tipe User / Role
 
-- `SUPERADMIN`: akses penuh semua halaman dan pengaturan.
-- `ADMIN`: akses panel admin dan modul operasional.
-- `USER`: akses dashboard pemustaka, bukan panel admin.
+| Kode | Nama | Scope | Fungsi |
+| --- | --- | --- | --- |
+| `SUPERADMIN` | Superadmin | Global | Mengelola seluruh sistem, role, user, sidebar, data master, dan audit. |
+| `ADMIN` | Admin | Perpustakaan/unit | Mengelola operasional perpustakaan/unit yang ditugaskan. |
+| `USER` | User/Pemustaka | Diri sendiri | Mengakses dashboard pemustaka, katalog, membership, event, dan layanan digital. |
+
+Halaman `/rbac/roles` menampilkan daftar tipe user terlebih dahulu. Hak akses dibuka dari aksi `Hak Akses` per tipe user, sehingga matrix permission tidak memenuhi halaman utama.
+
+Tipe user tambahan dapat dibuat dari UI, misalnya:
+
+- `ADMIN_DESA`
+- `ADMIN_SEKOLAH`
+- `ADMIN_SWASTA`
+- `MITRA_POJOK_BACA`
+
+Role turunan yang mengelola unit/perpustakaan memakai `scope_type = library`. Role publik/pemustaka memakai `scope_type = self`. Role lintas sistem memakai `scope_type = global`.
+
+Seed user lokal:
+
+- `superadmin` / `admin123` role `SUPERADMIN`
+- `admin` / `admin123` role `ADMIN`
+- `pemustaka` / `admin123` role `USER`
 
 ## Menu Sidebar
 
@@ -63,6 +89,25 @@ Field penting:
 - `is_visible`: tampil/sembunyi dari sidebar.
 - `is_active`: aktif/nonaktif.
 - `is_locked`: menu sistem yang tidak boleh dimatikan dari UI.
+
+Urutan dan parent sidebar diatur lewat drag-and-drop di `/rbac/sidebar`. Simpan urutan akan memperbarui `sys_menu.parent_id` dan `sys_menu.sort_order`.
+
+Menu sistem saat ini:
+
+- Dashboard
+- Data Master
+  - Master Wilayah
+- Perpustakaan GIS
+- Katalog
+- Membership
+- Pojok Baca
+- Event
+- Pengaturan Akses
+  - User
+  - Tipe User
+  - Registry Halaman
+  - Sidebar
+  - Audit Log
 
 ## Standar Menambah Modul Admin
 
@@ -114,9 +159,29 @@ RBAC views:
 - `application/views/rbac/pages.php`
 - `application/views/rbac/sidebar.php`
 - `application/views/rbac/_tabs.php`
+- `application/views/rbac/_role_modal.php`
+- `application/views/rbac/_user_scope_modal.php`
 
 CSS utama:
 
 - `assets/css/pustaka.css`
 
 Tabler dan Tabler Icons dimuat dari CDN. Jangan commit folder source `tabler-dev`.
+
+## Implementasi Aktif
+
+- Modul RBAC dipusatkan di controller `Rbac`.
+- View RBAC berada di `application/views/rbac`.
+- Controller lama `Roles`, `Users`, dan `Sidebar` hanya wrapper kompatibilitas.
+- Registry halaman dikelola dari `/rbac/pages`.
+- Pengaturan sidebar dikelola dari `/rbac/sidebar`.
+- Sidebar admin memakai ikon Tabler dari database dan struktur menu rekursif.
+- Pengaturan role/scope user dilakukan dari modal per user di `/rbac/users`; tabel utama tetap ringkas dan hanya menampilkan ringkasan role serta cakupan akses.
+- Pengaturan tipe user dilakukan dari `/rbac/roles`; tambah/edit tipe user memakai modal, sedangkan permission memakai aksi `Hak Akses`.
+
+## Lanjutan
+
+- Reset password dan wajib ganti password setelah login pertama.
+- Audit log untuk perubahan user, role, permission, dan sidebar.
+- Pembatasan `library_id` untuk admin unit/sekolah/desa/mitra.
+- UI override permission spesifik per user.

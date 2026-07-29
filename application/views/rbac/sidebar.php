@@ -1,27 +1,28 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-$is_edit = ! empty($edit_menu);
-$form_action = $is_edit ? base_url('rbac/sidebar/update/' . (int) $edit_menu['id']) : base_url('rbac/sidebar/store');
-$value = function ($key, $default = '') use ($edit_menu) {
-	return $edit_menu[$key] ?? $default;
-};
-$render_tree = function ($items, $depth = 0) use (&$render_tree) {
+$active_tab = ! empty($edit_menu) ? 'data' : 'structure';
+$render_sortable = function ($items, $parent_id = 0, $depth = 0) use (&$render_sortable) {
+	echo '<ul class="sidebar-sortable" data-parent-id="' . (int) $parent_id . '">';
 	foreach ($items as $item) {
 		$icon = trim((string) ($item['icon'] ?? '')) ?: 'ti ti-circle';
-		echo '<div class="menu-tree-row" style="padding-left:' . ((int) $depth * 18 + 12) . 'px">';
+		echo '<li class="sidebar-sortable-item" draggable="true" data-menu-id="' . (int) $item['id'] . '">';
+		echo '<div class="sortable-row">';
+		echo '<span class="drag-handle" title="Geser urutan"><i class="ti ti-grip-vertical"></i></span>';
 		echo '<span class="menu-tree-icon"><i class="' . html_escape($icon) . '"></i></span>';
+		echo '<span class="sortable-title">';
 		echo '<span class="fw-semibold">' . html_escape($item['title']) . '</span>';
-		echo '<span class="text-secondary ms-2"><code>' . html_escape($item['menu_key']) . '</code></span>';
+		echo '<span class="text-secondary small"><code>' . html_escape($item['menu_key']) . '</code> - ' . html_escape($item['url'] ?: 'group') . '</span>';
+		echo '</span>';
 		echo '<span class="badge bg-secondary-lt ms-auto">' . (int) $item['sort_order'] . '</span>';
 		if (empty($item['is_active'])) {
-			echo '<span class="badge bg-red-lt ms-2">nonaktif</span>';
+			echo '<span class="badge bg-red-lt ms-2">Nonaktif</span>';
 		}
 		echo '</div>';
-		if (! empty($item['children'])) {
-			$render_tree($item['children'], $depth + 1);
-		}
+		$render_sortable($item['children'] ?? [], (int) $item['id'], $depth + 1);
+		echo '</li>';
 	}
+	echo '</ul>';
 };
 ?>
 <div class="page-header d-print-none">
@@ -30,6 +31,11 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 			<div class="col">
 				<div class="page-pretitle">RBAC Foundation</div>
 				<h1 class="page-title">Sidebar</h1>
+			</div>
+			<div class="col-auto ms-auto">
+				<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#menu-modal">
+					<i class="ti ti-plus me-1"></i>Tambah Menu
+				</button>
 			</div>
 		</div>
 	</div>
@@ -45,93 +51,64 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 			<div class="alert alert-danger"><?= html_escape($this->session->flashdata('error')); ?></div>
 		<?php endif; ?>
 
-		<div class="row row-cards">
-			<div class="col-lg-4">
-				<div class="card admin-card">
-					<div class="card-header">
-						<h2 class="card-title"><?= $is_edit ? 'Edit Menu' : 'Tambah Menu'; ?></h2>
-					</div>
+		<div class="row row-cards mb-3">
+			<div class="col-6 col-lg-3">
+				<div class="card stat-card stat-card-compact">
 					<div class="card-body">
-						<?= form_open($form_action); ?>
-							<div class="mb-3">
-								<label class="form-label">Parent</label>
-								<select name="parent_id" class="form-select">
-									<option value="">Menu utama</option>
-									<?php foreach ($parents as $parent): ?>
-										<option value="<?= (int) $parent['id']; ?>" <?= (int) $value('parent_id') === (int) $parent['id'] ? 'selected' : ''; ?>>
-											<?= html_escape($parent['title']); ?>
-										</option>
-									<?php endforeach; ?>
-								</select>
+						<div class="subheader">Total Menu</div>
+						<div class="h1 mb-0"><?= number_format(count($menus), 0, ',', '.'); ?></div>
+					</div>
+				</div>
+			</div>
+			<div class="col-6 col-lg-3">
+				<div class="card stat-card stat-card-compact">
+					<div class="card-body">
+						<div class="subheader">Menu Aktif</div>
+						<div class="h1 mb-0"><?= number_format(count(array_filter($menus, function ($menu) { return (int) $menu['is_active'] === 1; })), 0, ',', '.'); ?></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="card admin-card data-workspace">
+			<div class="card-header workspace-header">
+				<div>
+					<h2 class="card-title">Struktur Sidebar</h2>
+					<div class="text-secondary small">Geser menu untuk mengatur urutan atau memindahkan menu ke grup lain.</div>
+				</div>
+				<ul class="nav nav-tabs card-header-tabs workspace-tabs" role="tablist">
+					<li class="nav-item" role="presentation">
+						<a href="#tab-sidebar-structure" class="nav-link <?= $active_tab === 'structure' ? 'active' : ''; ?>" data-bs-toggle="tab" role="tab">
+							<i class="ti ti-list-tree me-1"></i>Struktur
+						</a>
+					</li>
+					<li class="nav-item" role="presentation">
+						<a href="#tab-sidebar-data" class="nav-link <?= $active_tab === 'data' ? 'active' : ''; ?>" data-bs-toggle="tab" role="tab">
+							<i class="ti ti-table me-1"></i>Data Menu
+						</a>
+					</li>
+				</ul>
+			</div>
+
+			<div class="tab-content">
+				<div class="tab-pane <?= $active_tab === 'structure' ? 'active show' : ''; ?>" id="tab-sidebar-structure" role="tabpanel">
+					<div class="card-body">
+						<?= form_open('rbac/sidebar/reorder', ['id' => 'sidebar-order-form']); ?>
+							<input type="hidden" name="menu_order" id="menu-order-input">
+							<div class="sortable-shell">
+								<?php $render_sortable($menu_tree); ?>
 							</div>
-							<div class="mb-3">
-								<label class="form-label">Halaman Permission</label>
-								<select name="page_id" class="form-select">
-									<option value="">Grup menu tanpa halaman</option>
-									<?php foreach ($pages as $page): ?>
-										<option value="<?= (int) $page['id']; ?>" <?= (int) $value('page_id') === (int) $page['id'] ? 'selected' : ''; ?>>
-											<?= html_escape($page['module'] . ' - ' . $page['title']); ?>
-										</option>
-									<?php endforeach; ?>
-								</select>
-							</div>
-							<div class="mb-3">
-								<label class="form-label">Menu Key</label>
-								<input type="text" class="form-control" name="menu_key" value="<?= html_escape($value('menu_key')); ?>" required>
-							</div>
-							<div class="mb-3">
-								<label class="form-label">Judul</label>
-								<input type="text" class="form-control" name="title" value="<?= html_escape($value('title')); ?>" required>
-							</div>
-							<div class="mb-3">
-								<label class="form-label">URL</label>
-								<input type="text" class="form-control" name="url" value="<?= html_escape($value('url')); ?>" placeholder="contoh: catalog">
-							</div>
-							<div class="row">
-								<div class="col-md-6 mb-3">
-									<label class="form-label">Ikon</label>
-									<input type="text" class="form-control" name="icon" value="<?= html_escape($value('icon', 'ti ti-circle')); ?>" placeholder="ti ti-books">
-								</div>
-								<div class="col-md-6 mb-3">
-									<label class="form-label">Urutan</label>
-									<input type="number" class="form-control" name="sort_order" value="<?= html_escape($value('sort_order', 100)); ?>">
-								</div>
-							</div>
-							<label class="form-check">
-								<input class="form-check-input" type="checkbox" name="is_visible" value="1" <?= (int) $value('is_visible', 1) === 1 ? 'checked' : ''; ?>>
-								<span class="form-check-label">Tampilkan di sidebar</span>
-							</label>
-							<label class="form-check mb-3">
-								<input class="form-check-input" type="checkbox" name="is_active" value="1" <?= (int) $value('is_active', 1) === 1 ? 'checked' : ''; ?>>
-								<span class="form-check-label">Aktif</span>
-							</label>
-							<div class="btn-list">
-								<button type="submit" class="btn btn-primary"><?= $is_edit ? 'Simpan Perubahan' : 'Tambah Menu'; ?></button>
-								<?php if ($is_edit): ?>
-									<a href="<?= base_url('rbac/sidebar'); ?>" class="btn btn-outline-secondary">Batal</a>
-								<?php endif; ?>
+							<div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+								<button type="submit" class="btn btn-primary">
+									<i class="ti ti-device-floppy me-1"></i>Simpan Urutan
+								</button>
+								<span class="text-secondary small">Submenu tetap mengikuti permission dari halaman yang terhubung.</span>
 							</div>
 						<?= form_close(); ?>
 					</div>
 				</div>
-			</div>
 
-			<div class="col-lg-8">
-				<div class="card admin-card mb-3">
-					<div class="card-header">
-						<h2 class="card-title">Preview Struktur Sidebar</h2>
-					</div>
-					<div class="card-body">
-						<div class="menu-tree">
-							<?php $render_tree($menu_tree); ?>
-						</div>
-					</div>
-				</div>
-
-				<div class="card admin-card">
-					<div class="card-header">
-						<h2 class="card-title">Data Menu</h2>
-					</div>
+				<div class="tab-pane <?= $active_tab === 'data' ? 'active show' : ''; ?>" id="tab-sidebar-data" role="tabpanel">
 					<div class="table-responsive">
 						<table class="table table-vcenter card-table">
 							<thead>
@@ -150,12 +127,16 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 											<div class="text-secondary small"><code><?= html_escape($menu['menu_key']); ?></code> - <?= html_escape($menu['url'] ?: 'group'); ?></div>
 										</td>
 										<td><?= html_escape($menu['page_code'] ?: '-'); ?></td>
-										<td><span class="badge <?= (int) $menu['is_active'] === 1 ? 'bg-green-lt' : 'bg-red-lt'; ?>"><?= (int) $menu['is_active'] === 1 ? 'aktif' : 'nonaktif'; ?></span></td>
+										<td><span class="badge <?= (int) $menu['is_active'] === 1 ? 'bg-green-lt' : 'bg-red-lt'; ?>"><?= (int) $menu['is_active'] === 1 ? 'Aktif' : 'Nonaktif'; ?></span></td>
 										<td>
 											<div class="btn-list flex-nowrap">
-												<a class="btn btn-sm btn-outline-primary" href="<?= base_url('rbac/sidebar?edit_id=' . (int) $menu['id']); ?>">Edit</a>
+												<a class="btn btn-sm btn-action btn-action-primary" title="Edit Menu" href="<?= base_url('rbac/sidebar?edit_id=' . (int) $menu['id']); ?>">
+													<i class="ti ti-edit"></i><span>Edit</span>
+												</a>
 												<?= form_open('rbac/sidebar/toggle/' . (int) $menu['id'], ['class' => 'd-inline']); ?>
-													<button class="btn btn-sm btn-outline-secondary" type="submit"><?= (int) $menu['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan'; ?></button>
+													<button class="btn btn-sm btn-action btn-action-muted" title="<?= (int) $menu['is_active'] === 1 ? 'Nonaktifkan Menu' : 'Aktifkan Menu'; ?>" type="submit">
+														<i class="ti <?= (int) $menu['is_active'] === 1 ? 'ti-toggle-right' : 'ti-toggle-left'; ?>"></i><span><?= (int) $menu['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan'; ?></span>
+													</button>
 												<?= form_close(); ?>
 											</div>
 										</td>
@@ -169,3 +150,72 @@ $render_tree = function ($items, $depth = 0) use (&$render_tree) {
 		</div>
 	</div>
 </div>
+
+<?php $this->load->view('rbac/_menu_modal', compact('edit_menu', 'parents', 'pages')); ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+	var dragged = null;
+
+	document.querySelectorAll('.sidebar-sortable-item').forEach(function (item) {
+		item.addEventListener('dragstart', function () {
+			dragged = item;
+			item.classList.add('is-dragging');
+		});
+		item.addEventListener('dragend', function () {
+			item.classList.remove('is-dragging');
+			document.querySelectorAll('.sidebar-sortable').forEach(function (list) {
+				list.classList.remove('is-drag-over');
+			});
+			dragged = null;
+		});
+	});
+
+	document.querySelectorAll('.sidebar-sortable').forEach(function (list) {
+		list.addEventListener('dragover', function (event) {
+			event.preventDefault();
+			list.classList.add('is-drag-over');
+			if (!dragged || dragged.parentElement === null) {
+				return;
+			}
+			if (list.closest('[data-menu-id="' + dragged.getAttribute('data-menu-id') + '"]') === dragged) {
+				return;
+			}
+
+			var after = Array.prototype.find.call(list.children, function (child) {
+				if (child === dragged || !child.classList.contains('sidebar-sortable-item')) {
+					return false;
+				}
+				return event.clientY <= child.getBoundingClientRect().top + child.offsetHeight / 2;
+			});
+
+			if (after) {
+				list.insertBefore(dragged, after);
+			} else {
+				list.appendChild(dragged);
+			}
+		});
+
+		list.addEventListener('dragleave', function () {
+			list.classList.remove('is-drag-over');
+		});
+	});
+
+	document.getElementById('sidebar-order-form').addEventListener('submit', function () {
+		var payload = [];
+		document.querySelectorAll('.sidebar-sortable').forEach(function (list) {
+			Array.prototype.forEach.call(list.children, function (item, index) {
+				if (!item.classList.contains('sidebar-sortable-item')) {
+					return;
+				}
+				payload.push({
+					id: parseInt(item.getAttribute('data-menu-id'), 10),
+					parent_id: parseInt(list.getAttribute('data-parent-id'), 10) || 0,
+					sort_order: (index + 1) * 10
+				});
+			});
+		});
+		document.getElementById('menu-order-input').value = JSON.stringify(payload);
+	});
+});
+</script>

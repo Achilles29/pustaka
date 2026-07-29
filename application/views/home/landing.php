@@ -10,6 +10,7 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title><?= html_escape($title); ?></title>
+	<link rel="icon" href="<?= base_url('img/favicon.ico'); ?>" type="image/x-icon">
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
@@ -17,9 +18,14 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 <body class="public-page">
 	<header class="public-nav">
 		<a class="public-brand" href="<?= base_url(); ?>">
-			<span class="brand-mark">PR</span>
-			<span>Pustaka Digital Rembang</span>
+			<span class="brand-logo-shell">
+				<img class="brand-logo" src="<?= base_url('img/logo-small.jpeg'); ?>" alt="Logo Kabupaten Rembang">
+			</span>
+			<span class="public-brand-text">Pustaka Digital Rembang</span>
 		</a>
+		<div class="public-agency-strip" aria-label="Logo instansi">
+			<img src="<?= base_url('img/perpusnas.png'); ?>" alt="Logo Perpusnas">
+		</div>
 		<nav class="public-links">
 			<a href="#katalog">Katalog</a>
 			<a href="#jejaring">Jejaring</a>
@@ -31,6 +37,14 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 		<section class="public-hero">
 			<div id="public-map" class="public-map"></div>
 			<div class="public-hero-copy">
+				<div class="hero-logo-row">
+					<span class="hero-logo-card">
+						<img src="<?= base_url('img/logo-small.jpeg'); ?>" alt="Logo Kabupaten Rembang">
+					</span>
+					<span class="hero-logo-card hero-logo-card-wide">
+						<img src="<?= base_url('img/perpusnas.png'); ?>" alt="Logo Perpusnas">
+					</span>
+				</div>
 				<p class="eyebrow">Perpustakaan digital terpadu Kabupaten Rembang</p>
 				<h1>Akses katalog, anggota, event, dan pojok baca digital dalam satu jaringan.</h1>
 				<p class="lead">Portal publik untuk menemukan koleksi dan titik layanan perpustakaan. Admin mengelola data dari panel khusus, pemustaka masuk ke dashboard layanan pribadi.</p>

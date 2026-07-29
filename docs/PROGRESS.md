@@ -350,3 +350,483 @@ Validasi:
 - Smoke test login superadmin berhasil.
 - Route `/admin`, `/rbac/roles`, `/rbac/users`, `/rbac/pages`, `/rbac/sidebar`, `/roles`, `/users`, dan `/sidebar/manage` status 200.
 - Halaman RBAC memuat tab pengaturan dan ikon sidebar.
+
+## 2026-07-29 08:05 WIB
+
+Status: dokumentasi dirapikan agar tidak terlalu banyak file yang tumpang tindih.
+
+Yang dilakukan:
+
+- Mengecek seluruh file di folder `docs`.
+- Menggabungkan isi `AUTH_RBAC_SIDEBAR.md` ke `RBAC_AND_SIDEBAR_STANDARD.md`.
+- Menghapus `AUTH_RBAC_SIDEBAR.md` karena sudah tidak menjadi rujukan utama.
+- Memperbarui `README.md` sebagai peta dokumentasi aktif.
+- Menambahkan penjelasan struktur dokumentasi agar jelas fungsi tiap file.
+- Menambahkan checklist roadmap di `ROADMAP.md`.
+
+Catatan:
+
+- `PRODUCT_VISION_PLUS.md` tetap dipisah sebagai bank ide.
+- `ROADMAP.md` menjadi checklist eksekusi.
+- `PROGRESS.md` tetap sebagai catatan kronologis.
+- `HANDOVER.md` tetap untuk pindah device/onboarding.
+- File scan dan CSV dipertahankan sebagai bukti inventaris INLISLite.
+- Push Git tidak dilakukan otomatis lagi; push dilakukan manual oleh pemilik proyek kecuali ada instruksi eksplisit.
+
+## 2026-07-29 09:10 WIB
+
+Status: Fase 1 Admin dan Data Master dibuat clear.
+
+Yang dilakukan:
+
+- Membuat migrasi `sql/2026-07-29d_phase1_admin_gis_clean.sql`.
+- Menambahkan master wilayah:
+  - `ref_districts`
+  - `ref_villages`
+- Seed wilayah Rembang dari OpenData resmi: 14 kecamatan dan 294 Desa / Kelurahan.
+- Menambahkan field wilayah relasional di `libraries`: `district_id` dan `village_id`.
+- Menambahkan field verifikasi perpustakaan: `is_verified`, `verified_by`, `verified_at`.
+- Menambahkan soft-delete foto perpustakaan: `deleted_at`, `deleted_by`.
+- Menambahkan Audit Log UI di `/audit`.
+- Menambahkan menu `Audit Log` di `Pengaturan Akses`.
+- Menambahkan `Audit_model` dan helper `audit_event()` di `MY_Controller`.
+- Menambahkan `Region_model` untuk master kecamatan dan Desa / Kelurahan.
+- Memperbarui CRUD Perpustakaan GIS:
+  - filter kecamatan,
+  - dropdown kecamatan dan Desa / Kelurahan,
+  - set foto utama,
+  - hapus foto galeri secara soft-delete,
+  - verifikasi data,
+  - audit create/update/status/photo/verify.
+- Memperbarui RBAC User agar user bisa diberi `library_id`.
+- Menerapkan scope admin lokal: jika user memiliki `library_id`, data GIS dibatasi ke perpustakaan tersebut.
+- Memperbarui dashboard admin agar menampilkan ringkasan Fase 1.
+
+Validasi:
+
+- Lint PHP bersih untuk controller, model, dan view yang berubah.
+- Migrasi SQL berhasil dijalankan ke database `pustaka`.
+- Master wilayah terisi 14 kecamatan dan 294 Desa / Kelurahan.
+- Route `/admin`, `/libraries`, `/libraries/create`, `/rbac/users`, dan `/audit` status 200 tanpa PHP error.
+- User `admin` tidak bisa mengakses `/audit` dan mendapat status 403.
+
+## 2026-07-29 09:35 WIB
+
+Status: kodifikasi master wilayah disesuaikan dengan ketentuan proyek.
+
+Yang dilakukan:
+
+- Mengubah kode kecamatan dari format lama `10`, `20`, dan seterusnya menjadi dua digit terakhir kode wilayah:
+  - `01` Sumber
+  - `02` Bulu
+  - `03` Gunem
+  - `04` Sale
+  - `05` Sarang
+  - `06` Sedan
+  - `07` Pamotan
+  - `08` Sulang
+  - `09` Kaliori
+  - `10` Rembang
+  - `11` Pancur
+  - `12` Kragan
+  - `13` Sluke
+  - `14` Lasem
+- Menambahkan `province_code = 33`, `regency_code = 17`, dan `full_code = 33.17.xx` ke `ref_districts`.
+- Menambahkan `province_code`, `regency_code`, `district_code`, dan `area_type` ke `ref_villages`.
+- Mengubah label UI menjadi `Desa / Kelurahan`.
+- Menyiapkan `area_type` agar 7 kelurahan bisa ditandai admin nanti tanpa ubah schema.
+
+Validasi:
+
+- Database lokal berhasil dimigrasikan ulang.
+- `ref_districts` berisi 14 kecamatan dengan kode `01..14`.
+- `ref_villages` tetap berisi 294 Desa / Kelurahan dengan kode wilayah lengkap.
+
+## 2026-07-29 10:05 WIB
+
+Status: UI CRUD Master Wilayah selesai dan Fase 2 dimulai dari schema katalog.
+
+Yang dilakukan:
+
+- Menambahkan controller `Regions`.
+- Menambahkan view `application/views/regions/index.php`.
+- Menambahkan CRUD kecamatan:
+  - tambah,
+  - edit,
+  - aktif/nonaktif.
+- Menambahkan CRUD Desa / Kelurahan:
+  - tambah,
+  - edit,
+  - aktif/nonaktif,
+  - filter kecamatan,
+  - filter tipe `desa`/`kelurahan`.
+- Menambahkan audit log untuk perubahan kecamatan dan Desa / Kelurahan.
+- Menambahkan route `/regions`.
+- Menambahkan menu `Data Master > Master Wilayah`.
+- Membuat migrasi `sql/2026-07-29e_regions_crud_catalog_phase2.sql`.
+- Memulai Fase 2 dengan schema:
+  - `books`,
+  - `book_authors`,
+  - `book_subjects`,
+  - `book_items`,
+  - `digital_assets`,
+  - `catalog_sync_runs`,
+  - `catalog_sync_maps`.
+- Mengubah `/catalog` dari placeholder menjadi dashboard katalog awal.
+- Menambahkan halaman `/catalog/sync` untuk status sinkronisasi.
+
+Catatan:
+
+- Data operasional perpustakaan/katalog belum diimport.
+- Fase 2 dimulai dari schema dan pemetaan ID agar import INLISLite bisa dry-run dulu.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-07-29 10:45 WIB
+
+Status: standar UI CRUD diperjelas, halaman awal ditata ulang, dan fondasi migrasi member dibuat.
+
+Yang dilakukan:
+
+- Menambahkan standar coding untuk pola UI CRUD:
+  - halaman `index` hanya berisi data, ringkasan, filter, pagination, dan aksi,
+  - form tambah/edit dipisah dari index,
+  - form kecil memakai modal,
+  - form besar/kompleks memakai halaman `create`/`edit`,
+  - data besar wajib memakai `limit` dan `offset`.
+- Menata ulang UI Master Wilayah:
+  - card ringkasan,
+  - filter pencarian,
+  - filter baris per halaman,
+  - pagination,
+  - modal tambah/edit Kecamatan,
+  - modal tambah/edit Desa / Kelurahan.
+- Menata ulang UI RBAC User, Registry Halaman, dan Sidebar agar form tambah/edit tidak lagi menjadi panel permanen di halaman index.
+- Menata ulang halaman Perpustakaan GIS dengan `per_page`, pagination server-side, dan total hasil filter.
+- Menata ulang Audit Log dengan `per_page`, pagination server-side, dan total log.
+- Scan ulang data penting INLISLite untuk memastikan cakupan migrasi:
+  - `catalogs`: 12.749,
+  - `collections`: 22.256,
+  - `catalog_ruas`: 159.429,
+  - `catalog_subruas`: 144.963,
+  - `members`: 5.389,
+  - `memberguesses`: 40.324,
+  - `collectionloans`: 31.229,
+  - `collectionloanitems`: 2.200,
+  - `opaclogs`: 5.098,
+  - `opaclogs_keyword`: 5.043,
+  - `catalogfiles`: 0.
+- Membuat migrasi `sql/2026-07-29f_members_migration_login_foundation.sql`.
+- Menambahkan tabel `members` dan `member_sync_runs`.
+- Menambahkan registry halaman `members.sync` dan permission view untuk `SUPERADMIN`.
+- Mengubah `Members` dari placeholder menjadi dashboard membership.
+- Menambahkan model `Member_model`.
+- Menambahkan halaman `/members/sync`.
+
+Keputusan:
+
+- Sinkronisasi katalog berarti proses ETL read-only dari database sumber `inlislite_v3` ke schema aplikasi `pustaka`, bukan memakai tabel INLISLite langsung sebagai tabel operasional.
+- Semua data INLISLite yang memang dibutuhkan harus bisa dimigrasikan ke `pustaka`, tetapi tabel sistem/cache/form internal INLISLite tidak perlu diwarisi sebagai schema operasional.
+- Semua anggota INLISLite yang valid akan dibuatkan akun login role `USER`.
+- Password awal standar member hasil migrasi: `PustakaRembang#2026`.
+- Member wajib mengganti password pada login pertama melalui `auth_user.force_password_change = 1`.
+
+Validasi:
+
+- Migrasi SQL membership berhasil dijalankan ke database `pustaka`.
+- Tabel `members` dan `member_sync_runs` tersedia.
+- Halaman `members.sync` tersedia di `sys_page` dan hanya `SUPERADMIN` yang mendapat akses view awal.
+- Lint PHP bersih untuk controller/model/view member, Master Wilayah, dan view RBAC yang diubah.
+- HTTP smoke test login `superadmin` berhasil untuk `/admin`, `/libraries`, `/regions`, `/rbac/users`, `/rbac/pages`, `/rbac/sidebar`, `/audit`, `/catalog`, `/catalog/sync`, `/members`, dan `/members/sync`.
+
+Catatan:
+
+- Import data member belum dijalankan; langkah berikutnya adalah importer dry-run dari `inlislite_v3.members` ke `members` dan `auth_user`.
+- Verifikasi visual dengan Browser plugin belum bisa dijalankan karena koneksi browser lokal gagal dengan error internal `sandboxCwd must use the file URI scheme`; fallback validasi dilakukan lewat HTTP smoke test.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-07-29 11:25 WIB
+
+Status: standar mobile, tab workspace, modal edit, drag-drop sidebar, dan adopsi logic INLISLite diperkuat.
+
+Yang dilakukan:
+
+- Menambahkan standar bahwa semua halaman wajib mobile friendly.
+- Menetapkan pola: jika satu route memuat beberapa kelompok data, gunakan tab dalam satu workspace/card.
+- Mengubah `/regions` menjadi tab:
+  - `Kecamatan`,
+  - `Desa / Kelurahan`.
+- Mengubah tombol aksi menjadi tombol ikon ringkas untuk edit/toggle pada halaman yang dirapikan.
+- Menambahkan helper global di layout admin untuk membuka modal edit lewat `data-pustaka-open-modal`.
+- Menghapus pola script modal per-view yang rentan tidak konsisten.
+- Menambahkan mode mobile table card otomatis melalui `data-label` dari header tabel.
+- Menambahkan drag-and-drop di `/rbac/sidebar`:
+  - tab `Struktur` untuk geser urutan/menu,
+  - tab `Data Menu` untuk edit detail,
+  - endpoint `rbac/sidebar/reorder`,
+  - penyimpanan ke `sys_menu.parent_id` dan `sys_menu.sort_order`,
+  - pengaman agar menu tidak menjadi parent untuk dirinya sendiri/turunannya.
+- Mempercantik ulang komponen admin:
+  - workspace tabs,
+  - responsive footer pagination,
+  - sortable shell,
+  - drag handle,
+  - action button ikon,
+  - card table mode untuk mobile.
+- Membaca logic INLISLite dari folder `C:\xampp\htdocs\inlislite3` untuk modul yang akan diadopsi:
+  - pengkatalogan katalog/cover/konten digital,
+  - digital collection/OPAC availability,
+  - model katalog/koleksi/member/catalogfiles,
+  - tampilan foto anggota.
+
+Temuan INLISLite yang dicatat:
+
+- Cover memakai `catalogs.CoverURL` dan folder worksheet `uploaded_files/sampul_koleksi/original/{WorksheetDir}`.
+- Konten digital memakai `catalogfiles.FileURL`, `FileFlash`, `isCompress`, dan `IsPublish`.
+- File digital lama berada di `uploaded_files/dokumen_isi/{WorksheetDir}`.
+- Eksemplar penting dari `collections`: barcode, NoInduk, RFID, lokasi, kategori, media, sumber, status, rule akses, OPAC, booking.
+- OPAC lama hanya menampilkan `catalogs.IsOPAC = 1`.
+- Ketersediaan memakai `collections.Status_id = 1` dan booking yang sudah kedaluwarsa.
+- Foto anggota memakai `members.PhotoUrl`, fallback ke `members.ID`, lalu fallback `nophoto.jpg`.
+
+Validasi:
+
+- Lint PHP bersih untuk layout, view `/regions`, modal region/RBAC, controller RBAC, model Menu, dan routes.
+- HTTP smoke test berhasil untuk `/regions` tab kecamatan/desa, URL edit modal region, URL edit modal registry halaman, `/rbac/sidebar`, dan URL edit modal sidebar.
+- Endpoint `POST /rbac/sidebar/reorder` berhasil menyimpan payload urutan saat ini dan kembali ke `/rbac/sidebar` dengan flash sukses.
+- Marker modal edit `data-pustaka-open-modal` hanya muncul pada URL edit, bukan pada index normal.
+
+Catatan:
+
+- Verifikasi visual via Browser plugin masih gagal karena error internal `sandboxCwd must use the file URI scheme`; validasi dilakukan lewat lint dan HTTP smoke test.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-07-29 20:45 WIB
+
+Status: perapihan visual admin, tab, tombol aksi, dan RBAC lanjutan selesai.
+
+Yang dilakukan:
+
+- Mengubah tema admin ke biru Demokrat dan putih melalui `assets/css/pustaka.css`.
+- Memperjelas tab halaman/tampilan dengan pola workspace segmented dan state aktif kontras.
+- Mengubah tombol aksi tabel dari ikon-only menjadi ikon plus label singkat agar edit/toggle jelas di desktop dan mobile.
+- Merapikan `/catalog`:
+  - ringkasan dipadatkan menjadi metric ribbon,
+  - tabel utama masuk tab `Data`,
+  - statistik sumber dan mapping dipindah ke tab terpisah agar tabel tidak terlalu turun.
+- Merapikan `/members` dengan pola yang sama seperti katalog.
+- Merapikan `/rbac/users`:
+  - tabel utama hanya menampilkan ringkasan user, status, role, scope, dan login terakhir,
+  - pengaturan role dan cakupan perpustakaan dipindah ke modal edit per user.
+- Mengubah `/rbac/roles` menjadi halaman `Tipe User`:
+  - daftar tipe user tampil terlebih dahulu,
+  - tambah/edit tipe user tersedia lewat modal,
+  - matrix permission dibuka dari aksi `Hak Akses` per tipe user.
+- Mempertahankan `/rbac/sidebar` sebagai pengaturan drag-and-drop dan data menu dalam tab yang lebih jelas.
+
+Validasi:
+
+- Lint PHP bersih untuk controller/model/view yang diubah: `Rbac`, `Role_model`, `User_model`, layout admin, view RBAC, view region, view library, view catalog, view members, dan routes.
+- HTTP smoke test login `superadmin` berhasil untuk `/catalog`, `/members`, `/rbac/roles`, `/rbac/users`, `/rbac/pages`, `/rbac/sidebar`, `/regions`, dan `/libraries`.
+- URL edit yang ditemukan otomatis pada `/regions`, `/rbac/roles`, `/rbac/users`, `/rbac/pages`, dan `/rbac/sidebar` berhasil diakses dengan status 200.
+- Marker modal edit `data-pustaka-open-modal` muncul pada halaman edit yang memang memakai modal.
+
+Catatan:
+
+- Browser plugin untuk inspeksi visual masih gagal dari lingkungan Codex dengan error internal `sandboxCwd must use the file URI scheme`; fallback validasi memakai lint dan HTTP smoke test.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-07-29 21:05 WIB
+
+Status: branding resmi lokal dipasang.
+
+Yang dilakukan:
+
+- Memakai favicon dari `img/favicon.ico`.
+- Mengganti brand mark teks `PR` dengan logo Kabupaten Rembang dari `img/logo-small.jpeg` pada:
+  - landing page,
+  - login,
+  - admin sidebar,
+  - dashboard pemustaka.
+- Menambahkan logo Perpusnas dari `img/perpusnas.png` pada navbar landing dan hero landing.
+- Menambahkan CSS `brand-logo-shell`, `brand-logo`, `hero-logo-row`, dan `public-agency-strip` agar logo stabil, rapi, dan mobile friendly.
+- Menyesuaikan background login agar tetap konsisten dengan tema biru Demokrat dan putih.
+
+Validasi:
+
+- Lint PHP bersih untuk view `layouts/tabler.php`, `auth/login.php`, `home/landing.php`, dan `user/dashboard.php`.
+- HTTP asset check berhasil:
+  - `/img/favicon.ico` status 200,
+  - `/img/logo-small.jpeg` status 200,
+  - `/img/perpusnas.png` status 200,
+  - `/` status 200,
+  - `/login` status 200.
+
+Catatan:
+
+- Push Git tidak dilakukan otomatis.
+
+## 2026-07-29 21:35 WIB
+
+Status: modal edit diperkuat, sidebar dipoles, dan tombol sinkronisasi mulai menarik data.
+
+Yang dilakukan:
+
+- Menambahkan fallback JavaScript modal di layout admin:
+  - URL seperti `/regions?tab=districts&edit_district_id=2` tetap membuka modal edit walaupun Bootstrap/Tabler JS dari CDN gagal dimuat.
+  - Tombol tambah/edit berbasis `data-bs-toggle="modal"` tetap bisa membuka modal tanpa Bootstrap JS.
+  - Tombol close, klik backdrop, dan tombol `Esc` ditangani oleh fallback.
+- Menambahkan fallback tab agar tab workspace tetap bisa dipakai bila Bootstrap JS tidak tersedia.
+- Mempercantik ulang sidebar:
+  - warna biru dibuat lebih dalam,
+  - teks menu dan submenu dibuat lebih kontras,
+  - icon menu diberi bidang visual,
+  - active/hover state dibuat lebih tegas.
+- Menambahkan endpoint sinkronisasi katalog:
+  - `POST /catalog/sync/run`
+  - menarik batch dari `inlislite_v3.catalogs` ke `books`,
+  - menarik eksemplar dari `inlislite_v3.collections` ke `book_items`,
+  - mencatat run ke `catalog_sync_runs` dan mapping ke `catalog_sync_maps`.
+- Menambahkan endpoint sinkronisasi member:
+  - `POST /members/sync/run`
+  - menarik batch dari `inlislite_v3.members` ke `members`,
+  - membuat akun login di `auth_user`,
+  - memberi role `USER`,
+  - password awal `PustakaRembang#2026`,
+  - akun login member dibuat aktif agar semua hasil migrasi bisa masuk aplikasi; status membership historis tetap disimpan di tabel `members`.
+- Menambahkan panel aksi sinkronisasi dengan pilihan batch 500, 1.000, dan 2.000 data pada `/catalog/sync` dan `/members/sync`.
+- Memperbaiki query join lintas database dengan collation eksplisit karena `pustaka` dan `inlislite_v3` berbeda collation.
+
+Validasi:
+
+- Lint PHP bersih untuk layout, controller/model Catalog, controller/model Members, view sync, dan routes.
+- HTTP smoke test berhasil untuk `/catalog`, `/catalog/sync`, `/members`, `/members/sync`, dan `/regions?tab=districts&edit_district_id=2`.
+- Batch test katalog berhasil:
+  - `books`: 3 row,
+  - `book_items`: 5 row,
+  - run terakhir status `success`.
+- Batch test member berhasil:
+  - `members`: 3 row,
+  - akun member di `auth_user`: 3 row,
+  - run terakhir status `success`.
+- Login member hasil migrasi berhasil memakai `M.63` / `PustakaRembang#2026` dan redirect ke `/user/dashboard`.
+
+Catatan:
+
+- Browser plugin untuk screenshot visual masih gagal dari lingkungan Codex dengan error internal `sandboxCwd must use the file URI scheme`; fallback validasi memakai lint dan HTTP smoke test.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-07-29 21:50 WIB
+
+Status: label tombol aksi toggle diperjelas.
+
+Yang dilakukan:
+
+- Mengubah semua tombol toggle status dari label ambigu `Aktif`/`Nonaktif` menjadi perintah:
+  - `Aktifkan`
+  - `Nonaktifkan`
+- Halaman yang dicek dan dirapikan:
+  - `/libraries`
+  - `/regions`
+  - `/rbac/users`
+  - `/rbac/roles`
+  - `/rbac/pages`
+  - `/rbac/sidebar`
+- Badge status tetap memakai label kondisi sekarang:
+  - `Aktif`
+  - `Nonaktif`
+  - `Pending`
+  - `Tayang`
+  - `Kedaluwarsa`
+- Status katalog, member, dan riwayat sinkronisasi ikut diterjemahkan agar tidak menampilkan value database mentah seperti `active`, `published`, atau `success`.
+- Standar coding UI diperbarui: tombol aksi harus berupa kata kerja/perintah, sedangkan status berada di badge.
+
+Validasi:
+
+- Lint PHP bersih untuk view yang diubah.
+- HTTP smoke test berhasil untuk `/regions`, `/rbac/users`, `/rbac/roles`, `/rbac/pages`, `/rbac/sidebar`, `/libraries`, `/catalog`, dan `/members`.
+- Pemeriksaan markup memastikan tidak ada tombol toggle dengan label ambigu `Aktif` atau `Nonaktif`.
+
+Catatan:
+
+- Push Git tidak dilakukan otomatis.
+
+## 2026-07-29 22:20 WIB
+
+Status: `/catalog`, `/members`, dan mode sinkronisasi diperkuat.
+
+Yang dilakukan:
+
+- Mengubah `/catalog` menjadi data table operasional:
+  - filter pencarian,
+  - filter status,
+  - filter tahun,
+  - filter baris,
+  - pagination,
+  - thumbnail cover dari folder INLISLite,
+  - jumlah eksemplar,
+  - tombol `Detail`.
+- Menambahkan `/catalog/detail/{id}`:
+  - cover,
+  - bibliografi,
+  - penulis,
+  - subjek,
+  - daftar eksemplar.
+- Mengubah `/members` menjadi data table operasional:
+  - filter pencarian,
+  - filter status membership,
+  - filter status akun,
+  - filter baris,
+  - pagination,
+  - thumbnail foto anggota dari folder INLISLite,
+  - status akun login,
+  - tombol `Detail`.
+- Menambahkan `/members/detail/{id}`:
+  - foto,
+  - profil lengkap,
+  - alamat,
+  - akun login,
+  - password awal migrasi.
+- Menambahkan mode sinkronisasi:
+  - `Import data baru`,
+  - `Update data lama`,
+  - `Dry run / simulasi`.
+- Mode `Import data baru` katalog hanya mengambil katalog yang belum masuk.
+- Mode `Update data lama` katalog menyegarkan buku dan eksemplar yang sudah ada tanpa membuat duplikat.
+- Mode `Dry run / simulasi` katalog/member mencatat run tanpa menulis data target.
+- Mode `Import data baru` member sekarang juga memperbaiki member yang profilnya sudah masuk tetapi akun loginnya belum terhubung.
+- Import member dibuat lebih aman dengan transaksi per row.
+
+Validasi:
+
+- Lint PHP bersih untuk controller, model, routes, dan view katalog/member baru.
+- HTTP smoke test berhasil untuk:
+  - `/catalog`,
+  - `/catalog?q=Dasar&status=published&per_page=10`,
+  - `/catalog/detail/1`,
+  - `/catalog/sync`,
+  - `/members`,
+  - `/members?q=BUDI&status=expired&per_page=10`,
+  - `/members/detail/1`,
+  - `/members/sync`.
+- Mode `Dry run` katalog dan member tidak mengubah jumlah data.
+- Mode `Update data lama` katalog berhasil update 3 buku dan 5 eksemplar tanpa duplikasi.
+- Mode `Update data lama` member berhasil update 3 member tanpa duplikasi.
+- Batch kecil `Import data baru` member berhasil:
+  - memperbaiki 2 member tanpa akun,
+  - menambah 3 member baru,
+  - membuat 5 akun login,
+  - `members_without_user` menjadi 0.
+
+Status data lokal saat validasi:
+
+- `books`: 14.097.
+- `book_items`: 22.927.
+- `members`: 1.593.
+- akun login member: 1.593.
+- member tanpa akun: 0.
+
+Catatan:
+
+- Katalog lokal sudah penuh terhadap sumber saat validasi (`sisa belum masuk: 0`).
+- Member masih bertahap (`sisa belum masuk: 3.796`), lanjutkan dengan batch berikutnya dari UI.
+- Push Git tidak dilakukan otomatis.

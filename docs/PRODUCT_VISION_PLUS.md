@@ -60,7 +60,7 @@ Tampilan GIS:
 - peta semua titik perpustakaan terdaftar,
 - marker berbeda per jenis perpustakaan,
 - panel detail dengan galeri foto,
-- filter kecamatan/desa/sekolah/swasta,
+- filter kecamatan, Desa / Kelurahan, sekolah, dan swasta,
 - pencarian lokasi,
 - statistik sebaran perpustakaan,
 - layer pojok baca digital dan mitra.

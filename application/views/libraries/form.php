@@ -7,6 +7,7 @@ $field = function ($key, $default = '') use ($library) {
 };
 $lat = (float) $field('latitude', -6.7071);
 $lng = (float) $field('longitude', 111.3502);
+$village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 ?>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
@@ -18,7 +19,12 @@ $lng = (float) $field('longitude', 111.3502);
 				<h1 class="page-title"><?= $is_edit ? 'Edit Perpustakaan' : 'Tambah Perpustakaan'; ?></h1>
 			</div>
 			<div class="col-auto ms-auto">
-				<a href="<?= base_url('libraries'); ?>" class="btn btn-outline-secondary">Kembali</a>
+				<div class="btn-list">
+					<?php if ($is_edit && (int) $field('is_verified') !== 1): ?>
+						<a href="<?= base_url('libraries/verify/' . (int) $library['id']); ?>" class="btn btn-outline-success">Verifikasi</a>
+					<?php endif; ?>
+					<a href="<?= base_url('libraries'); ?>" class="btn btn-outline-secondary">Kembali</a>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -75,11 +81,22 @@ $lng = (float) $field('longitude', 111.3502);
 							<div class="row">
 								<div class="col-md-6 mb-3">
 									<label class="form-label">Kecamatan</label>
-									<input type="text" class="form-control" name="district" value="<?= html_escape($field('district')); ?>">
+									<select class="form-select" id="district_id" name="district_id">
+										<option value="">Pilih kecamatan</option>
+										<?php foreach ($districts as $district): ?>
+											<option value="<?= (int) $district['id']; ?>" <?= (int) $field('district_id') === (int) $district['id'] ? 'selected' : ''; ?>>
+												<?= html_escape(($district['full_code'] ?: $district['code']) . ' - ' . $district['name']); ?>
+											</option>
+										<?php endforeach; ?>
+									</select>
+									<input type="hidden" name="district" value="<?= html_escape($field('district')); ?>">
 								</div>
 								<div class="col-md-6 mb-3">
-									<label class="form-label">Desa/Kelurahan</label>
-									<input type="text" class="form-control" name="village" value="<?= html_escape($field('village')); ?>">
+									<label class="form-label">Desa / Kelurahan</label>
+									<select class="form-select" id="village_id" name="village_id" data-current="<?= (int) $field('village_id'); ?>">
+										<option value="">Pilih desa / kelurahan</option>
+									</select>
+									<input type="hidden" name="village" value="<?= html_escape($field('village')); ?>">
 								</div>
 							</div>
 							<div class="row">
@@ -114,6 +131,10 @@ $lng = (float) $field('longitude', 111.3502);
 									</select>
 								</div>
 							</div>
+							<label class="form-check mb-3">
+								<input class="form-check-input" type="checkbox" name="is_verified" value="1" <?= (int) $field('is_verified') === 1 ? 'checked' : ''; ?>>
+								<span class="form-check-label">Data sudah diverifikasi</span>
+							</label>
 							<div class="mb-3">
 								<label class="form-label">Deskripsi</label>
 								<textarea class="form-control" name="description" rows="3"><?= html_escape($field('description')); ?></textarea>
@@ -165,7 +186,18 @@ $lng = (float) $field('longitude', 111.3502);
 									<?php foreach ($photos as $photo): ?>
 										<div class="library-photo-item">
 											<img src="<?= base_url($photo['file_path']); ?>" alt="<?= html_escape($photo['caption'] ?: 'Foto perpustakaan'); ?>">
-											<div class="small text-secondary mt-1"><?= html_escape($photo['caption'] ?: 'Tanpa caption'); ?></div>
+											<div class="d-flex align-items-center gap-2 mt-2">
+												<div class="small text-secondary flex-fill"><?= html_escape($photo['caption'] ?: 'Tanpa caption'); ?></div>
+												<?php if ((int) $photo['is_cover'] === 1): ?>
+													<span class="badge bg-green-lt">cover</span>
+												<?php endif; ?>
+											</div>
+											<div class="btn-list mt-2">
+												<?php if ((int) $photo['is_cover'] !== 1): ?>
+													<a class="btn btn-sm btn-outline-primary" href="<?= base_url('libraries/photos/set-cover/' . (int) $photo['id']); ?>">Jadikan Cover</a>
+												<?php endif; ?>
+												<a class="btn btn-sm btn-outline-danger" href="<?= base_url('libraries/photos/delete/' . (int) $photo['id']); ?>" onclick="return confirm('Hapus foto ini dari galeri?')">Hapus</a>
+											</div>
 										</div>
 									<?php endforeach; ?>
 								</div>
@@ -214,5 +246,31 @@ $lng = (float) $field('longitude', 111.3502);
 	marker.on('dragend', function () {
 		setPosition(marker.getLatLng());
 	});
+
+	var villageMap = <?= $village_json ?: '{}'; ?>;
+	var districtSelect = document.getElementById('district_id');
+	var villageSelect = document.getElementById('village_id');
+	var currentVillage = parseInt(villageSelect.dataset.current || '0', 10);
+
+	function renderVillages() {
+		var districtId = parseInt(districtSelect.value || '0', 10);
+		var villages = villageMap[districtId] || [];
+		villageSelect.innerHTML = '<option value="">Pilih desa / kelurahan</option>';
+		villages.forEach(function (village) {
+			var option = document.createElement('option');
+			option.value = village.id;
+			option.textContent = village.name;
+			if (parseInt(village.id, 10) === currentVillage) {
+				option.selected = true;
+			}
+			villageSelect.appendChild(option);
+		});
+	}
+
+	districtSelect.addEventListener('change', function () {
+		currentVillage = 0;
+		renderVillages();
+	});
+	renderVillages();
 })();
 </script>

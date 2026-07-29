@@ -118,6 +118,35 @@ class Menu_model extends CI_Model
 			->update('sys_menu', $this->clean_menu_payload($data));
 	}
 
+	public function save_order(array $items)
+	{
+		$parent_map = [];
+		foreach ($items as $item) {
+			$parent_map[(int) ($item['id'] ?? 0)] = (int) ($item['parent_id'] ?? 0);
+		}
+
+		$this->db->trans_start();
+		foreach ($items as $item) {
+			$id = (int) ($item['id'] ?? 0);
+			$parent_id = (int) ($item['parent_id'] ?? 0);
+			$sort_order = (int) ($item['sort_order'] ?? 0);
+
+			if ($id <= 0 || $parent_id === $id || $this->would_create_cycle($id, $parent_id, $parent_map)) {
+				continue;
+			}
+
+			$this->db
+				->where('id', $id)
+				->update('sys_menu', [
+					'parent_id' => $parent_id > 0 ? $parent_id : null,
+					'sort_order' => $sort_order,
+				]);
+		}
+		$this->db->trans_complete();
+
+		return $this->db->trans_status();
+	}
+
 	public function has_children($id)
 	{
 		return $this->db
@@ -168,6 +197,20 @@ class Menu_model extends CI_Model
 		return array_values(array_filter($tree, function ($item) {
 			return ! empty($item['page_id']) || ! empty($item['children']);
 		}));
+	}
+
+	private function would_create_cycle($id, $parent_id, array $parent_map)
+	{
+		$seen = [];
+		while ($parent_id > 0) {
+			if ($parent_id === $id || isset($seen[$parent_id])) {
+				return true;
+			}
+			$seen[$parent_id] = true;
+			$parent_id = (int) ($parent_map[$parent_id] ?? 0);
+		}
+
+		return false;
 	}
 
 	private function clean_menu_payload(array $data)

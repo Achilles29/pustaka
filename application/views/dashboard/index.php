@@ -10,6 +10,13 @@ $app_cards = [
 	['key' => 'audit_log', 'accent' => 'red', 'delta' => 'Jejak aktivitas'],
 ];
 
+$library_cards = [
+	['key' => 'total', 'label' => 'Perpustakaan terdaftar', 'accent' => 'blue', 'delta' => 'Direktori GIS'],
+	['key' => 'active', 'label' => 'Status aktif', 'accent' => 'green', 'delta' => 'Siap layanan'],
+	['key' => 'verified', 'label' => 'Terverifikasi', 'accent' => 'cyan', 'delta' => 'Data bersih'],
+	['key' => 'photos', 'label' => 'Foto galeri', 'accent' => 'yellow', 'delta' => 'Profil visual'],
+];
+
 $source_cards = [
 	['key' => 'catalogs', 'accent' => 'blue', 'delta' => 'Metadata bibliografi'],
 	['key' => 'collections', 'accent' => 'teal', 'delta' => 'Eksemplar fisik'],
@@ -46,7 +53,35 @@ $source_cards = [
 			<div class="col-12">
 				<div class="card">
 					<div class="card-header">
-						<h2 class="card-title">Fondasi Database Baru: pustaka</h2>
+						<h2 class="card-title">Fase 1: Admin dan Data Master</h2>
+					</div>
+				</div>
+			</div>
+
+			<?php foreach ($library_cards as $card): ?>
+				<?php $value = (int) ($stats['libraries'][$card['key']] ?? 0); ?>
+				<div class="col-sm-6 col-lg-3">
+					<div class="card stat-card">
+						<div class="card-body">
+							<div class="d-flex align-items-center">
+								<div class="subheader"><?= html_escape($card['label']); ?></div>
+								<div class="ms-auto lh-1">
+									<span class="badge bg-<?= $card['accent']; ?>-lt"><?= html_escape($card['delta']); ?></span>
+								</div>
+							</div>
+							<div class="h1 mb-3"><?= number_format($value, 0, ',', '.'); ?></div>
+							<div class="progress progress-sm">
+								<div class="progress-bar bg-<?= $card['accent']; ?>" style="width: <?= min(100, max(18, $value % 100)); ?>%" role="progressbar"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			<?php endforeach; ?>
+
+			<div class="col-12">
+				<div class="card">
+					<div class="card-header">
+						<h2 class="card-title">Fondasi Sistem: pustaka</h2>
 					</div>
 				</div>
 			</div>
@@ -167,7 +202,7 @@ $source_cards = [
 						<div class="list-group-item">
 							<div class="row align-items-center">
 								<div class="col-auto"><span class="status-dot bg-cyan d-block"></span></div>
-								<div class="col">Tabler sudah dibuild dari folder lokal.</div>
+								<div class="col">Tabler dan Tabler Icons dimuat dari CDN, folder source tidak ikut repo.</div>
 							</div>
 						</div>
 					</div>
@@ -191,18 +226,23 @@ $source_cards = [
 							<tbody>
 								<tr>
 									<td class="fw-semibold">Schema Baru</td>
-									<td>Auth, role, permission, page registry, sidebar database.</td>
-									<td><span class="badge bg-green-lt">Dimulai</span></td>
-								</tr>
-								<tr>
-									<td class="fw-semibold">Importer</td>
-									<td>Ambil katalog, eksemplar, anggota, cover, dan foto.</td>
-									<td><span class="badge bg-green-lt">Dirancang</span></td>
+									<td>Auth, role, permission, page registry, sidebar database, audit log.</td>
+									<td><span class="badge bg-green-lt">Aktif</span></td>
 								</tr>
 								<tr>
 									<td class="fw-semibold">GIS</td>
-									<td>Peta perpustakaan terdaftar se-Kabupaten Rembang.</td>
-									<td><span class="badge bg-yellow-lt">Dicatat</span></td>
+									<td>Master wilayah, koordinat, radius, galeri foto, dan verifikasi data.</td>
+									<td><span class="badge bg-green-lt">Fase 1</span></td>
+								</tr>
+								<tr>
+									<td class="fw-semibold">Scope Admin Lokal</td>
+									<td>User dapat ditautkan ke perpustakaan tertentu melalui RBAC User.</td>
+									<td><span class="badge bg-blue-lt">Aktif</span></td>
+								</tr>
+								<tr>
+									<td class="fw-semibold">Importer</td>
+									<td>Ambil katalog, eksemplar, anggota, cover, dan foto dari INLISLite.</td>
+									<td><span class="badge bg-yellow-lt">Fase 2</span></td>
 								</tr>
 								<tr>
 									<td class="fw-semibold">Reader Aman</td>

@@ -10,6 +10,7 @@ $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title><?= html_escape($title); ?></title>
+	<link rel="icon" href="<?= base_url('img/favicon.ico'); ?>" type="image/x-icon">
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
 </head>
@@ -18,7 +19,9 @@ $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min
 		<div class="container container-tight py-4">
 			<div class="text-center mb-4">
 				<a class="navbar-brand navbar-brand-autodark justify-content-center" href="<?= base_url(); ?>">
-					<span class="brand-mark">PR</span>
+					<span class="brand-logo-shell brand-logo-shell-light">
+						<img class="brand-logo" src="<?= base_url('img/logo-small.jpeg'); ?>" alt="Logo Kabupaten Rembang">
+					</span>
 					<span class="ms-2 fw-bold">Pustaka Digital Rembang</span>
 				</a>
 			</div>

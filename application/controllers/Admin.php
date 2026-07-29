@@ -15,6 +15,7 @@ class Admin extends MY_Controller
 
 	private function get_stats()
 	{
+		$this->load->model('Library_model');
 		$source_db = $this->load->database('inlislite', TRUE);
 
 		$source_tables = [
@@ -38,6 +39,7 @@ class Admin extends MY_Controller
 		return [
 			'app' => $this->count_tables($this->db, $app_tables),
 			'source' => $this->count_tables($source_db, $source_tables),
+			'libraries' => $this->Library_model->dashboard_stats($this->current_library_scope_id()),
 		];
 	}
 

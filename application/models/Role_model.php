@@ -22,6 +22,46 @@ class Role_model extends CI_Model
 			->row_array();
 	}
 
+	public function code_exists($code, $exclude_id = null)
+	{
+		$this->db->from('auth_role')->where('code', $code);
+		if ($exclude_id !== null) {
+			$this->db->where('id !=', (int) $exclude_id);
+		}
+
+		return $this->db->count_all_results() > 0;
+	}
+
+	public function create_role(array $data)
+	{
+		$this->db->insert('auth_role', $this->clean_role_payload($data));
+		return (int) $this->db->insert_id();
+	}
+
+	public function update_role($id, array $data)
+	{
+		$this->db
+			->where('id', (int) $id)
+			->update('auth_role', $this->clean_role_payload($data, true));
+	}
+
+	public function toggle_role($id)
+	{
+		$role = $this->get_role($id);
+		if (! $role || (int) $role['is_system'] === 1) {
+			return false;
+		}
+
+		$this->db
+			->where('id', (int) $id)
+			->update('auth_role', [
+				'is_active' => (int) $role['is_active'] === 1 ? 0 : 1,
+				'updated_at' => date('Y-m-d H:i:s'),
+			]);
+
+		return $role;
+	}
+
 	public function get_pages()
 	{
 		return $this->db
@@ -72,5 +112,23 @@ class Role_model extends CI_Model
 		$this->db->trans_complete();
 
 		return $this->db->trans_status();
+	}
+
+	private function clean_role_payload(array $data, $is_update = false)
+	{
+		$payload = [
+			'code' => strtoupper(trim((string) $data['code'])),
+			'name' => trim((string) $data['name']),
+			'description' => trim((string) ($data['description'] ?? '')) ?: null,
+			'level' => max(1, (int) ($data['level'] ?? 100)),
+			'scope_type' => in_array(($data['scope_type'] ?? 'self'), ['global', 'library', 'self'], true) ? $data['scope_type'] : 'self',
+			'is_active' => empty($data['is_active']) ? 0 : 1,
+		];
+
+		if ($is_update) {
+			$payload['updated_at'] = date('Y-m-d H:i:s');
+		}
+
+		return $payload;
 	}
 }

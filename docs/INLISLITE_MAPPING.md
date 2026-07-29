@@ -158,6 +158,18 @@ Mapping awal:
 - `status_id` dari `members.StatusAnggota_id`
 - `photo_path` dari `members.PhotoUrl`
 
+Implementasi akun login hasil migrasi:
+
+- Semua anggota INLISLite yang valid akan dibuatkan akun di `auth_user`.
+- Role akun hasil migrasi adalah `USER`.
+- Username utama memakai `members.MemberNo`.
+- Jika `MemberNo` kosong/duplikat, username fallback memakai pola `member-{members.ID}`.
+- Password awal standar: `PustakaRembang#2026`.
+- `auth_user.force_password_change = 1` agar pemustaka wajib mengganti password pada login pertama.
+- `auth_user.member_source_id` menyimpan `members.ID`.
+- `members.auth_user_id` menyimpan relasi balik ke akun aplikasi.
+- Nomor identitas tidak ditampilkan mentah di UI; target akhirnya harus dienkripsi/di-mask.
+
 ### `reading_sessions`
 
 Sesi baca digital baru.
@@ -248,10 +260,125 @@ Kolom konseptual:
 6. Normalisasi encoding dari `latin1` ke `utf8mb4`.
 7. Enkripsi kolom sensitif seperti nomor identitas.
 
+## Implementasi Awal Fase 2
+
+Tanggal: 2026-07-29
+
+Schema katalog aplikasi baru sudah disiapkan di `sql/2026-07-29e_regions_crud_catalog_phase2.sql`.
+
+Tabel awal:
+
+- `books`: bibliografi utama dari INLISLite `catalogs`.
+- `book_authors`: penulis/kontributor.
+- `book_subjects`: subjek untuk pencarian.
+- `book_items`: eksemplar/koleksi fisik dari INLISLite `collections`.
+- `digital_assets`: aset PDF/file digital dan kebijakan akses.
+- `catalog_sync_runs`: riwayat proses sinkronisasi.
+- `catalog_sync_maps`: pemetaan ID sumber INLISLite ke ID schema baru.
+
+Status:
+
+- Belum ada import data katalog.
+- `/catalog` menampilkan dashboard schema baru dan statistik sumber INLISLite.
+- `/catalog/sync` menampilkan status sumber dan riwayat sinkronisasi.
+- Langkah berikutnya adalah membuat importer dry-run dari `catalogs` ke `books`.
+
+## Cakupan Migrasi yang Harus Didukung
+
+Scan ulang database `inlislite_v3` pada 2026-07-29 memastikan data utama yang dibutuhkan bisa ditarik ke aplikasi `pustaka`.
+
+Data sumber penting:
+
+- `catalogs`: 12.749 bibliografi.
+- `collections`: 22.256 eksemplar.
+- `catalog_ruas`: 159.429 ruas metadata.
+- `catalog_subruas`: 144.963 subruas metadata.
+- `members`: 5.389 anggota.
+- `memberguesses`: 40.324 kunjungan/tamu.
+- `collectionloans`: 31.229 histori peminjaman.
+- `collectionloanitems`: 2.200 item histori peminjaman.
+- `opaclogs`: 5.098 log OPAC.
+- `opaclogs_keyword`: 5.043 keyword OPAC.
+- `catalogfiles`: 0 row pada database saat ini, sehingga file digital perlu dicocokkan dari folder aset fisik.
+
+Prioritas migrasi:
+
+- Bibliografi: `catalogs`, `catalog_ruas`, `catalog_subruas`, `worksheets`, `publishers` ke `books`, `book_authors`, `book_subjects`.
+- Eksemplar: `collections` dan master koleksi ke `book_items`.
+- Aset visual/digital: `catalogs.CoverURL`, `members.PhotoUrl`, folder `sampul_koleksi`, `foto_anggota`, dan `dokumen_isi` ke storage aplikasi baru.
+- Member: `members`, `jenis_anggota`, `status_anggota`, dan referensi pendidikan/pekerjaan ke `members` dan `auth_user`.
+- Sirkulasi: `collectionloans`, `collectionloanitems`, dan aturan hak pinjam ke tabel histori layanan yang akan dibuat pada fase berikutnya.
+- Analitik: `memberguesses`, `opaclogs`, dan `opaclogs_keyword` ke tabel analitik setelah katalog dan member stabil.
+- Tabel sistem INLISLite seperti RBAC Yii, cache, setting internal, dan form builder tidak menjadi schema operasional baru; hanya dijadikan referensi jika ada data yang masih dibutuhkan.
+
+## Logic INLISLite yang Diadopsi
+
+Pembacaan kode dilakukan dari folder `C:\xampp\htdocs\inlislite3`, terutama:
+
+- `backend/modules/pengkatalogan/controllers/KatalogController.php`
+- `backend/modules/pengkatalogan/views/katalog/_formCover.php`
+- `backend/modules/pengkatalogan/views/katalog/_formDigitalContent.php`
+- `digitalcollection/controllers/KeranjangController.php`
+- `keanggotaan/views/user/index.php`
+- `common/models/Catalogs.php`
+- `common/models/Collections.php`
+- `common/models/Catalogfiles.php`
+- `common/models/Members.php`
+
+Adopsi penting:
+
+- Cover katalog:
+  - `catalogs.CoverURL` hanya menyimpan nama file.
+  - Lokasi fisik mengikuti worksheet: `uploaded_files/sampul_koleksi/original/{WorksheetDir}/{CoverURL}`.
+  - Jika cover kosong, INLISLite memakai fallback `sampul_koleksi/nophoto.jpg` atau `original/Monograf/tdkada.gif`.
+  - Importer harus menyimpan `worksheet_id`, nama worksheet, dan path cover hasil resolve.
+- Konten digital:
+  - `catalogfiles.FileURL` adalah nama file utama.
+  - Path lama mengikuti worksheet: `uploaded_files/dokumen_isi/{WorksheetDir}/{FileURL}`.
+  - `FileFlash` dipakai untuk hasil ekstraksi/flipbook dari zip/rar.
+  - `isCompress` menandai bentuk flipbook/arsip.
+  - `IsPublish` dipakai sebagai kebijakan akses awal: `0` tidak publik, `1` publik, `2` hanya anggota.
+  - Walaupun `catalogfiles` pada dump saat ini kosong, folder `dokumen_isi` tetap harus diaudit sebagai kandidat aset digital yatim.
+- Eksemplar:
+  - `collections` berelasi ke `catalogs` lewat `Catalog_id`.
+  - Barcode `NomorBarcode` unik dan menjadi identitas eksemplar.
+  - Field penting: `NoInduk`, `RFID`, `CallNumber`, `Location_Library_id`, `Location_id`, `Rule_id`, `Category_id`, `Media_id`, `Source_id`, `Status_id`, `ISOPAC`, `BookingMemberID`, dan `BookingExpiredDate`.
+  - Tampilan OPAC lama memakai join ke `collectionmedias`, `collectionrules`, `collectionstatus`, dan `collectionlocations`.
+- Ketersediaan katalog:
+  - INLISLite menghitung eksemplar tersedia dengan `collections.Status_id = 1` dan booking yang sudah kedaluwarsa.
+  - Detail publik hanya mengambil katalog dengan `catalogs.IsOPAC = 1`.
+- Foto anggota:
+  - `members.PhotoUrl` dipakai sebagai nama file foto jika ada.
+  - Jika `PhotoUrl` kosong, INLISLite mencoba fallback ke `members.ID`.
+  - Path lama: `uploaded_files/foto_anggota/{PhotoUrl atau ID}`.
+  - Jika file tidak ada, fallback `nophoto.jpg`.
+- Member:
+  - `MemberNo` dan `IdentityNo` diperlakukan unik di INLISLite.
+  - Data aktif/status bergantung `StatusAnggota_id`; mapping status perlu mengambil tabel master `status_anggota`.
+  - `JenisAnggota_id`, `EducationLevel_id`, `Job_id`, `IdentityType_id`, dan referensi lain tidak boleh dibuang karena dipakai untuk segmentasi layanan.
+
+## Implementasi Awal Membership
+
+Tanggal: 2026-07-29
+
+Schema membership awal sudah disiapkan di `sql/2026-07-29f_members_migration_login_foundation.sql`.
+
+Tabel awal:
+
+- `members`: profil anggota aplikasi baru dan relasi ke `auth_user`.
+- `member_sync_runs`: riwayat sinkronisasi anggota.
+
+Status:
+
+- Belum ada import data member.
+- `/members` menampilkan dashboard membership dan statistik sumber INLISLite.
+- `/members/sync` menampilkan cakupan migrasi member, password awal standar, dan riwayat sinkronisasi.
+- Langkah berikutnya adalah membuat importer dry-run dari `inlislite_v3.members` ke `members` plus `auth_user`.
+
 ## Pertanyaan Data yang Perlu Dijawab
 
 - Sumber INLISLite nanti berupa dump berkala, akses database langsung, API, atau export CSV?
 - Apakah tiap perpustakaan sekolah/desa punya instance INLISLite sendiri atau semua sudah ada di satu database?
 - Bagaimana relasi koleksi digital di `catalogfiles` terhadap file PDF aktual di server?
-- Apakah data anggota INLISLite akan menjadi akun login, atau hanya basis verifikasi membership?
+- Data anggota INLISLite akan menjadi akun login `USER` dengan password awal standar dan wajib ganti password.
 - Apakah histori pinjam fisik perlu tampil ke pemustaka pada MVP?

@@ -2,6 +2,13 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$query_base = $_GET;
+unset($query_base['page']);
+$status_labels = [
+	'active' => 'Aktif',
+	'pending' => 'Pending',
+	'inactive' => 'Nonaktif',
+];
 ?>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
@@ -12,9 +19,11 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 				<div class="page-pretitle">Direktori Terintegrasi</div>
 				<h1 class="page-title">Perpustakaan GIS</h1>
 			</div>
+			<?php if ($can_create): ?>
 			<div class="col-auto ms-auto">
 				<a href="<?= base_url('libraries/create'); ?>" class="btn btn-primary">Tambah Perpustakaan</a>
 			</div>
+			<?php endif; ?>
 		</div>
 	</div>
 </div>
@@ -33,7 +42,7 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 				<?= form_open('libraries', ['method' => 'get', 'class' => 'row g-2 align-items-end']); ?>
 					<div class="col-md-4">
 						<label class="form-label">Cari</label>
-						<input type="text" class="form-control" name="q" value="<?= html_escape($filters['q'] ?? ''); ?>" placeholder="Nama, kode, kecamatan, desa">
+						<input type="text" class="form-control" name="q" value="<?= html_escape($filters['q'] ?? ''); ?>" placeholder="Nama, kode, kecamatan, Desa / Kelurahan">
 					</div>
 					<div class="col-md-3">
 						<label class="form-label">Jenis</label>
@@ -47,11 +56,30 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 						</select>
 					</div>
 					<div class="col-md-3">
+						<label class="form-label">Kecamatan</label>
+						<select name="district_id" class="form-select">
+							<option value="">Semua kecamatan</option>
+							<?php foreach ($districts as $district): ?>
+								<option value="<?= (int) $district['id']; ?>" <?= (int) ($filters['district_id'] ?? 0) === (int) $district['id'] ? 'selected' : ''; ?>>
+									<?= html_escape(($district['full_code'] ?: $district['code']) . ' - ' . $district['name']); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="col-md-2">
 						<label class="form-label">Status</label>
 						<select name="status" class="form-select">
 							<option value="">Semua status</option>
 							<?php foreach (['active' => 'Aktif', 'pending' => 'Pending', 'inactive' => 'Nonaktif'] as $value => $label): ?>
 								<option value="<?= $value; ?>" <?= ($filters['status'] ?? '') === $value ? 'selected' : ''; ?>><?= $label; ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="col-md-2">
+						<label class="form-label">Baris</label>
+						<select name="per_page" class="form-select">
+							<?php foreach ([10, 25, 50, 100] as $option): ?>
+								<option value="<?= $option; ?>" <?= (int) ($per_page ?? 25) === $option ? 'selected' : ''; ?>><?= $option; ?></option>
 							<?php endforeach; ?>
 						</select>
 					</div>
@@ -78,8 +106,8 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 					<div class="col-6">
 						<div class="card stat-card">
 							<div class="card-body">
-								<div class="subheader">Total titik</div>
-								<div class="h1 mb-0"><?= number_format(count($libraries), 0, ',', '.'); ?></div>
+								<div class="subheader">Total hasil</div>
+								<div class="h1 mb-0"><?= number_format((int) $total_libraries, 0, ',', '.'); ?></div>
 							</div>
 						</div>
 					</div>
@@ -113,6 +141,9 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 				<div class="card">
 					<div class="card-header">
 						<h2 class="card-title">Data Perpustakaan</h2>
+						<div class="card-actions text-secondary">
+							Halaman <?= number_format((int) $page, 0, ',', '.'); ?> dari <?= number_format((int) $total_pages, 0, ',', '.'); ?>
+						</div>
 					</div>
 					<div class="table-responsive">
 						<table class="table table-vcenter card-table">
@@ -136,22 +167,24 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 									<tr>
 										<td>
 											<div class="fw-semibold"><?= html_escape($library['name']); ?></div>
-											<div class="text-secondary small"><code><?= html_escape($library['code']); ?></code></div>
+											<div class="text-secondary small"><code><?= html_escape($library['code']); ?></code><?= (int) $library['is_verified'] === 1 ? ' - terverifikasi' : ' - perlu verifikasi'; ?></div>
 										</td>
 										<td><?= html_escape($library['type_name']); ?></td>
-										<td><?= html_escape(trim(($library['village'] ?: '-') . ', ' . ($library['district'] ?: '-'), ', ')); ?></td>
+										<td><?= html_escape(trim(($library['village_name'] ?: $library['village'] ?: '-') . ', ' . ($library['district_name'] ?: $library['district'] ?: '-'), ', ')); ?></td>
 										<td><?= html_escape($library['latitude'] . ', ' . $library['longitude']); ?></td>
 										<td>
 											<span class="badge <?= $library['status'] === 'active' ? 'bg-green-lt' : ($library['status'] === 'pending' ? 'bg-yellow-lt' : 'bg-red-lt'); ?>">
-												<?= html_escape($library['status']); ?>
+												<?= html_escape($status_labels[$library['status']] ?? ucfirst($library['status'])); ?>
 											</span>
 										</td>
 										<td>
 											<div class="btn-list flex-nowrap">
-												<a class="btn btn-sm btn-outline-primary" href="<?= base_url('libraries/edit/' . (int) $library['id']); ?>">Edit</a>
+												<a class="btn btn-sm btn-action btn-action-primary" href="<?= base_url('libraries/edit/' . (int) $library['id']); ?>"><i class="ti ti-edit"></i><span>Edit</span></a>
+												<?php if ($can_edit): ?>
 												<?= form_open('libraries/toggle/' . (int) $library['id'], ['class' => 'd-inline']); ?>
-													<button type="submit" class="btn btn-sm btn-outline-secondary"><?= $library['status'] === 'active' ? 'Nonaktifkan' : 'Aktifkan'; ?></button>
+													<button type="submit" class="btn btn-sm btn-action btn-action-muted" title="<?= $library['status'] === 'active' ? 'Nonaktifkan Perpustakaan' : 'Aktifkan Perpustakaan'; ?>"><i class="ti <?= $library['status'] === 'active' ? 'ti-toggle-right' : 'ti-toggle-left'; ?>"></i><span><?= $library['status'] === 'active' ? 'Nonaktifkan' : 'Aktifkan'; ?></span></button>
 												<?= form_close(); ?>
+												<?php endif; ?>
 											</div>
 										</td>
 									</tr>
@@ -159,6 +192,35 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 							</tbody>
 						</table>
 					</div>
+					<?php if ((int) $total_pages > 1): ?>
+						<div class="card-footer d-flex align-items-center">
+							<p class="m-0 text-secondary">
+								Menampilkan <?= number_format(count($libraries), 0, ',', '.'); ?> dari <?= number_format((int) $total_libraries, 0, ',', '.'); ?> data.
+							</p>
+							<ul class="pagination m-0 ms-auto">
+								<?php
+								$prev_query = array_merge($query_base, ['page' => max(1, (int) $page - 1)]);
+								$next_query = array_merge($query_base, ['page' => min((int) $total_pages, (int) $page + 1)]);
+								?>
+								<li class="page-item <?= (int) $page <= 1 ? 'disabled' : ''; ?>">
+									<a class="page-link" href="<?= base_url('libraries?' . http_build_query($prev_query)); ?>">Sebelumnya</a>
+								</li>
+								<?php
+								$start = max(1, (int) $page - 2);
+								$end = min((int) $total_pages, (int) $page + 2);
+								for ($i = $start; $i <= $end; $i++):
+									$page_query = array_merge($query_base, ['page' => $i]);
+								?>
+									<li class="page-item <?= $i === (int) $page ? 'active' : ''; ?>">
+										<a class="page-link" href="<?= base_url('libraries?' . http_build_query($page_query)); ?>"><?= $i; ?></a>
+									</li>
+								<?php endfor; ?>
+								<li class="page-item <?= (int) $page >= (int) $total_pages ? 'disabled' : ''; ?>">
+									<a class="page-link" href="<?= base_url('libraries?' . http_build_query($next_query)); ?>">Berikutnya</a>
+								</li>
+							</ul>
+						</div>
+					<?php endif; ?>
 				</div>
 			</div>
 		</div>
@@ -190,7 +252,7 @@ $map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SL
 			weight: 1,
 			fillOpacity: 0.06
 		}).addTo(map);
-		marker.bindPopup('<strong>' + point.name + '</strong><br>' + point.type + '<br><a href="' + point.url + '">Edit data</a>');
+		marker.bindPopup('<strong>' + point.name + '</strong><br>' + point.type + '<br>' + (point.village || '-') + ', ' + (point.district || '-') + '<br><a href="' + point.url + '">Edit data</a>');
 		bounds.push([point.lat, point.lng]);
 	});
 

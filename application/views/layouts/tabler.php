@@ -62,6 +62,7 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta name="description" content="Dashboard awal Pustaka Digital Rembang">
 	<title><?= html_escape($title); ?></title>
+	<link rel="icon" href="<?= base_url('img/favicon.ico'); ?>" type="image/x-icon">
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
@@ -74,7 +75,9 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 					<span class="navbar-toggler-icon"></span>
 				</button>
 				<a class="navbar-brand admin-brand" href="<?= base_url('admin'); ?>" aria-label="Pustaka Digital Rembang">
-					<span class="brand-mark">PR</span>
+					<span class="brand-logo-shell">
+						<img class="brand-logo" src="<?= base_url('img/logo-small.jpeg'); ?>" alt="Logo Kabupaten Rembang">
+					</span>
 					<span class="admin-brand-text">
 						<span>Pustaka Digital</span>
 						<small>Rembang</small>
@@ -132,5 +135,156 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 		</div>
 	</div>
 	<script src="<?= $tabler_js; ?>"></script>
+	<script>
+	(function () {
+		function showModalFallback(modalElement) {
+			if (!modalElement) {
+				return;
+			}
+
+			modalElement.classList.add('show');
+			modalElement.style.display = 'block';
+			modalElement.removeAttribute('aria-hidden');
+			modalElement.setAttribute('aria-modal', 'true');
+			modalElement.setAttribute('role', 'dialog');
+			document.body.classList.add('modal-open');
+
+			if (!document.querySelector('.modal-backdrop')) {
+				var backdrop = document.createElement('div');
+				backdrop.className = 'modal-backdrop fade show';
+				backdrop.setAttribute('data-pustaka-modal-backdrop', '1');
+				document.body.appendChild(backdrop);
+			}
+		}
+
+		function hideModalFallback(modalElement) {
+			if (!modalElement) {
+				return;
+			}
+
+			modalElement.classList.remove('show');
+			modalElement.style.display = 'none';
+			modalElement.setAttribute('aria-hidden', 'true');
+			modalElement.removeAttribute('aria-modal');
+			modalElement.removeAttribute('role');
+			document.body.classList.remove('modal-open');
+
+			document.querySelectorAll('[data-pustaka-modal-backdrop="1"]').forEach(function (backdrop) {
+				backdrop.remove();
+			});
+		}
+
+		function showModal(modalElement) {
+			if (!modalElement) {
+				return;
+			}
+
+			if (window.bootstrap && bootstrap.Modal) {
+				bootstrap.Modal.getOrCreateInstance(modalElement).show();
+				return;
+			}
+
+			showModalFallback(modalElement);
+		}
+
+		function openMarkedModals() {
+			document.querySelectorAll('[data-pustaka-open-modal="1"]').forEach(function (modalElement) {
+				showModal(modalElement);
+				modalElement.removeAttribute('data-pustaka-open-modal');
+			});
+		}
+
+		function syncMobileTables() {
+			document.querySelectorAll('.table-responsive table').forEach(function (table) {
+				var headers = Array.prototype.map.call(table.querySelectorAll('thead th'), function (th) {
+					return th.textContent.trim();
+				});
+				table.querySelectorAll('tbody tr').forEach(function (row) {
+					Array.prototype.forEach.call(row.children, function (cell, index) {
+						if (headers[index] && !cell.hasAttribute('data-label')) {
+							cell.setAttribute('data-label', headers[index]);
+						}
+					});
+				});
+			});
+		}
+
+		function bindModalFallback() {
+			if (window.bootstrap && bootstrap.Modal) {
+				return;
+			}
+
+			document.querySelectorAll('[data-bs-toggle="modal"][data-bs-target]').forEach(function (trigger) {
+				trigger.addEventListener('click', function (event) {
+					event.preventDefault();
+					showModalFallback(document.querySelector(trigger.getAttribute('data-bs-target')));
+				});
+			});
+
+			document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function (trigger) {
+				trigger.addEventListener('click', function (event) {
+					event.preventDefault();
+					hideModalFallback(trigger.closest('.modal'));
+				});
+			});
+
+			document.addEventListener('click', function (event) {
+				if (event.target && event.target.matches('[data-pustaka-modal-backdrop="1"]')) {
+					hideModalFallback(document.querySelector('.modal.show'));
+				}
+			});
+
+			document.addEventListener('keydown', function (event) {
+				if (event.key === 'Escape') {
+					hideModalFallback(document.querySelector('.modal.show'));
+				}
+			});
+		}
+
+		function bindTabFallback() {
+			if (window.bootstrap && bootstrap.Tab) {
+				return;
+			}
+
+			document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function (trigger) {
+				trigger.addEventListener('click', function (event) {
+					var targetSelector = trigger.getAttribute('href') || trigger.getAttribute('data-bs-target');
+					var target = targetSelector ? document.querySelector(targetSelector) : null;
+					if (!target) {
+						return;
+					}
+
+					event.preventDefault();
+					var tablist = trigger.closest('[role="tablist"]');
+					var content = target.closest('.tab-content');
+
+					if (tablist) {
+						tablist.querySelectorAll('.nav-link').forEach(function (link) {
+							link.classList.remove('active');
+							link.setAttribute('aria-selected', 'false');
+						});
+					}
+
+					if (content) {
+						content.querySelectorAll('.tab-pane').forEach(function (pane) {
+							pane.classList.remove('active', 'show');
+						});
+					}
+
+					trigger.classList.add('active');
+					trigger.setAttribute('aria-selected', 'true');
+					target.classList.add('active', 'show');
+				});
+			});
+		}
+
+		document.addEventListener('DOMContentLoaded', function () {
+			bindModalFallback();
+			bindTabFallback();
+			openMarkedModals();
+			syncMobileTables();
+		});
+	})();
+	</script>
 </body>
 </html>

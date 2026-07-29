@@ -14,19 +14,13 @@ $actions = [
 	<div class="container-xl">
 		<div class="row g-2 align-items-center">
 			<div class="col">
-				<div class="page-pretitle">RBAC Foundation</div>
-				<h1 class="page-title">Role & Permission</h1>
+				<div class="page-pretitle">Pengaturan Akses</div>
+				<h1 class="page-title">Tipe User</h1>
 			</div>
 			<div class="col-auto ms-auto">
-				<?= form_open('rbac/roles', ['method' => 'get']); ?>
-					<select class="form-select" name="role_id" onchange="this.form.submit()">
-						<?php foreach ($roles as $role): ?>
-							<option value="<?= (int) $role['id']; ?>" <?= ! empty($selected_role) && (int) $selected_role['id'] === (int) $role['id'] ? 'selected' : ''; ?>>
-								<?= html_escape($role['code'] . ' - ' . $role['name']); ?>
-							</option>
-						<?php endforeach; ?>
-					</select>
-				<?= form_close(); ?>
+				<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#role-modal">
+					<i class="ti ti-plus me-1"></i>Tambah Tipe User
+				</button>
 			</div>
 		</div>
 	</div>
@@ -38,15 +32,86 @@ $actions = [
 		<?php if ($this->session->flashdata('success')): ?>
 			<div class="alert alert-success"><?= html_escape($this->session->flashdata('success')); ?></div>
 		<?php endif; ?>
+		<?php if ($this->session->flashdata('error')): ?>
+			<div class="alert alert-danger"><?= html_escape($this->session->flashdata('error')); ?></div>
+		<?php endif; ?>
 
-		<div class="card admin-card">
-			<div class="card-header">
-				<div>
-					<h2 class="card-title"><?= html_escape($selected_role['name'] ?? 'Role'); ?></h2>
-					<div class="text-secondary small"><?= html_escape($selected_role['description'] ?? ''); ?></div>
-				</div>
+		<div class="metric-ribbon">
+			<div class="metric-ribbon-item">
+				<span class="metric-icon"><i class="ti ti-users-group"></i></span>
+				<div><div class="metric-value"><?= number_format(count($roles), 0, ',', '.'); ?></div><div class="metric-label">Tipe User</div></div>
 			</div>
-			<?php if (! empty($selected_role)): ?>
+			<div class="metric-ribbon-item">
+				<span class="metric-icon"><i class="ti ti-shield-check"></i></span>
+				<div><div class="metric-value"><?= number_format(count(array_filter($roles, function ($role) { return (int) $role['is_active'] === 1; })), 0, ',', '.'); ?></div><div class="metric-label">Aktif</div></div>
+			</div>
+			<div class="metric-ribbon-item">
+				<span class="metric-icon"><i class="ti ti-lock-cog"></i></span>
+				<div><div class="metric-value"><?= number_format(count(array_filter($roles, function ($role) { return (int) $role['is_system'] === 1; })), 0, ',', '.'); ?></div><div class="metric-label">Sistem</div></div>
+			</div>
+		</div>
+
+		<div class="card admin-card mb-3">
+			<div class="card-header">
+				<h2 class="card-title">Daftar Tipe User</h2>
+			</div>
+			<div class="table-responsive">
+				<table class="table table-vcenter card-table">
+					<thead>
+						<tr>
+							<th>Tipe User</th>
+							<th>Scope</th>
+							<th>Level</th>
+							<th>Status</th>
+							<th class="w-1">Aksi</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ($roles as $role): ?>
+							<tr>
+								<td>
+									<div class="fw-semibold"><?= html_escape($role['name']); ?></div>
+									<div class="text-secondary small"><code><?= html_escape($role['code']); ?></code><?= $role['description'] ? ' - ' . html_escape($role['description']) : ''; ?></div>
+								</td>
+								<td><span class="chip"><?= html_escape($role['scope_type']); ?></span></td>
+								<td><?= number_format((int) $role['level'], 0, ',', '.'); ?></td>
+								<td>
+									<span class="badge <?= (int) $role['is_active'] === 1 ? 'bg-blue-lt' : 'bg-secondary-lt'; ?>"><?= (int) $role['is_active'] === 1 ? 'Aktif' : 'Nonaktif'; ?></span>
+									<?php if ((int) $role['is_system'] === 1): ?><span class="badge bg-secondary-lt ms-1">Sistem</span><?php endif; ?>
+								</td>
+								<td>
+									<div class="btn-list flex-nowrap">
+										<a class="btn btn-sm btn-action btn-action-primary" href="<?= base_url('rbac/roles?role_id=' . (int) $role['id']); ?>">
+											<i class="ti ti-shield-cog"></i><span>Hak Akses</span>
+										</a>
+										<a class="btn btn-sm btn-action btn-action-muted" href="<?= base_url('rbac/roles?edit_id=' . (int) $role['id']); ?>">
+											<i class="ti ti-edit"></i><span>Edit</span>
+										</a>
+										<?php if ((int) $role['is_system'] !== 1): ?>
+											<?= form_open('rbac/roles/toggle/' . (int) $role['id'], ['class' => 'd-inline']); ?>
+												<button class="btn btn-sm btn-action btn-action-muted" title="<?= (int) $role['is_active'] === 1 ? 'Nonaktifkan Tipe User' : 'Aktifkan Tipe User'; ?>" type="submit">
+													<i class="ti <?= (int) $role['is_active'] === 1 ? 'ti-toggle-right' : 'ti-toggle-left'; ?>"></i><span><?= (int) $role['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan'; ?></span>
+												</button>
+											<?= form_close(); ?>
+										<?php endif; ?>
+									</div>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<?php if (! empty($selected_role)): ?>
+			<div class="card admin-card data-workspace">
+				<div class="card-header workspace-header">
+					<div>
+						<h2 class="card-title">Hak Akses: <?= html_escape($selected_role['name']); ?></h2>
+						<div class="text-secondary small">Pilih izin halaman untuk tipe user ini.</div>
+					</div>
+					<a href="<?= base_url('rbac/roles'); ?>" class="btn btn-outline-secondary btn-sm">Tutup Matrix</a>
+				</div>
 				<?= form_open('rbac/roles/save-permissions/' . (int) $selected_role['id']); ?>
 					<div class="table-responsive">
 						<table class="table table-vcenter card-table permission-table">
@@ -86,7 +151,9 @@ $actions = [
 						</button>
 					</div>
 				<?= form_close(); ?>
-			<?php endif; ?>
-		</div>
+			</div>
+		<?php endif; ?>
 	</div>
 </div>
+
+<?php $this->load->view('rbac/_role_modal', ['edit_role' => $edit_role]); ?>

@@ -17,6 +17,112 @@ Membangun platform perpustakaan digital terpadu untuk seluruh perpustakaan di Ka
 - Buku digital dapat dibaca secara online dengan proteksi berlapis dan opsi download hanya untuk koleksi yang diberi izin.
 - Pojok baca digital dapat dibuka di titik tertentu, misalnya area kerja sama seperti Namua, sekolah, desa, atau ruang publik lain.
 
+## Checklist Roadmap
+
+### Fase 0 - Fondasi dan Discovery
+
+- [x] Membuat dokumentasi visi produk.
+- [x] Membuat roadmap awal.
+- [x] Scan ulang folder INLISLite dan aset terkait.
+- [x] Import database acuan `inlislite_v3`.
+- [x] Menetapkan database operasional baru `pustaka`.
+- [x] Menyiapkan CodeIgniter 3 sebagai basis aplikasi.
+- [x] Membersihkan risiko Git dari folder source `tabler-dev`.
+- [x] Membuat standar coding dan handover developer.
+- [ ] Membuat ERD final aplikasi baru.
+- [ ] Menentukan strategi sinkronisasi INLISLite: live DB, dump periodik, atau job import.
+
+### Fase 1 - MVP Admin dan Data Master
+
+- [x] Login dan logout berbasis database.
+- [x] Role awal `SUPERADMIN`, `ADMIN`, dan `USER`.
+- [x] Redirect login berbeda antara admin dan pemustaka.
+- [x] Admin panel dasar.
+- [x] Sidebar admin berbasis database.
+- [x] Modul RBAC terpadu: user, role, registry halaman, sidebar.
+- [x] Landing page publik di root `/`.
+- [x] Dashboard pemustaka terpisah dari admin panel.
+- [x] Schema dan CRUD awal Perpustakaan GIS.
+- [x] Peta Leaflet untuk titik perpustakaan.
+- [x] Upload foto perpustakaan: hapus foto dan set cover.
+- [x] Master kecamatan dan Desa / Kelurahan Rembang.
+- [x] UI CRUD Master Wilayah.
+- [x] Pembatasan `library_id` untuk admin lokal.
+- [x] Dashboard admin dengan widget operasional awal.
+- [x] Audit log untuk perubahan user, role, sidebar, dan perpustakaan.
+
+### Fase 2 - Katalog dan Sinkronisasi INLISLite
+
+- [x] Scan ulang cakupan data katalog, eksemplar, member, sirkulasi, OPAC, dan aset INLISLite.
+- [ ] Mapping final bibliografi, eksemplar, cover, dan file digital dari INLISLite.
+- [x] Schema katalog aplikasi baru.
+- [ ] Import awal katalog dari `inlislite_v3`.
+- [ ] Import eksemplar/koleksi.
+- [ ] Import cover dan aset buku.
+- [ ] Pencarian katalog publik.
+- [ ] Detail buku dengan lokasi eksemplar.
+- [ ] Panel admin kurasi metadata.
+- [x] Fondasi tabel sinkronisasi dan mapping ID.
+- [ ] Job sinkronisasi ulang dan log perubahan.
+
+### Fase 3 - Membership Digital
+
+- [x] Schema anggota aplikasi baru.
+- [x] Fondasi akun login member hasil migrasi INLISLite.
+- [ ] Import anggota dari INLISLite ke `members` dan `auth_user`.
+- [ ] Profil pemustaka.
+- [ ] Kartu anggota digital dengan QR.
+- [ ] Status membership.
+- [ ] Absensi kunjungan perpustakaan.
+- [ ] Riwayat pinjam dan baca dasar.
+- [ ] Reset password dan wajib ganti password awal.
+
+### Fase 4 - Koleksi Digital dan Reader Aman
+
+- [ ] Storage file digital non-public.
+- [ ] Kebijakan akses per buku: baca online, download bebas, lokasi, member, internal.
+- [ ] Upload PDF dari admin.
+- [ ] Reader online berbasis halaman/token.
+- [ ] Watermark dinamis.
+- [ ] Rate limit dan audit akses konten.
+- [ ] Opsi download hanya untuk koleksi yang diizinkan.
+- [ ] Deteksi anomali baca/scrape.
+
+### Fase 5 - Pojok Baca Digital
+
+- [ ] Schema titik pojok baca.
+- [ ] CRUD titik, mitra, koordinat, radius, jam aktif, dan foto.
+- [ ] QR lokasi dan GPS lock.
+- [ ] Check-in member.
+- [ ] Kuota/token baca.
+- [ ] Koleksi khusus per titik.
+- [ ] Dashboard penggunaan titik.
+- [ ] Pilot mitra, misalnya Namua.
+
+### Fase 6 - Event dan Engagement
+
+- [ ] Schema event.
+- [ ] CRUD event untuk Perpusda dan perpustakaan terintegrasi.
+- [ ] Pendaftaran peserta.
+- [ ] QR attendance/check-in.
+- [ ] Kuota peserta.
+- [ ] Dokumentasi foto event.
+- [ ] Sertifikat digital.
+- [ ] Laporan event.
+
+### Fase 7 - Hardening, Audit, dan Rilis
+
+- [ ] CSRF aktif dan form disesuaikan.
+- [ ] Backup dan restore database.
+- [ ] SOP import/sinkronisasi INLISLite.
+- [ ] Monitoring error.
+- [ ] Optimasi performa search.
+- [ ] Security review PDF reader dan akses file.
+- [ ] Uji role admin lokal/sekolah/desa/swasta.
+- [ ] Pelatihan admin.
+- [ ] Pilot terbatas.
+- [ ] Rilis bertahap.
+
 ## Ruang Lingkup Modul
 
 ### 1. Identitas dan Hak Akses

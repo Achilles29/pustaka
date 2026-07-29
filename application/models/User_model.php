@@ -6,8 +6,9 @@ class User_model extends CI_Model
 	public function get_users()
 	{
 		$users = $this->db
-			->select('u.id, u.username, u.email, u.full_name, u.status, u.last_login_at, u.created_at')
+			->select('u.id, u.username, u.email, u.full_name, u.library_id, u.status, u.last_login_at, u.created_at, l.name AS library_name')
 			->from('auth_user u')
+			->join('libraries l', 'l.id = u.library_id', 'left')
 			->order_by('u.id', 'ASC')
 			->get()
 			->result_array();
@@ -18,6 +19,23 @@ class User_model extends CI_Model
 		unset($user);
 
 		return $users;
+	}
+
+	public function get_user($id)
+	{
+		$user = $this->db
+			->select('u.id, u.username, u.email, u.full_name, u.library_id, u.status, u.last_login_at, u.created_at, l.name AS library_name')
+			->from('auth_user u')
+			->join('libraries l', 'l.id = u.library_id', 'left')
+			->where('u.id', (int) $id)
+			->get()
+			->row_array();
+
+		if ($user) {
+			$user['roles'] = $this->get_user_roles((int) $user['id']);
+		}
+
+		return $user;
 	}
 
 	public function get_roles()
@@ -50,6 +68,7 @@ class User_model extends CI_Model
 			'email' => trim((string) $data['email']) !== '' ? trim((string) $data['email']) : null,
 			'password_hash' => password_hash((string) $data['password'], PASSWORD_BCRYPT),
 			'full_name' => trim((string) $data['full_name']),
+			'library_id' => empty($data['library_id']) ? null : (int) $data['library_id'],
 			'status' => 'active',
 			'force_password_change' => 1,
 		]);
@@ -94,6 +113,15 @@ class User_model extends CI_Model
 				]);
 			}
 		}
+	}
+
+	public function update_library_scope($user_id, $library_id)
+	{
+		$this->db
+			->where('id', (int) $user_id)
+			->update('auth_user', [
+				'library_id' => empty($library_id) ? null : (int) $library_id,
+			]);
 	}
 
 	public function set_status($user_id, $status)
