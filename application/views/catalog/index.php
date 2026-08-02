@@ -17,7 +17,22 @@ unset($query_base['page']);
 $page_url = function ($page) use ($query_base) {
 	return base_url('catalog?' . http_build_query(array_merge($query_base, ['page' => $page])));
 };
-$inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
+$asset_url = function ($book) {
+	$url_path = function ($path) {
+		$segments = explode('/', str_replace('\\', '/', trim((string) $path, '/')));
+		return implode('/', array_map('rawurlencode', $segments));
+	};
+
+	if (! empty($book['cover_local_path'])) {
+		return base_url($url_path($book['cover_local_path']));
+	}
+
+	if (! empty($book['cover_source_path'])) {
+		return base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
+	}
+
+	return '';
+};
 ?>
 <div class="page-header d-print-none">
 	<div class="container-xl">
@@ -27,9 +42,17 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 				<h1 class="page-title">Katalog INLISLite</h1>
 			</div>
 			<div class="col-auto ms-auto">
-				<a href="<?= base_url('catalog/sync'); ?>" class="btn btn-primary">
-					<i class="ti ti-refresh me-1"></i>Sinkronisasi
-				</a>
+				<div class="btn-list">
+					<a href="<?= base_url('catalog/create'); ?>" class="btn btn-outline-primary">
+						<i class="ti ti-plus me-1"></i>Tambah
+					</a>
+					<a href="<?= base_url('catalog/masters'); ?>" class="btn btn-outline-primary">
+						<i class="ti ti-category me-1"></i>Master Buku
+					</a>
+					<a href="<?= base_url('catalog/sync'); ?>" class="btn btn-primary">
+						<i class="ti ti-refresh me-1"></i>Sinkronisasi
+					</a>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -66,7 +89,7 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 				<div class="tab-pane active show" id="tab-catalog-data" role="tabpanel">
 					<div class="card-body workspace-filter">
 						<?= form_open('catalog', ['method' => 'get', 'class' => 'row g-2 align-items-end']); ?>
-							<div class="col-md-4">
+							<div class="col-md-3">
 								<label class="form-label">Cari</label>
 								<input type="text" class="form-control" name="q" value="<?= html_escape($filters['q'] ?? ''); ?>" placeholder="Judul, penulis, ISBN, barcode">
 							</div>
@@ -80,10 +103,28 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 								</select>
 							</div>
 							<div class="col-md-2">
+								<label class="form-label">Kategori Isi</label>
+								<select class="form-select" name="content_category_id">
+									<option value="">Semua</option>
+									<?php foreach ($content_categories as $category): ?>
+										<option value="<?= (int) $category['id']; ?>" <?= (int) ($filters['content_category_id'] ?? 0) === (int) $category['id'] ? 'selected' : ''; ?>><?= html_escape($category['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<label class="form-label">Klasifikasi Isi</label>
+								<select class="form-select" name="content_classification_id">
+									<option value="">Semua</option>
+									<?php foreach ($classification_masters as $classification): ?>
+										<option value="<?= (int) $classification['id']; ?>" <?= (int) ($filters['content_classification_id'] ?? 0) === (int) $classification['id'] ? 'selected' : ''; ?>><?= html_escape($classification['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="col-md-2">
 								<label class="form-label">Tahun</label>
 								<input type="text" class="form-control" name="publish_year" value="<?= html_escape($filters['publish_year'] ?? ''); ?>" placeholder="2004">
 							</div>
-							<div class="col-md-2">
+							<div class="col-md-1">
 								<label class="form-label">Baris</label>
 								<select class="form-select" name="per_page">
 									<?php foreach ([10, 25, 50, 100] as $limit): ?>
@@ -95,6 +136,9 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 								<button type="submit" class="btn btn-outline-primary w-100">
 									<i class="ti ti-filter me-1"></i>Filter
 								</button>
+							</div>
+							<div class="col-md-1">
+								<a href="<?= base_url('catalog'); ?>" class="btn btn-outline-secondary w-100" title="Reset filter" aria-label="Reset filter"><i class="ti ti-refresh"></i></a>
 							</div>
 						<?= form_close(); ?>
 					</div>
@@ -118,7 +162,7 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 									</tr>
 								<?php endif; ?>
 								<?php foreach ($books as $book): ?>
-									<?php $cover_url = ! empty($book['cover_path']) ? $inlislite_base . 'uploaded_files/sampul_koleksi/original/Monograf/' . rawurlencode($book['cover_path']) : ''; ?>
+									<?php $cover_url = $asset_url($book); ?>
 									<tr>
 										<td>
 											<div class="entity-main">
@@ -139,14 +183,20 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 										<td><?= html_escape(trim(($book['publisher'] ?: '-') . ' ' . ($book['publish_year'] ?: ''))); ?></td>
 										<td>
 											<div><?= html_escape($book['classification'] ?: '-'); ?></div>
-											<div class="text-secondary small"><?= html_escape($book['call_number'] ?: '-'); ?></div>
+											<div class="text-secondary small"><?= html_escape($book['content_classification_name'] ?: ($book['call_number'] ?: '-')); ?></div>
+											<div class="small text-blue"><?= html_escape($book['content_category_name'] ?: 'Belum dipetakan'); ?></div>
 										</td>
 										<td><span class="badge bg-blue-lt"><?= number_format((int) $book['item_count'], 0, ',', '.'); ?></span></td>
 										<td><span class="badge bg-blue-lt"><?= html_escape($status_labels[$book['status']] ?? ucfirst($book['status'])); ?></span></td>
 										<td>
-											<a class="btn btn-sm btn-action btn-action-primary" href="<?= base_url('catalog/detail/' . (int) $book['id']); ?>">
-												<i class="ti ti-eye"></i><span>Detail</span>
-											</a>
+											<div class="btn-list flex-nowrap">
+												<a class="btn btn-sm btn-action btn-action-muted" href="<?= base_url('catalog/detail/' . (int) $book['id']); ?>">
+													<i class="ti ti-eye"></i><span>Detail</span>
+												</a>
+												<a class="btn btn-sm btn-action btn-action-primary" href="<?= base_url('catalog/edit/' . (int) $book['id']); ?>">
+													<i class="ti ti-edit"></i><span>Edit</span>
+												</a>
+											</div>
 										</td>
 									</tr>
 								<?php endforeach; ?>

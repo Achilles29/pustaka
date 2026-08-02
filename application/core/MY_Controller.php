@@ -82,6 +82,7 @@ class MY_Controller extends CI_Controller
 		$data['user_perms'] = $this->user_perms;
 		$data['library_scope_id'] = $this->library_scope_id;
 		$data['menu_items'] = $this->Menu_model->get_sidebar_tree($this->user_perms, $this->is_superadmin());
+		$data['admin_inbox'] = $this->admin_inbox_summary();
 		$data['content'] = $this->load->view($view, $data, true);
 
 		return $this->load->view('layouts/tabler', $data, $return);
@@ -122,5 +123,47 @@ class MY_Controller extends CI_Controller
 
 		$library_id = (int) ($this->current_user['library_id'] ?? 0);
 		return $library_id > 0 ? $library_id : null;
+	}
+
+	private function admin_inbox_summary()
+	{
+		$items = [
+			[
+				'label' => 'Pendaftaran',
+				'url' => 'members/registrations',
+				'count' => $this->table_pending_count('member_registration_requests'),
+			],
+			[
+				'label' => 'Request Buku',
+				'url' => 'catalog/requests',
+				'count' => $this->table_pending_count('book_requests'),
+			],
+			[
+				'label' => 'Perpanjangan',
+				'url' => 'members/renewals',
+				'count' => $this->table_pending_count('membership_renewal_requests'),
+			],
+		];
+
+		$total = 0;
+		foreach ($items as $item) {
+			$total += (int) $item['count'];
+		}
+
+		return [
+			'total' => $total,
+			'items' => $items,
+		];
+	}
+
+	private function table_pending_count($table)
+	{
+		if (! $this->db->table_exists($table)) {
+			return 0;
+		}
+
+		return (int) $this->db
+			->where('status', 'pending')
+			->count_all_results($table);
 	}
 }

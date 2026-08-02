@@ -54,14 +54,17 @@ Membangun platform perpustakaan digital terpadu untuk seluruh perpustakaan di Ka
 ### Fase 2 - Katalog dan Sinkronisasi INLISLite
 
 - [x] Scan ulang cakupan data katalog, eksemplar, member, sirkulasi, OPAC, dan aset INLISLite.
-- [ ] Mapping final bibliografi, eksemplar, cover, dan file digital dari INLISLite.
+- [x] Mapping final bibliografi, eksemplar, cover, dan file digital dari INLISLite.
 - [x] Schema katalog aplikasi baru.
-- [ ] Import awal katalog dari `inlislite_v3`.
-- [ ] Import eksemplar/koleksi.
-- [ ] Import cover dan aset buku.
-- [ ] Pencarian katalog publik.
-- [ ] Detail buku dengan lokasi eksemplar.
-- [ ] Panel admin kurasi metadata.
+- [x] Import awal katalog dari `inlislite_v3`.
+- [x] Import eksemplar/koleksi.
+- [x] Import cover dan aset buku.
+- [x] Modul migrasi aset batch dan mirror penuh `uploaded_files` INLISLite.
+- [x] Pencarian katalog publik.
+- [x] Detail buku dengan lokasi eksemplar.
+- [x] CRUD eksemplar/item buku dari detail katalog.
+- [x] Kurasi mapping master INLISLite untuk label kategori, lokasi, aturan pinjam, media, sumber, dan status koleksi.
+- [x] CRUD manual katalog untuk kurasi metadata awal.
 - [x] Fondasi tabel sinkronisasi dan mapping ID.
 - [ ] Job sinkronisasi ulang dan log perubahan.
 
@@ -69,43 +72,61 @@ Membangun platform perpustakaan digital terpadu untuk seluruh perpustakaan di Ka
 
 - [x] Schema anggota aplikasi baru.
 - [x] Fondasi akun login member hasil migrasi INLISLite.
-- [ ] Import anggota dari INLISLite ke `members` dan `auth_user`.
-- [ ] Profil pemustaka.
-- [ ] Kartu anggota digital dengan QR.
-- [ ] Status membership.
-- [ ] Absensi kunjungan perpustakaan.
-- [ ] Riwayat pinjam dan baca dasar.
-- [ ] Reset password dan wajib ganti password awal.
+- [x] Import anggota dari INLISLite ke `members` dan `auth_user` sampai 5.389 sumber selesai.
+- [x] Migrasi foto member lokal untuk member yang sudah masuk aplikasi.
+- [x] CRUD manual member dan profil admin.
+- [x] Kurasi mapping master INLISLite untuk label jenis identitas, gender, jenis anggota, pendidikan, pekerjaan, dan status anggota.
+- [x] Kartu anggota digital dengan QR.
+- [x] Nomor anggota manual baru otomatis dengan format `PDR-3317-YYYY-000001`.
+- [x] Username login member memakai NIK jika tersedia dan password awal `perpus2026`.
+- [x] Status membership.
+- [x] Absensi kunjungan perpustakaan.
+- [x] Riwayat kunjungan dan pinjam dasar dari INLISLite untuk detail member.
+- [x] Label master dasar untuk kunjungan dan hak pinjam transaksi INLISLite.
+- [x] UI data transaksi harian untuk kunjungan tamu, hak pinjam, transaksi pinjam, dan detail item.
+- [x] Reset password dan wajib ganti password awal.
+- [x] Form pendaftaran member online dengan upload foto, KTP, KK, dan surat pendukung luar Rembang.
+- [x] Verifikasi admin untuk pendaftaran online sebelum akun member aktif.
+- [x] Perpanjangan membership dari dashboard/admin.
+- [x] Blokir/aktifkan kartu digital dengan alasan operasional.
+- [x] Reservasi atau request buku dari katalog publik.
 
 ### Fase 4 - Koleksi Digital dan Reader Aman
 
-- [ ] Storage file digital non-public.
-- [ ] Kebijakan akses per buku: baca online, download bebas, lokasi, member, internal.
-- [ ] Upload PDF dari admin.
-- [ ] Reader online berbasis halaman/token.
-- [ ] Watermark dinamis.
-- [ ] Rate limit dan audit akses konten.
-- [ ] Opsi download hanya untuk koleksi yang diizinkan.
+- [x] Storage file digital non-public.
+- [x] Fondasi kebijakan akses per buku: baca online, download bebas, lokasi, member, internal.
+- [x] Enforcement penuh kebijakan akses per buku di reader publik.
+- [x] Upload PDF dari admin.
+- [x] Control room aset PDF dan route reader terproteksi awal.
+- [x] Reader online berbasis halaman/token.
+- [x] Watermark dinamis.
+- [x] Fondasi tabel audit sesi baca.
+- [x] Rate limit dan audit akses konten penuh.
+- [x] Opsi download hanya untuk koleksi yang diizinkan.
 - [ ] Deteksi anomali baca/scrape.
 
 ### Fase 5 - Pojok Baca Digital
 
-- [ ] Schema titik pojok baca.
-- [ ] CRUD titik, mitra, koordinat, radius, jam aktif, dan foto.
-- [ ] QR lokasi dan GPS lock.
-- [ ] Check-in member.
-- [ ] Kuota/token baca.
+- [x] Schema titik pojok baca.
+- [x] CRUD titik, mitra, koordinat, radius, jam aktif, dan kuota.
+- [ ] Galeri/foto titik Pojok Baca.
+- [x] QR lokasi dan GPS lock.
+- [x] Check-in member.
+- [x] Fondasi tabel kuota/token baca.
+- [x] Penerbitan token/check-in dari UI.
 - [ ] Koleksi khusus per titik.
-- [ ] Dashboard penggunaan titik.
+- [x] Control room Pojok Baca dengan ringkasan titik, token, dan sesi.
+- [ ] Dashboard penggunaan titik lanjutan.
 - [ ] Pilot mitra, misalnya Namua.
 
 ### Fase 6 - Event dan Engagement
 
-- [ ] Schema event.
+- [x] Schema event.
 - [ ] CRUD event untuk Perpusda dan perpustakaan terintegrasi.
-- [ ] Pendaftaran peserta.
+- [x] Fondasi tabel pendaftaran peserta.
+- [ ] UI pendaftaran peserta.
 - [ ] QR attendance/check-in.
-- [ ] Kuota peserta.
+- [x] Fondasi kuota peserta.
 - [ ] Dokumentasi foto event.
 - [ ] Sertifikat digital.
 - [ ] Laporan event.
@@ -115,9 +136,10 @@ Membangun platform perpustakaan digital terpadu untuk seluruh perpustakaan di Ka
 - [ ] CSRF aktif dan form disesuaikan.
 - [ ] Backup dan restore database.
 - [ ] SOP import/sinkronisasi INLISLite.
+- [x] Sinkronisasi transaksi harian INLISLite: kunjungan, hak pinjam, transaksi pinjam, item pinjam.
 - [ ] Monitoring error.
 - [ ] Optimasi performa search.
-- [ ] Security review PDF reader dan akses file.
+- [x] Security review PDF reader dan akses file.
 - [ ] Uji role admin lokal/sekolah/desa/swasta.
 - [ ] Pelatihan admin.
 - [ ] Pilot terbatas.
@@ -432,6 +454,68 @@ Output:
 6. Reader PDF aman versi awal.
 7. Pojok baca digital versi pilot.
 8. Event perpustakaan.
+
+## Checklist Roadmap Teknis
+
+- [x] RBAC, sidebar database, dan admin panel dasar.
+- [x] GIS perpustakaan dan master wilayah Rembang.
+- [x] Sinkronisasi katalog/member dari INLISLite ke database `pustaka`.
+- [x] Migrasi aset INLISLite awal dan audit aset missing/failed.
+- [x] Katalog publik dengan filter, reset, cover, detail, dan request buku.
+- [x] Membership digital, kartu digital, verifikasi kartu, dan perpanjangan.
+- [x] Layanan harian dari data transaksi INLISLite.
+- [x] Pendaftaran member online dengan upload berkas dan dashboard pending.
+- [x] Master kategori konten dan klasifikasi isi buku untuk pencarian yang lebih manusiawi.
+- [x] CRUD Pojok Baca dengan radius, kuota, dan map picker draggable.
+- [x] Check-in Pojok Baca tahap awal dan penerbitan token/kuota harian.
+- [x] Pemakaian token Pojok Baca di Reader PDF, pengurangan kuota, dan audit sesi baca.
+- [x] Reader PDF aman dengan storage non-public, render per halaman, watermark, rate limit, dan audit.
+- [ ] CRUD event literasi lengkap, pendaftaran peserta, QR attendance, dan dokumentasi event.
+- [x] Laporan operasional dan export.
+- [ ] Hardening keamanan, backup/restore, dan SOP pilot.
+
+## Review Status 2026-08-03
+
+### Selesai dan tervalidasi lokal
+
+- Fondasi aplikasi CI3, login database, session 3 hari, RBAC, sidebar database, dan admin panel.
+- Landing publik, katalog publik, dashboard member, kartu digital, pendaftaran online, dan perpanjangan membership.
+- GIS perpustakaan, master wilayah Rembang, Pojok Baca dengan map picker draggable, token/kuota, dan monitoring token.
+- Migrasi katalog, eksemplar, member, foto, cover, file digital, dan transaksi harian dari INLISLite lokal.
+- Katalog admin/publik dengan filter, kategori isi, klasifikasi isi, detail buku, request buku, CRUD buku, dan CRUD eksemplar.
+- Membership admin dengan CRUD, akun login member NIK/password `perpus2026`, verifikasi pendaftaran, blokir/aktif kartu digital, dan histori aktivitas.
+- Buku tamu/layanan harian: monitor QR dinamis, pencarian AJAX member by NIK/nomor/nama, tamu rombongan, dan laporan kunjungan.
+- Laporan kunjungan dengan filter tahun/bulan/hari/custom, grafik, export print/PDF browser, dan export Excel `.xls`.
+- Reader aman:
+  - storage PDF non-public,
+  - akses langsung storage ditolak,
+  - PDF utuh hanya untuk `download_allowed`,
+  - aset non-downloadable dirender server-side per halaman PNG,
+  - watermark tertanam,
+  - token sesi,
+  - rate limit,
+  - audit `reader_access_logs`,
+  - gesture tap/swipe/keyboard.
+- Manajemen ebook admin: upload PDF, edit policy, hak publikasi, status draft/aktif/arsip, preview admin aman, dan audit reader detail.
+
+### Selesai sebagai fondasi, masih perlu diperdalam
+
+- Sinkronisasi INLISLite masih manual/batch berbasis database lokal; belum menjadi job terjadwal dengan diff log perubahan yang rapi.
+- Event literasi sudah punya schema dan fondasi controller/view, tetapi CRUD lengkap, pendaftaran peserta, QR attendance, dokumentasi, dan laporan event belum matang.
+- Pojok Baca sudah punya check-in/token/reader, tetapi belum ada galeri/foto titik, koleksi khusus per titik, dan dashboard pemanfaatan lanjutan.
+- Deteksi anomali reader masih berupa rate limit dasar dan audit; belum ada dashboard pola scrape/multi-device.
+- Role admin lokal/sekolah/desa/swasta sudah didukung konsep scope, tetapi perlu uji skenario lengkap per role dan data wilayah/perpustakaan.
+
+### Belum selesai
+
+- ERD final aplikasi baru.
+- Strategi sinkronisasi final INLISLite produksi: live DB, dump periodik, API/export, atau job ETL terjadwal.
+- Backup dan restore database.
+- SOP import/sinkronisasi INLISLite untuk operator.
+- CSRF aktif dan penyesuaian seluruh form.
+- Monitoring error/log aplikasi.
+- Optimasi performa pencarian katalog skala produksi.
+- Pelatihan admin, pilot terbatas, dan rilis bertahap.
 
 ## Risiko Utama
 

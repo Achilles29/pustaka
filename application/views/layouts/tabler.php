@@ -6,8 +6,9 @@ $content = isset($content) ? $content : '';
 $menu_items = isset($menu_items) ? $menu_items : array();
 $current_user = isset($current_user) ? $current_user : array();
 $user_roles = isset($user_roles) ? $user_roles : array();
+$admin_inbox = isset($admin_inbox) ? $admin_inbox : ['total' => 0, 'items' => []];
 $tabler_css = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css';
-$tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css';
+$tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css';
 $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js';
 $role_labels = array_map(function ($role) {
 	return $role['code'];
@@ -63,9 +64,13 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 	<meta name="description" content="Dashboard awal Pustaka Digital Rembang">
 	<title><?= html_escape($title); ?></title>
 	<link rel="icon" href="<?= base_url('img/favicon.ico'); ?>" type="image/x-icon">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,650;9..144,750;9..144,850&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260802j'); ?>">
 </head>
 <body class="admin-body">
 	<div class="page">
@@ -101,6 +106,22 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 						<div class="fw-semibold"><?= html_escape($title); ?></div>
 					</div>
 					<div class="navbar-nav flex-row ms-auto">
+						<div class="nav-item dropdown me-3 admin-inbox-dropdown">
+							<a href="#" class="admin-inbox-trigger <?= (int) ($admin_inbox['total'] ?? 0) > 0 ? 'has-pending' : ''; ?>" data-bs-toggle="dropdown" aria-label="Buka kotak masuk layanan">
+								<i class="ti ti-inbox"></i>
+								<span>Kotak Masuk</span>
+								<strong><?= number_format((int) ($admin_inbox['total'] ?? 0), 0, ',', '.'); ?></strong>
+							</a>
+							<div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow admin-inbox-menu">
+								<div class="dropdown-header">Antrean Layanan</div>
+								<?php foreach (($admin_inbox['items'] ?? []) as $item): ?>
+									<a href="<?= base_url($item['url']); ?>" class="dropdown-item d-flex align-items-center">
+										<span class="flex-fill"><?= html_escape($item['label']); ?></span>
+										<span class="badge <?= (int) $item['count'] > 0 ? 'bg-red-lt' : 'bg-secondary-lt'; ?>"><?= number_format((int) $item['count'], 0, ',', '.'); ?></span>
+									</a>
+								<?php endforeach; ?>
+							</div>
+						</div>
 						<div class="nav-item dropdown">
 							<a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="Buka menu user">
 								<span class="avatar avatar-sm"><?= html_escape(strtoupper(substr($current_user['full_name'] ?? 'PU', 0, 2))); ?></span>

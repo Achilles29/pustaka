@@ -21,6 +21,9 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 /inlislite_v3.sql
 /assets/uploads/*
 !/assets/uploads/.gitkeep
+/storage/cache/
+/storage/debug_screenshots/
+/storage/ebooks/**/*.pdf
 /docs/_note.md
 
 # Tabler development dependencies/build cache

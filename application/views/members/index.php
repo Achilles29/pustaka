@@ -24,7 +24,26 @@ unset($query_base['page']);
 $page_url = function ($page) use ($query_base) {
 	return base_url('members?' . http_build_query(array_merge($query_base, ['page' => $page])));
 };
-$inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
+$asset_url = function ($member) {
+	$url_path = function ($path) {
+		$segments = explode('/', str_replace('\\', '/', trim((string) $path, '/')));
+		return implode('/', array_map('rawurlencode', $segments));
+	};
+
+	if (! empty($member['photo_local_path'])) {
+		return base_url($url_path($member['photo_local_path']));
+	}
+
+	if (! empty($member['photo_source_path']) && strpos($member['photo_source_path'], 'assets/') === 0) {
+		return base_url($url_path($member['photo_source_path']));
+	}
+
+	if (! empty($member['photo_source_path'])) {
+		return base_url($url_path('assets/uploads/inlislite/source_mirror/' . $member['photo_source_path']));
+	}
+
+	return '';
+};
 ?>
 <div class="page-header d-print-none">
 	<div class="container-xl">
@@ -34,9 +53,14 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 				<h1 class="page-title">Membership Digital</h1>
 			</div>
 			<div class="col-auto ms-auto">
-				<a href="<?= base_url('members/sync'); ?>" class="btn btn-primary">
-					<i class="ti ti-refresh me-1"></i>Sinkronisasi Member
-				</a>
+				<div class="btn-list">
+					<a href="<?= base_url('members/create'); ?>" class="btn btn-outline-primary">
+						<i class="ti ti-user-plus me-1"></i>Tambah
+					</a>
+					<a href="<?= base_url('members/sync'); ?>" class="btn btn-primary">
+						<i class="ti ti-refresh me-1"></i>Sinkronisasi Member
+					</a>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -128,7 +152,7 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 									<tr><td colspan="6" class="text-center text-secondary py-4">Belum ada member sesuai filter.</td></tr>
 								<?php endif; ?>
 								<?php foreach ($members as $member): ?>
-									<?php $photo_url = ! empty($member['photo_path']) ? $inlislite_base . 'uploaded_files/foto_anggota/' . rawurlencode($member['photo_path']) : ''; ?>
+									<?php $photo_url = $asset_url($member); ?>
 									<tr>
 										<td>
 											<div class="entity-main">
@@ -142,6 +166,7 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 												<div>
 													<div class="fw-semibold"><?= html_escape($member['full_name']); ?></div>
 													<div class="text-secondary small"><code><?= html_escape($member['member_no'] ?: '-'); ?></code></div>
+													<div class="small text-blue"><?= html_escape($member['member_type_label'] ?: ($member['member_type'] ?: '-')); ?></div>
 												</div>
 											</div>
 										</td>
@@ -156,9 +181,14 @@ $inlislite_base = preg_replace('#/pustaka/?$#', '/inlislite3/', base_url());
 											<div class="text-secondary small"><?= html_escape($member['username'] ?: '-'); ?></div>
 										</td>
 										<td>
-											<a class="btn btn-sm btn-action btn-action-primary" href="<?= base_url('members/detail/' . (int) $member['id']); ?>">
-												<i class="ti ti-eye"></i><span>Detail</span>
-											</a>
+											<div class="btn-list flex-nowrap">
+												<a class="btn btn-sm btn-action btn-action-muted" href="<?= base_url('members/detail/' . (int) $member['id']); ?>">
+													<i class="ti ti-eye"></i><span>Detail</span>
+												</a>
+												<a class="btn btn-sm btn-action btn-action-primary" href="<?= base_url('members/edit/' . (int) $member['id']); ?>">
+													<i class="ti ti-edit"></i><span>Edit</span>
+												</a>
+											</div>
 										</td>
 									</tr>
 								<?php endforeach; ?>

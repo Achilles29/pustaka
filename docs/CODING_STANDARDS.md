@@ -1,6 +1,6 @@
 # Standar Coding Pustaka Digital
 
-Tanggal update: 2026-07-29
+Tanggal update: 2026-08-01
 
 ## Stack
 
@@ -87,6 +87,18 @@ class Catalog extends MY_Controller
 - Untuk halaman campuran yang punya peta/preview/tabel, gunakan tab atau layout split yang tetap nyaman di mobile.
 - Tab halaman dan tab tampilan wajib memakai gaya segmented/pill yang jelas, ada state aktif kontras, dan tidak terlihat seperti tombol kecil yang mengambang.
 
+## Nomenklatur Data
+
+- Nomor anggota manual baru tidak diinput bebas oleh admin.
+- Format nomor anggota manual standar: `PDR-3317-YYYY-000001`.
+  - `PDR`: Pustaka Digital Rembang.
+  - `3317`: kode Jawa Tengah `33` dan Kabupaten Rembang `17`.
+  - `YYYY`: tahun pendaftaran.
+  - `000001`: nomor urut 6 digit per tahun.
+- Nomor anggota hasil migrasi INLISLite tetap mengikuti `members.MemberNo` sumber agar histori lama tetap cocok.
+- Username login member memakai NIK/nomor identitas jika tersedia; fallback sementara memakai nomor anggota bila NIK belum ada.
+- Password awal/reset massal member: `perpus2026`.
+
 ## CSS
 
 - File utama: `assets/css/pustaka.css`.
@@ -119,6 +131,21 @@ Migrasi harus idempotent jika memungkinkan:
 - `CREATE TABLE IF NOT EXISTS`
 - `INSERT ... ON DUPLICATE KEY UPDATE`
 - `INSERT IGNORE`
+
+## Migrasi Aset dan Upload
+
+- File hasil migrasi INLISLite disimpan di `assets/uploads/inlislite`.
+- Simpan path file sebagai path relatif dari root aplikasi, contoh `assets/uploads/inlislite/covers/monograf/19_19.jpg`.
+- Jangan menyimpan absolute path seperti `C:\xampp\htdocs\...` di kolom operasional.
+- View harus membaca `*_local_path` terlebih dahulu.
+- Jika perlu fallback, gunakan mirror lokal `assets/uploads/inlislite/source_mirror/uploaded_files`, bukan URL/folder `/inlislite3`.
+- Status migrasi wajib eksplisit:
+  - `pending` untuk belum diproses,
+  - `copied` untuk berhasil atau file lokal sudah cocok,
+  - `missing` untuk referensi DB yang file fisiknya tidak ditemukan,
+  - `failed` untuk error salin,
+  - `skipped` untuk data tanpa referensi file.
+- `assets/uploads/*` tidak boleh masuk Git. Saat deploy atau pindah device, folder upload dipindahkan dengan arsip/copy terpisah.
 
 ## Dokumentasi
 
@@ -158,3 +185,20 @@ git push --dry-run --porcelain origin main
 Push dilakukan manual oleh pemilik proyek. Jangan push otomatis kecuali ada instruksi eksplisit.
 
 Push protection pernah memblokir commit karena folder source Tabler membawa token demo upstream. Jangan memasukkan source Tabler lagi.
+
+## UI Operasional
+
+- Halaman antrean layanan memakai pola control room: command center, metric ringkas, filter hemat tinggi, table mobile friendly, dan aksi yang menjelaskan tindakan aktif.
+- Label tombol aksi harus berupa perintah, contoh `Blokir Kartu Digital`, `Aktifkan Kartu Digital`, `Simpan Keputusan`; hindari label ambigu seperti hanya `Nonaktif`.
+- Tab halaman memakai segmented/workspace tab yang kontras, bisa scroll horizontal, dan tetap jelas di mobile.
+- Hindari hero besar pada halaman operasional. Pakai page header standar, strip ringkas, filter compact, dan tabel/list yang langsung terbaca.
+- Form data opsional yang memiliki nilai berulang wajib memakai enum/select/radio/checkbox dari model atau master database. Jangan memakai input text bebas untuk tipe member, pendidikan, pekerjaan, status, kategori, atau klasifikasi.
+- Jika data master pendek, halaman index boleh memakai modal tambah/edit. Jika data master panjang, pisahkan index dan form halaman penuh.
+- Halaman publik dan member wajib dicek mobile. Header, form, tab, dan kartu digital tidak boleh membuat horizontal overflow.
+- Link status publik yang memuat data pribadi tidak boleh memakai kode berurutan. Gunakan token acak seperti `public_token`.
+- Koordinat lokasi harus bisa dipilih visual lewat map picker saat modul memakai Leaflet, bukan hanya input latitude/longitude manual.
+- Font aplikasi standar adalah `Plus Jakarta Sans`; headline publik besar boleh memakai `Fraunces` secara hemat.
+- Jangan memakai CDN alias `@latest` untuk library tampilan. Kunci versi agar icon/font tidak berubah mendadak.
+- File ebook/PDF reader disimpan di `storage/ebooks/...`, bukan di `assets/uploads`.
+- Folder `storage` harus ditutup dari akses HTTP langsung dengan `.htaccess`; akses baca wajib melalui controller yang memeriksa login, policy aset, token, rate limit, dan audit.
+- Data seed ebook legal/free harus memakai `source_system` khusus, contoh `sample_free_pdf`, agar mudah dibedakan dari data INLISLite dan aman dijalankan ulang.

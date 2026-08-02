@@ -162,13 +162,14 @@ Implementasi akun login hasil migrasi:
 
 - Semua anggota INLISLite yang valid akan dibuatkan akun di `auth_user`.
 - Role akun hasil migrasi adalah `USER`.
-- Username utama memakai `members.MemberNo`.
-- Jika `MemberNo` kosong/duplikat, username fallback memakai pola `member-{members.ID}`.
-- Password awal standar: `PustakaRembang#2026`.
+- Username utama memakai `members.IdentityNo` sebagai NIK/nomor identitas.
+- Jika `IdentityNo` kosong, username fallback sementara memakai `members.MemberNo`.
+- Jika `IdentityNo` dan `MemberNo` kosong, username fallback memakai pola `member-{members.ID}`.
+- Password awal standar: `perpus2026`.
 - `auth_user.force_password_change = 1` agar pemustaka wajib mengganti password pada login pertama.
 - `auth_user.member_source_id` menyimpan `members.ID`.
 - `members.auth_user_id` menyimpan relasi balik ke akun aplikasi.
-- Nomor identitas tidak ditampilkan mentah di UI; target akhirnya harus dienkripsi/di-mask.
+- Nomor identitas dipakai untuk login member sesuai kebijakan proyek; tampilan publik tetap perlu berhati-hati dan tidak membuka data personal yang tidak diperlukan.
 
 ### `reading_sessions`
 
@@ -278,10 +279,10 @@ Tabel awal:
 
 Status:
 
-- Belum ada import data katalog.
-- `/catalog` menampilkan dashboard schema baru dan statistik sumber INLISLite.
-- `/catalog/sync` menampilkan status sumber dan riwayat sinkronisasi.
-- Langkah berikutnya adalah membuat importer dry-run dari `catalogs` ke `books`.
+- Import katalog sudah berjalan sampai sumber lokal habis saat validasi: 14.097 buku dan 22.927 eksemplar.
+- `/catalog` menampilkan data table katalog, filter, pagination, cover, dan detail buku.
+- `/catalog/sync` menampilkan status sumber, mode import/update/dry-run, dan riwayat sinkronisasi.
+- Aset cover sudah dimigrasi ke local path dan mirror `uploaded_files` sudah tersedia untuk portabilitas server.
 
 ## Cakupan Migrasi yang Harus Didukung
 
@@ -382,3 +383,127 @@ Status:
 - Bagaimana relasi koleksi digital di `catalogfiles` terhadap file PDF aktual di server?
 - Data anggota INLISLite akan menjadi akun login `USER` dengan password awal standar dan wajib ganti password.
 - Apakah histori pinjam fisik perlu tampil ke pemustaka pada MVP?
+
+## Status Migrasi Aset 2026-07-30
+
+Migrasi aset fisik dibuat agar aplikasi `pustaka` bisa dipindah ke server berbeda tanpa bergantung pada folder `C:\xampp\htdocs\inlislite3`.
+
+Target storage lokal:
+
+- `assets/uploads/inlislite/covers`
+- `assets/uploads/inlislite/member_photos`
+- `assets/uploads/inlislite/digital_files`
+- `assets/uploads/inlislite/source_mirror/uploaded_files`
+
+Kolom operasional:
+
+- `books.cover_source_path`
+- `books.cover_local_path`
+- `books.cover_migration_status`
+- `members.photo_source_path`
+- `members.photo_local_path`
+- `members.photo_migration_status`
+
+Hasil terakhir:
+
+- Mirror penuh `uploaded_files`: 13.631 file / 1.486.730.062 byte.
+- Cover referensi: 7.358 copied, 437 missing, 0 pending.
+- Foto referensi member lokal: 767 copied, 2.326 missing, 0 pending.
+- File digital `dokumen_isi`: 4 copied.
+
+Catatan penting:
+
+- View katalog/member memakai local path lebih dulu.
+- Fallback hanya ke mirror lokal `assets/uploads/inlislite/source_mirror/uploaded_files`, bukan ke folder `/inlislite3`.
+- File berstatus `missing` berarti referensi database ada, tetapi file fisik dengan nama tersebut tidak ditemukan saat migrasi.
+
+## Status Migrasi Transaksi 2026-07-30
+
+Schema target transaksi harian:
+
+- `member_visits` dari `memberguesses`.
+- `member_access_rules` dari `memberloanauthorizecategory` dan `memberloanauthorizelocation`.
+- `loan_transactions` dari `collectionloans`.
+- `loan_transaction_items` dari `collectionloanitems`.
+- `transaction_sync_runs` untuk riwayat batch.
+
+Relasi target:
+
+- `member_visits.member_id` dicocokkan dari `memberguesses.NoAnggota` ke `members.member_no`.
+- `member_access_rules.member_id` dicocokkan dari `Member_id` ke `members.source_id`.
+- `loan_transactions.member_id` dicocokkan dari `collectionloans.Member_id` ke `members.source_id`.
+
+UI transaksi:
+
+- `/transactions?tab=visits` menampilkan kunjungan tamu/anggota.
+- `/transactions?tab=access` menampilkan hak pinjam kategori/lokasi.
+- `/transactions?tab=loans` menampilkan header transaksi peminjaman.
+- `/transactions?tab=items` menampilkan detail item pinjam beserta judul/barcode jika mapping koleksi cocok.
+- `/transactions/sync` tetap menjadi halaman sinkronisasi batch dari INLISLite.
+
+## Kurasi Mapping Master 2026-07-30
+
+Migration:
+
+- `sql/2026-07-30c_master_mapping_book_items_crud.sql`
+- `sql/2026-07-30d_transaction_master_labels.sql`
+
+Master referensi disimpan di `inlislite_master_references` dengan kunci unik:
+
+- `source_system`
+- `source_table`
+- `source_id`
+
+Tabel master INLISLite yang sudah ditarik:
+
+- `jenis_anggota`
+- `status_anggota`
+- `master_jenis_identitas`
+- `jenis_kelamin`
+- `master_pendidikan`
+- `master_jenjang_pendidikan`
+- `master_pekerjaan`
+- `collectioncategorys`
+- `collectionrules`
+- `collectionstatus`
+- `collectionlocations`
+- `locations`
+- `location_library`
+- `collectionmedias`
+- `collectionsources`
+- `tujuan_kunjungan`
+
+Pemakaian label:
+
+- `members` menyimpan label identitas, gender, jenis anggota, pendidikan, pekerjaan, dan status anggota.
+- `book_items` menyimpan raw ID INLISLite serta label lokasi perpustakaan, ruang/lokasi koleksi, aturan pinjam, kategori, media, sumber pengadaan, status INLISLite, dan flag OPAC.
+- `member_visits` menyimpan label gender, profesi, pendidikan, status, lokasi, lokasi pinjam, dan tujuan kunjungan jika source menyediakan ID.
+- `member_access_rules` menyimpan `rule_label` untuk hak pinjam kategori/lokasi jika master cocok tersedia.
+
+Mapping status eksemplar aplikasi:
+
+- `collectionstatus.ID = 1` / `Tersedia` -> `available`
+- `collectionstatus.ID = 3` / `Rusak` -> `damaged`
+- `collectionstatus.ID = 4` / `Dalam Perbaikan` -> `damaged`
+- `collectionstatus.ID = 5` / `Dipinjam` -> `loaned`
+- `collectionstatus.ID = 8` / `Hilang` -> `missing`
+- selain itu -> `unknown`
+
+Catatan coverage source lokal:
+
+- Referensi master: 104 baris.
+- Kategori eksemplar terlabel penuh.
+- Status eksemplar terlabel penuh.
+- Ruang/lokasi eksemplar hampir penuh; selisih kecil berasal dari ID lokasi kosong/tidak cocok.
+- Tujuan kunjungan pada data lokal belum terlabel karena `purpose_id` kosong pada batch yang ada.
+- Hak pinjam lokasi sebagian masih fallback ID karena source lokal tidak menyediakan master label yang cocok untuk semua `LocationLoan_id`.
+- `loan_transaction_items.loan_transaction_id` dicocokkan dari `CollectionLoan_id` ke `loan_transactions.source_id`.
+- `loan_transaction_items.book_item_id` dicocokkan dari `Collection_id` ke `book_items.source_id`.
+
+Hasil terakhir terhadap source lokal:
+
+- `memberguesses`: 41.136 sumber, 41.136 target.
+- Hak pinjam kategori/lokasi: 26.864 sumber, 26.864 target.
+- `collectionloans`: 31.561 sumber, 31.561 target.
+- `collectionloanitems`: 2.200 sumber, 2.200 target.
+- Dry-run ulang: kandidat data baru 0.

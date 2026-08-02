@@ -11,11 +11,67 @@
  Target Server Version : 100432
  File Encoding         : 65001
 
- Date: 29/07/2026 21:07:43
+ Date: 03/08/2026 06:38:38
 */
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for asset_migration_items
+-- ----------------------------
+DROP TABLE IF EXISTS `asset_migration_items`;
+CREATE TABLE `asset_migration_items`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `run_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `asset_type` enum('cover','member_photo','digital_file') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_type` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `entity_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'inlislite_v3',
+  `source_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `local_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `status` enum('copied','skipped','missing','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_size` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_asset_migration_items_run`(`run_id`) USING BTREE,
+  INDEX `idx_asset_migration_items_asset`(`asset_type`, `status`) USING BTREE,
+  INDEX `idx_asset_migration_items_entity`(`entity_type`, `entity_id`) USING BTREE,
+  INDEX `idx_asset_migration_items_source`(`source_system`, `source_id`) USING BTREE,
+  CONSTRAINT `fk_asset_migration_items_run` FOREIGN KEY (`run_id`) REFERENCES `asset_migration_runs` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 13180 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for asset_migration_runs
+-- ----------------------------
+DROP TABLE IF EXISTS `asset_migration_runs`;
+CREATE TABLE `asset_migration_runs`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'inlislite_v3',
+  `asset_type` enum('all','cover','member_photo','digital_file') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'all',
+  `mode` enum('copy_missing','refresh_existing','dry_run') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'copy_missing',
+  `status` enum('queued','running','success','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'queued',
+  `source_root` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `target_root` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `started_at` datetime(0) NULL DEFAULT NULL,
+  `finished_at` datetime(0) NULL DEFAULT NULL,
+  `total_source` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `total_copied` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `total_skipped` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `total_missing` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `total_failed` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `created_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_asset_migration_runs_type`(`asset_type`) USING BTREE,
+  INDEX `idx_asset_migration_runs_status`(`status`) USING BTREE,
+  INDEX `idx_asset_migration_runs_created_at`(`created_at`) USING BTREE,
+  INDEX `fk_asset_migration_runs_created_by`(`created_by`) USING BTREE,
+  CONSTRAINT `fk_asset_migration_runs_created_by` FOREIGN KEY (`created_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 22 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for audit_log
@@ -38,16 +94,7 @@ CREATE TABLE `audit_log`  (
   INDEX `idx_audit_log_entity`(`entity_type`, `entity_id`) USING BTREE,
   INDEX `idx_audit_log_created_at`(`created_at`) USING BTREE,
   CONSTRAINT `fk_audit_log_user` FOREIGN KEY (`user_id`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of audit_log
--- ----------------------------
-INSERT INTO `audit_log` VALUES (1, 4, 'permission.denied', 'sys_page', 'audit.index', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '{\"action\":\"view\",\"uri\":\"audit\"}', '2026-07-29 08:08:06');
-INSERT INTO `audit_log` VALUES (2, 4, 'permission.denied', 'sys_page', 'audit.index', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '{\"action\":\"view\",\"uri\":\"audit\"}', '2026-07-29 08:12:04');
-INSERT INTO `audit_log` VALUES (3, 4, 'permission.denied', 'sys_page', 'catalog.sync', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '{\"action\":\"view\",\"uri\":\"catalog\\/sync\"}', '2026-07-29 11:50:53');
-INSERT INTO `audit_log` VALUES (4, 1, 'sidebar.reordered', 'sys_menu', 'MAIN', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', '{\"rows\":[{\"id\":\"1\",\"parent_id\":null,\"page_id\":\"1\",\"menu_area\":\"MAIN\",\"menu_key\":\"dashboard\",\"title\":\"Dashboard\",\"icon\":\"ti ti-layout-dashboard\",\"url\":\"admin\",\"sort_order\":\"10\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:00:52\",\"page_code\":\"dashboard.index\",\"page_title\":\"Dashboard\"},{\"id\":\"35\",\"parent_id\":null,\"page_id\":null,\"menu_area\":\"MAIN\",\"menu_key\":\"master-data\",\"title\":\"Data Master\",\"icon\":\"ti ti-database\",\"url\":null,\"sort_order\":\"15\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-29 11:45:36\",\"updated_at\":null,\"page_code\":null,\"page_title\":null},{\"id\":\"36\",\"parent_id\":\"35\",\"page_id\":\"35\",\"menu_area\":\"MAIN\",\"menu_key\":\"master.regions\",\"title\":\"Master Wilayah\",\"icon\":\"ti ti-map-pin-cog\",\"url\":\"regions\",\"sort_order\":\"16\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 11:45:36\",\"updated_at\":null,\"page_code\":\"regions.index\",\"page_title\":\"Master Wilayah\"},{\"id\":\"2\",\"parent_id\":null,\"page_id\":\"2\",\"menu_area\":\"MAIN\",\"menu_key\":\"libraries.gis\",\"title\":\"Perpustakaan GIS\",\"icon\":\"ti ti-map-2\",\"url\":\"libraries\",\"sort_order\":\"20\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"libraries.index\",\"page_title\":\"Perpustakaan GIS\"},{\"id\":\"3\",\"parent_id\":null,\"page_id\":\"3\",\"menu_area\":\"MAIN\",\"menu_key\":\"catalog\",\"title\":\"Katalog\",\"icon\":\"ti ti-books\",\"url\":\"catalog\",\"sort_order\":\"30\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"catalog.index\",\"page_title\":\"Katalog Buku\"},{\"id\":\"4\",\"parent_id\":null,\"page_id\":\"4\",\"menu_area\":\"MAIN\",\"menu_key\":\"members\",\"title\":\"Membership\",\"icon\":\"ti ti-id-badge-2\",\"url\":\"members\",\"sort_order\":\"40\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"members.index\",\"page_title\":\"Membership Digital\"},{\"id\":\"5\",\"parent_id\":null,\"page_id\":\"6\",\"menu_area\":\"MAIN\",\"menu_key\":\"reading-points\",\"title\":\"Pojok Baca\",\"icon\":\"ti ti-current-location\",\"url\":\"reading-points\",\"sort_order\":\"50\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"reading_points.index\",\"page_title\":\"Pojok Baca Digital\"},{\"id\":\"6\",\"parent_id\":null,\"page_id\":\"7\",\"menu_area\":\"MAIN\",\"menu_key\":\"events\",\"title\":\"Event\",\"icon\":\"ti ti-calendar-event\",\"url\":\"events\",\"sort_order\":\"60\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"events.index\",\"page_title\":\"Event Literasi\"},{\"id\":\"7\",\"parent_id\":null,\"page_id\":null,\"menu_area\":\"MAIN\",\"menu_key\":\"system\",\"title\":\"Pengaturan Akses\",\"icon\":\"ti ti-shield-lock\",\"url\":null,\"sort_order\":\"900\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":null,\"page_title\":null},{\"id\":\"8\",\"parent_id\":\"7\",\"page_id\":\"8\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.users\",\"title\":\"User\",\"icon\":\"ti ti-users\",\"url\":\"rbac\\/users\",\"sort_order\":\"910\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"auth.users.index\",\"page_title\":\"Manajemen User\"},{\"id\":\"9\",\"parent_id\":\"7\",\"page_id\":\"9\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.roles\",\"title\":\"Role & Permission\",\"icon\":\"ti ti-key\",\"url\":\"rbac\\/roles\",\"sort_order\":\"920\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"auth.roles.index\",\"page_title\":\"Role dan Hak Akses\"},{\"id\":\"31\",\"parent_id\":\"7\",\"page_id\":\"31\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.pages\",\"title\":\"Registry Halaman\",\"icon\":\"ti ti-file-settings\",\"url\":\"rbac\\/pages\",\"sort_order\":\"925\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 06:43:15\",\"updated_at\":null,\"page_code\":\"system.pages.index\",\"page_title\":\"Registry Halaman\"},{\"id\":\"10\",\"parent_id\":\"7\",\"page_id\":\"10\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.sidebar\",\"title\":\"Sidebar\",\"icon\":\"ti ti-layout-sidebar\",\"url\":\"rbac\\/sidebar\",\"sort_order\":\"930\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"system.sidebar.manage\",\"page_title\":\"Manajemen Sidebar\"},{\"id\":\"33\",\"parent_id\":\"7\",\"page_id\":\"33\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.audit\",\"title\":\"Audit Log\",\"icon\":\"ti ti-history\",\"url\":\"audit\",\"sort_order\":\"940\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 07:56:57\",\"updated_at\":null,\"page_code\":\"audit.index\",\"page_title\":\"Audit Log\"}]}', '{\"rows\":[{\"id\":\"1\",\"parent_id\":null,\"page_id\":\"1\",\"menu_area\":\"MAIN\",\"menu_key\":\"dashboard\",\"title\":\"Dashboard\",\"icon\":\"ti ti-layout-dashboard\",\"url\":\"admin\",\"sort_order\":\"10\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:00:52\",\"page_code\":\"dashboard.index\",\"page_title\":\"Dashboard\"},{\"id\":\"35\",\"parent_id\":null,\"page_id\":null,\"menu_area\":\"MAIN\",\"menu_key\":\"master-data\",\"title\":\"Data Master\",\"icon\":\"ti ti-database\",\"url\":null,\"sort_order\":\"15\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-29 11:45:36\",\"updated_at\":null,\"page_code\":null,\"page_title\":null},{\"id\":\"36\",\"parent_id\":\"35\",\"page_id\":\"35\",\"menu_area\":\"MAIN\",\"menu_key\":\"master.regions\",\"title\":\"Master Wilayah\",\"icon\":\"ti ti-map-pin-cog\",\"url\":\"regions\",\"sort_order\":\"16\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 11:45:36\",\"updated_at\":null,\"page_code\":\"regions.index\",\"page_title\":\"Master Wilayah\"},{\"id\":\"2\",\"parent_id\":null,\"page_id\":\"2\",\"menu_area\":\"MAIN\",\"menu_key\":\"libraries.gis\",\"title\":\"Perpustakaan GIS\",\"icon\":\"ti ti-map-2\",\"url\":\"libraries\",\"sort_order\":\"20\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"libraries.index\",\"page_title\":\"Perpustakaan GIS\"},{\"id\":\"3\",\"parent_id\":null,\"page_id\":\"3\",\"menu_area\":\"MAIN\",\"menu_key\":\"catalog\",\"title\":\"Katalog\",\"icon\":\"ti ti-books\",\"url\":\"catalog\",\"sort_order\":\"30\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"catalog.index\",\"page_title\":\"Katalog Buku\"},{\"id\":\"4\",\"parent_id\":null,\"page_id\":\"4\",\"menu_area\":\"MAIN\",\"menu_key\":\"members\",\"title\":\"Membership\",\"icon\":\"ti ti-id-badge-2\",\"url\":\"members\",\"sort_order\":\"40\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"members.index\",\"page_title\":\"Membership Digital\"},{\"id\":\"5\",\"parent_id\":null,\"page_id\":\"6\",\"menu_area\":\"MAIN\",\"menu_key\":\"reading-points\",\"title\":\"Pojok Baca\",\"icon\":\"ti ti-current-location\",\"url\":\"reading-points\",\"sort_order\":\"50\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"reading_points.index\",\"page_title\":\"Pojok Baca Digital\"},{\"id\":\"6\",\"parent_id\":null,\"page_id\":\"7\",\"menu_area\":\"MAIN\",\"menu_key\":\"events\",\"title\":\"Event\",\"icon\":\"ti ti-calendar-event\",\"url\":\"events\",\"sort_order\":\"60\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"events.index\",\"page_title\":\"Event Literasi\"},{\"id\":\"7\",\"parent_id\":null,\"page_id\":null,\"menu_area\":\"MAIN\",\"menu_key\":\"system\",\"title\":\"Pengaturan Akses\",\"icon\":\"ti ti-shield-lock\",\"url\":null,\"sort_order\":\"900\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":null,\"page_title\":null},{\"id\":\"8\",\"parent_id\":\"7\",\"page_id\":\"8\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.users\",\"title\":\"User\",\"icon\":\"ti ti-users\",\"url\":\"rbac\\/users\",\"sort_order\":\"910\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"auth.users.index\",\"page_title\":\"Manajemen User\"},{\"id\":\"9\",\"parent_id\":\"7\",\"page_id\":\"9\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.roles\",\"title\":\"Role & Permission\",\"icon\":\"ti ti-key\",\"url\":\"rbac\\/roles\",\"sort_order\":\"920\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"auth.roles.index\",\"page_title\":\"Role dan Hak Akses\"},{\"id\":\"31\",\"parent_id\":\"7\",\"page_id\":\"31\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.pages\",\"title\":\"Registry Halaman\",\"icon\":\"ti ti-file-settings\",\"url\":\"rbac\\/pages\",\"sort_order\":\"925\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 06:43:15\",\"updated_at\":null,\"page_code\":\"system.pages.index\",\"page_title\":\"Registry Halaman\"},{\"id\":\"10\",\"parent_id\":\"7\",\"page_id\":\"10\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.sidebar\",\"title\":\"Sidebar\",\"icon\":\"ti ti-layout-sidebar\",\"url\":\"rbac\\/sidebar\",\"sort_order\":\"930\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"system.sidebar.manage\",\"page_title\":\"Manajemen Sidebar\"},{\"id\":\"33\",\"parent_id\":\"7\",\"page_id\":\"33\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.audit\",\"title\":\"Audit Log\",\"icon\":\"ti ti-history\",\"url\":\"audit\",\"sort_order\":\"940\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 07:56:57\",\"updated_at\":null,\"page_code\":\"audit.index\",\"page_title\":\"Audit Log\"}]}', '2026-07-29 20:34:50');
-INSERT INTO `audit_log` VALUES (5, 1, 'sidebar.reordered', 'sys_menu', 'MAIN', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0', '{\"rows\":[{\"id\":\"1\",\"parent_id\":null,\"page_id\":\"1\",\"menu_area\":\"MAIN\",\"menu_key\":\"dashboard\",\"title\":\"Dashboard\",\"icon\":\"ti ti-layout-dashboard\",\"url\":\"admin\",\"sort_order\":\"10\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:00:52\",\"page_code\":\"dashboard.index\",\"page_title\":\"Dashboard\"},{\"id\":\"35\",\"parent_id\":null,\"page_id\":null,\"menu_area\":\"MAIN\",\"menu_key\":\"master-data\",\"title\":\"Data Master\",\"icon\":\"ti ti-database\",\"url\":null,\"sort_order\":\"15\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-29 11:45:36\",\"updated_at\":null,\"page_code\":null,\"page_title\":null},{\"id\":\"36\",\"parent_id\":\"35\",\"page_id\":\"35\",\"menu_area\":\"MAIN\",\"menu_key\":\"master.regions\",\"title\":\"Master Wilayah\",\"icon\":\"ti ti-map-pin-cog\",\"url\":\"regions\",\"sort_order\":\"16\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 11:45:36\",\"updated_at\":null,\"page_code\":\"regions.index\",\"page_title\":\"Master Wilayah\"},{\"id\":\"2\",\"parent_id\":null,\"page_id\":\"2\",\"menu_area\":\"MAIN\",\"menu_key\":\"libraries.gis\",\"title\":\"Perpustakaan GIS\",\"icon\":\"ti ti-map-2\",\"url\":\"libraries\",\"sort_order\":\"20\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"libraries.index\",\"page_title\":\"Perpustakaan GIS\"},{\"id\":\"3\",\"parent_id\":null,\"page_id\":\"3\",\"menu_area\":\"MAIN\",\"menu_key\":\"catalog\",\"title\":\"Katalog\",\"icon\":\"ti ti-books\",\"url\":\"catalog\",\"sort_order\":\"30\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"catalog.index\",\"page_title\":\"Katalog Buku\"},{\"id\":\"4\",\"parent_id\":null,\"page_id\":\"4\",\"menu_area\":\"MAIN\",\"menu_key\":\"members\",\"title\":\"Membership\",\"icon\":\"ti ti-id-badge-2\",\"url\":\"members\",\"sort_order\":\"40\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"members.index\",\"page_title\":\"Membership Digital\"},{\"id\":\"5\",\"parent_id\":null,\"page_id\":\"6\",\"menu_area\":\"MAIN\",\"menu_key\":\"reading-points\",\"title\":\"Pojok Baca\",\"icon\":\"ti ti-current-location\",\"url\":\"reading-points\",\"sort_order\":\"50\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"reading_points.index\",\"page_title\":\"Pojok Baca Digital\"},{\"id\":\"6\",\"parent_id\":null,\"page_id\":\"7\",\"menu_area\":\"MAIN\",\"menu_key\":\"events\",\"title\":\"Event\",\"icon\":\"ti ti-calendar-event\",\"url\":\"events\",\"sort_order\":\"60\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"events.index\",\"page_title\":\"Event Literasi\"},{\"id\":\"7\",\"parent_id\":null,\"page_id\":null,\"menu_area\":\"MAIN\",\"menu_key\":\"system\",\"title\":\"Pengaturan Akses\",\"icon\":\"ti ti-shield-lock\",\"url\":null,\"sort_order\":\"900\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":null,\"page_title\":null},{\"id\":\"8\",\"parent_id\":\"7\",\"page_id\":\"8\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.users\",\"title\":\"User\",\"icon\":\"ti ti-users\",\"url\":\"rbac\\/users\",\"sort_order\":\"910\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"auth.users.index\",\"page_title\":\"Manajemen User\"},{\"id\":\"9\",\"parent_id\":\"7\",\"page_id\":\"9\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.roles\",\"title\":\"Role & Permission\",\"icon\":\"ti ti-key\",\"url\":\"rbac\\/roles\",\"sort_order\":\"920\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"auth.roles.index\",\"page_title\":\"Role dan Hak Akses\"},{\"id\":\"31\",\"parent_id\":\"7\",\"page_id\":\"31\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.pages\",\"title\":\"Registry Halaman\",\"icon\":\"ti ti-file-settings\",\"url\":\"rbac\\/pages\",\"sort_order\":\"925\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 06:43:15\",\"updated_at\":null,\"page_code\":\"system.pages.index\",\"page_title\":\"Registry Halaman\"},{\"id\":\"10\",\"parent_id\":\"7\",\"page_id\":\"10\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.sidebar\",\"title\":\"Sidebar\",\"icon\":\"ti ti-layout-sidebar\",\"url\":\"rbac\\/sidebar\",\"sort_order\":\"930\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:43:15\",\"page_code\":\"system.sidebar.manage\",\"page_title\":\"Manajemen Sidebar\"},{\"id\":\"33\",\"parent_id\":\"7\",\"page_id\":\"33\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.audit\",\"title\":\"Audit Log\",\"icon\":\"ti ti-history\",\"url\":\"audit\",\"sort_order\":\"940\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 07:56:57\",\"updated_at\":null,\"page_code\":\"audit.index\",\"page_title\":\"Audit Log\"}]}', '{\"rows\":[{\"id\":\"1\",\"parent_id\":null,\"page_id\":\"1\",\"menu_area\":\"MAIN\",\"menu_key\":\"dashboard\",\"title\":\"Dashboard\",\"icon\":\"ti ti-layout-dashboard\",\"url\":\"admin\",\"sort_order\":\"10\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 06:00:52\",\"page_code\":\"dashboard.index\",\"page_title\":\"Dashboard\"},{\"id\":\"36\",\"parent_id\":\"35\",\"page_id\":\"35\",\"menu_area\":\"MAIN\",\"menu_key\":\"master.regions\",\"title\":\"Master Wilayah\",\"icon\":\"ti ti-map-pin-cog\",\"url\":\"regions\",\"sort_order\":\"10\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 11:45:36\",\"updated_at\":\"2026-07-29 20:36:48\",\"page_code\":\"regions.index\",\"page_title\":\"Master Wilayah\"},{\"id\":\"8\",\"parent_id\":\"7\",\"page_id\":\"8\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.users\",\"title\":\"User\",\"icon\":\"ti ti-users\",\"url\":\"rbac\\/users\",\"sort_order\":\"10\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 20:36:48\",\"page_code\":\"auth.users.index\",\"page_title\":\"Manajemen User\"},{\"id\":\"2\",\"parent_id\":null,\"page_id\":\"2\",\"menu_area\":\"MAIN\",\"menu_key\":\"libraries.gis\",\"title\":\"Perpustakaan GIS\",\"icon\":\"ti ti-map-2\",\"url\":\"libraries\",\"sort_order\":\"20\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"libraries.index\",\"page_title\":\"Perpustakaan GIS\"},{\"id\":\"9\",\"parent_id\":\"7\",\"page_id\":\"9\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.roles\",\"title\":\"Role & Permission\",\"icon\":\"ti ti-key\",\"url\":\"rbac\\/roles\",\"sort_order\":\"20\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 20:36:48\",\"page_code\":\"auth.roles.index\",\"page_title\":\"Role dan Hak Akses\"},{\"id\":\"3\",\"parent_id\":null,\"page_id\":\"3\",\"menu_area\":\"MAIN\",\"menu_key\":\"catalog\",\"title\":\"Katalog\",\"icon\":\"ti ti-books\",\"url\":\"catalog\",\"sort_order\":\"30\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"catalog.index\",\"page_title\":\"Katalog Buku\"},{\"id\":\"31\",\"parent_id\":\"7\",\"page_id\":\"31\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.pages\",\"title\":\"Registry Halaman\",\"icon\":\"ti ti-file-settings\",\"url\":\"rbac\\/pages\",\"sort_order\":\"30\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 06:43:15\",\"updated_at\":\"2026-07-29 20:36:48\",\"page_code\":\"system.pages.index\",\"page_title\":\"Registry Halaman\"},{\"id\":\"4\",\"parent_id\":null,\"page_id\":\"4\",\"menu_area\":\"MAIN\",\"menu_key\":\"members\",\"title\":\"Membership\",\"icon\":\"ti ti-id-badge-2\",\"url\":\"members\",\"sort_order\":\"40\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"members.index\",\"page_title\":\"Membership Digital\"},{\"id\":\"10\",\"parent_id\":\"7\",\"page_id\":\"10\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.sidebar\",\"title\":\"Sidebar\",\"icon\":\"ti ti-layout-sidebar\",\"url\":\"rbac\\/sidebar\",\"sort_order\":\"40\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 20:36:48\",\"page_code\":\"system.sidebar.manage\",\"page_title\":\"Manajemen Sidebar\"},{\"id\":\"33\",\"parent_id\":\"7\",\"page_id\":\"33\",\"menu_area\":\"MAIN\",\"menu_key\":\"system.audit\",\"title\":\"Audit Log\",\"icon\":\"ti ti-history\",\"url\":\"audit\",\"sort_order\":\"50\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-29 07:56:57\",\"updated_at\":\"2026-07-29 20:36:48\",\"page_code\":\"audit.index\",\"page_title\":\"Audit Log\"},{\"id\":\"5\",\"parent_id\":null,\"page_id\":\"6\",\"menu_area\":\"MAIN\",\"menu_key\":\"reading-points\",\"title\":\"Pojok Baca\",\"icon\":\"ti ti-current-location\",\"url\":\"reading-points\",\"sort_order\":\"50\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"reading_points.index\",\"page_title\":\"Pojok Baca Digital\"},{\"id\":\"6\",\"parent_id\":null,\"page_id\":\"7\",\"menu_area\":\"MAIN\",\"menu_key\":\"events\",\"title\":\"Event\",\"icon\":\"ti ti-calendar-event\",\"url\":\"events\",\"sort_order\":\"60\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"0\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":null,\"page_code\":\"events.index\",\"page_title\":\"Event Literasi\"},{\"id\":\"35\",\"parent_id\":null,\"page_id\":null,\"menu_area\":\"MAIN\",\"menu_key\":\"master-data\",\"title\":\"Data Master\",\"icon\":\"ti ti-database\",\"url\":null,\"sort_order\":\"70\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-29 11:45:36\",\"updated_at\":\"2026-07-29 20:36:48\",\"page_code\":null,\"page_title\":null},{\"id\":\"7\",\"parent_id\":null,\"page_id\":null,\"menu_area\":\"MAIN\",\"menu_key\":\"system\",\"title\":\"Pengaturan Akses\",\"icon\":\"ti ti-shield-lock\",\"url\":null,\"sort_order\":\"80\",\"is_visible\":\"1\",\"is_active\":\"1\",\"is_locked\":\"1\",\"created_at\":\"2026-07-28 22:09:29\",\"updated_at\":\"2026-07-29 20:36:48\",\"page_code\":null,\"page_title\":null}]}', '2026-07-29 20:36:48');
+) ENGINE = InnoDB AUTO_INCREMENT = 82 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for auth_role
@@ -67,14 +114,7 @@ CREATE TABLE `auth_role`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uq_auth_role_code`(`code`) USING BTREE,
   INDEX `idx_auth_role_level`(`level`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 10 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of auth_role
--- ----------------------------
-INSERT INTO `auth_role` VALUES (1, 'SUPERADMIN', 'Superadmin', 'Akses penuh seluruh sistem dan konfigurasi.', 1, 'global', 1, 1, '2026-07-28 22:09:29', NULL);
-INSERT INTO `auth_role` VALUES (2, 'ADMIN', 'Admin', 'Pengelola operasional perpustakaan atau unit yang ditugaskan.', 20, 'library', 1, 1, '2026-07-28 22:09:29', NULL);
-INSERT INTO `auth_role` VALUES (3, 'USER', 'User/Pemustaka', 'Pemustaka/member aplikasi digital.', 100, 'self', 1, 1, '2026-07-28 22:09:29', NULL);
+) ENGINE = InnoDB AUTO_INCREMENT = 8 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for auth_role_permission
@@ -97,37 +137,6 @@ CREATE TABLE `auth_role_permission`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Records of auth_role_permission
--- ----------------------------
-INSERT INTO `auth_role_permission` VALUES (1, 1, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 2, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 3, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 4, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 5, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 6, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 7, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 8, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 9, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 10, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 31, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 33, 1, 0, 0, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 35, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 36, 1, 1, 1, 1, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (1, 39, 1, 1, 1, 0, 1, 1, NULL);
-INSERT INTO `auth_role_permission` VALUES (2, 1, 1, 1, 1, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (2, 2, 1, 1, 1, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (2, 3, 1, 1, 1, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (2, 4, 1, 1, 1, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (2, 5, 1, 1, 1, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (2, 6, 1, 1, 1, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (2, 7, 1, 1, 1, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (2, 35, 1, 0, 0, 0, 1, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (3, 1, 1, 0, 0, 0, 0, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (3, 3, 1, 0, 0, 0, 0, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (3, 4, 1, 0, 0, 0, 0, 0, NULL);
-INSERT INTO `auth_role_permission` VALUES (3, 7, 1, 0, 0, 0, 0, 0, NULL);
-
--- ----------------------------
 -- Table structure for auth_session_log
 -- ----------------------------
 DROP TABLE IF EXISTS `auth_session_log`;
@@ -145,51 +154,7 @@ CREATE TABLE `auth_session_log`  (
   INDEX `idx_auth_session_log_event_type`(`event_type`) USING BTREE,
   INDEX `idx_auth_session_log_created_at`(`created_at`) USING BTREE,
   CONSTRAINT `fk_auth_session_log_user` FOREIGN KEY (`user_id`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 41 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of auth_session_log
--- ----------------------------
-INSERT INTO `auth_session_log` VALUES (1, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-28 22:58:37');
-INSERT INTO `auth_session_log` VALUES (2, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-28 23:00:29');
-INSERT INTO `auth_session_log` VALUES (3, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-28 23:00:44');
-INSERT INTO `auth_session_log` VALUES (4, 1, 'logout', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-28 23:00:44');
-INSERT INTO `auth_session_log` VALUES (5, 1, 'login_success', 'superadmin', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0', NULL, '2026-07-29 05:22:45');
-INSERT INTO `auth_session_log` VALUES (6, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 05:31:24');
-INSERT INTO `auth_session_log` VALUES (7, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 05:31:48');
-INSERT INTO `auth_session_log` VALUES (8, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 05:33:46');
-INSERT INTO `auth_session_log` VALUES (9, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:02:33');
-INSERT INTO `auth_session_log` VALUES (10, 4, 'login_success', 'admin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:02:34');
-INSERT INTO `auth_session_log` VALUES (11, 5, 'login_success', 'pemustaka', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:02:34');
-INSERT INTO `auth_session_log` VALUES (12, 4, 'login_success', 'admin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:06:13');
-INSERT INTO `auth_session_log` VALUES (13, 5, 'login_success', 'pemustaka', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:06:13');
-INSERT INTO `auth_session_log` VALUES (14, 5, 'login_success', 'pemustaka', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', NULL, '2026-07-29 06:21:36');
-INSERT INTO `auth_session_log` VALUES (15, 4, 'login_success', 'admin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:25:50');
-INSERT INTO `auth_session_log` VALUES (16, 4, 'login_success', 'admin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:28:57');
-INSERT INTO `auth_session_log` VALUES (17, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:50:28');
-INSERT INTO `auth_session_log` VALUES (18, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:52:36');
-INSERT INTO `auth_session_log` VALUES (19, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 06:58:12');
-INSERT INTO `auth_session_log` VALUES (20, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 08:07:41');
-INSERT INTO `auth_session_log` VALUES (21, 4, 'login_success', 'admin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 08:07:41');
-INSERT INTO `auth_session_log` VALUES (22, 4, 'login_success', 'admin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 08:08:06');
-INSERT INTO `auth_session_log` VALUES (23, 4, 'login_success', 'admin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 08:12:03');
-INSERT INTO `auth_session_log` VALUES (24, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 08:12:03');
-INSERT INTO `auth_session_log` VALUES (25, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 09:00:55');
-INSERT INTO `auth_session_log` VALUES (26, 1, 'login_success', 'superadmin', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0', NULL, '2026-07-29 11:39:04');
-INSERT INTO `auth_session_log` VALUES (27, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 11:50:30');
-INSERT INTO `auth_session_log` VALUES (28, 4, 'login_success', 'admin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 11:50:53');
-INSERT INTO `auth_session_log` VALUES (29, 1, 'login_success', 'superadmin', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0', NULL, '2026-07-29 13:41:26');
-INSERT INTO `auth_session_log` VALUES (30, 1, 'login_success', 'superadmin', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0', NULL, '2026-07-29 19:49:05');
-INSERT INTO `auth_session_log` VALUES (31, 5, 'login_success', 'pemustaka', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', NULL, '2026-07-29 19:58:29');
-INSERT INTO `auth_session_log` VALUES (32, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:16:13');
-INSERT INTO `auth_session_log` VALUES (33, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:17:32');
-INSERT INTO `auth_session_log` VALUES (34, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:34:30');
-INSERT INTO `auth_session_log` VALUES (35, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:34:50');
-INSERT INTO `auth_session_log` VALUES (36, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:35:04');
-INSERT INTO `auth_session_log` VALUES (37, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:53:35');
-INSERT INTO `auth_session_log` VALUES (38, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:54:17');
-INSERT INTO `auth_session_log` VALUES (39, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:58:35');
-INSERT INTO `auth_session_log` VALUES (40, 1, 'login_success', 'superadmin', '::1', 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.8894', NULL, '2026-07-29 20:58:56');
+) ENGINE = InnoDB AUTO_INCREMENT = 161 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for auth_user
@@ -215,14 +180,7 @@ CREATE TABLE `auth_user`  (
   INDEX `idx_auth_user_library_id`(`library_id`) USING BTREE,
   INDEX `idx_auth_user_status`(`status`) USING BTREE,
   INDEX `idx_auth_user_library_status`(`library_id`, `status`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of auth_user
--- ----------------------------
-INSERT INTO `auth_user` VALUES (1, 'superadmin', 'superadmin@pustaka.local', '$2y$10$TWH9LG5tA9N1Ap0MNTUCtOcimEFZTR1LqQFjF8ePID/CIc7V9AA.e', 'Superadmin Pustaka', NULL, NULL, NULL, 'active', 1, '2026-07-29 15:58:56', '2026-07-28 22:09:29', '2026-07-29 20:58:56');
-INSERT INTO `auth_user` VALUES (4, 'admin', 'admin@pustaka.local', '$2y$10$KUmmwFVXyIUIK6mEbtLtbOvHP.ryk4iuNhtt/KJgdzCepjXApPTUW', 'Admin Pustaka', NULL, NULL, NULL, 'active', 1, '2026-07-29 06:50:53', '2026-07-29 06:00:52', '2026-07-29 11:50:53');
-INSERT INTO `auth_user` VALUES (5, 'pemustaka', 'pemustaka@pustaka.local', '$2y$10$KUmmwFVXyIUIK6mEbtLtbOvHP.ryk4iuNhtt/KJgdzCepjXApPTUW', 'Pemustaka Demo', NULL, NULL, NULL, 'active', 1, '2026-07-29 14:58:29', '2026-07-29 06:00:52', '2026-07-29 19:58:29');
+) ENGINE = InnoDB AUTO_INCREMENT = 5396 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for auth_user_permission_override
@@ -260,13 +218,6 @@ CREATE TABLE `auth_user_role`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Records of auth_user_role
--- ----------------------------
-INSERT INTO `auth_user_role` VALUES (1, 1, '2026-07-28 22:09:29');
-INSERT INTO `auth_user_role` VALUES (4, 2, '2026-07-29 06:00:52');
-INSERT INTO `auth_user_role` VALUES (5, 3, '2026-07-29 06:00:52');
-
--- ----------------------------
 -- Table structure for book_authors
 -- ----------------------------
 DROP TABLE IF EXISTS `book_authors`;
@@ -280,7 +231,41 @@ CREATE TABLE `book_authors`  (
   INDEX `idx_book_authors_book`(`book_id`) USING BTREE,
   INDEX `idx_book_authors_name`(`name`) USING BTREE,
   CONSTRAINT `fk_book_authors_book` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 12387 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for book_classification_masters
+-- ----------------------------
+DROP TABLE IF EXISTS `book_classification_masters`;
+CREATE TABLE `book_classification_masters`  (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `code` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(140) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_book_classification_masters_code`(`code`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for book_content_categories
+-- ----------------------------
+DROP TABLE IF EXISTS `book_content_categories`;
+CREATE TABLE `book_content_categories`  (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `code` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_book_content_categories_code`(`code`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for book_items
@@ -290,17 +275,33 @@ CREATE TABLE `book_items`  (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   `book_id` bigint(20) UNSIGNED NOT NULL,
   `library_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `source_location_library_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_location_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_rule_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_category_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_media_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_collection_source_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_status_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `source_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `item_code` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `barcode` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `call_number` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `location_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `location_library_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `location_room_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `rule_name` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `collection_type` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `category_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `media_name` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_name` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `inventory_number` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `status` enum('available','loaned','missing','damaged','unknown') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unknown',
+  `status_label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `is_public` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
   `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  `deleted_at` datetime(0) NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uq_book_items_source`(`source_system`, `source_id`) USING BTREE,
   INDEX `idx_book_items_book`(`book_id`) USING BTREE,
@@ -308,7 +309,41 @@ CREATE TABLE `book_items`  (
   INDEX `idx_book_items_status`(`status`) USING BTREE,
   CONSTRAINT `fk_book_items_book` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk_book_items_library` FOREIGN KEY (`library_id`) REFERENCES `libraries` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 22944 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for book_requests
+-- ----------------------------
+DROP TABLE IF EXISTS `book_requests`;
+CREATE TABLE `book_requests`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `request_code` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `book_id` bigint(20) UNSIGNED NOT NULL,
+  `book_item_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `member_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `request_type` enum('reservation','request') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'request',
+  `requester_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `requester_email` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `requester_phone` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `status` enum('pending','approved','rejected','fulfilled','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `admin_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `processed_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `processed_at` datetime(0) NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_book_requests_code`(`request_code`) USING BTREE,
+  INDEX `idx_book_requests_book`(`book_id`) USING BTREE,
+  INDEX `idx_book_requests_item`(`book_item_id`) USING BTREE,
+  INDEX `idx_book_requests_member`(`member_id`) USING BTREE,
+  INDEX `idx_book_requests_status`(`status`, `created_at`) USING BTREE,
+  INDEX `fk_book_requests_processed_by`(`processed_by`) USING BTREE,
+  CONSTRAINT `fk_book_requests_book` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_book_requests_item` FOREIGN KEY (`book_item_id`) REFERENCES `book_items` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_book_requests_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_book_requests_processed_by` FOREIGN KEY (`processed_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for book_subjects
@@ -322,7 +357,7 @@ CREATE TABLE `book_subjects`  (
   INDEX `idx_book_subjects_book`(`book_id`) USING BTREE,
   INDEX `idx_book_subjects_subject`(`subject`) USING BTREE,
   CONSTRAINT `fk_book_subjects_book` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 2009 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for books
@@ -341,16 +376,23 @@ CREATE TABLE `books`  (
   `publish_year` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `isbn` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `classification` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `content_category_id` int(10) UNSIGNED NULL DEFAULT NULL,
+  `content_classification_id` int(10) UNSIGNED NULL DEFAULT NULL,
   `call_number` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `language` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `physical_description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `abstract` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   `cover_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `cover_source_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `cover_local_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `cover_migration_status` enum('pending','copied','missing','failed','skipped') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `cover_migrated_at` datetime(0) NULL DEFAULT NULL,
   `status` enum('draft','published','hidden') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
   `created_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
   `updated_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
   `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
   `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  `deleted_at` datetime(0) NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uq_books_source`(`source_system`, `source_id`) USING BTREE,
   INDEX `idx_books_title`(`title`) USING BTREE,
@@ -359,9 +401,11 @@ CREATE TABLE `books`  (
   INDEX `idx_books_status`(`status`) USING BTREE,
   INDEX `fk_books_created_by`(`created_by`) USING BTREE,
   INDEX `fk_books_updated_by`(`updated_by`) USING BTREE,
+  INDEX `idx_books_content_category`(`content_category_id`) USING BTREE,
+  INDEX `idx_books_content_classification`(`content_classification_id`) USING BTREE,
   CONSTRAINT `fk_books_created_by` FOREIGN KEY (`created_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
   CONSTRAINT `fk_books_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 14109 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for catalog_sync_maps
@@ -382,7 +426,7 @@ CREATE TABLE `catalog_sync_maps`  (
   INDEX `idx_catalog_sync_maps_target`(`entity_type`, `target_id`) USING BTREE,
   INDEX `idx_catalog_sync_maps_run`(`last_sync_run_id`) USING BTREE,
   CONSTRAINT `fk_catalog_sync_maps_run` FOREIGN KEY (`last_sync_run_id`) REFERENCES `catalog_sync_runs` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 37025 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for catalog_sync_runs
@@ -408,7 +452,7 @@ CREATE TABLE `catalog_sync_runs`  (
   INDEX `idx_catalog_sync_runs_created_at`(`created_at`) USING BTREE,
   INDEX `fk_catalog_sync_runs_created_by`(`created_by`) USING BTREE,
   CONSTRAINT `fk_catalog_sync_runs_created_by` FOREIGN KEY (`created_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 14 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for ci_sessions
@@ -430,12 +474,24 @@ DROP TABLE IF EXISTS `digital_assets`;
 CREATE TABLE `digital_assets`  (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   `book_id` bigint(20) UNSIGNED NOT NULL,
+  `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `migration_status` enum('pending','copied','missing','failed','skipped') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `migrated_at` datetime(0) NULL DEFAULT NULL,
   `file_original_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `file_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `mime_type` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `file_size` bigint(20) UNSIGNED NULL DEFAULT NULL,
   `access_policy` enum('online_only','download_allowed','location_only','member_only','internal') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'internal',
   `is_downloadable` tinyint(1) NOT NULL DEFAULT 0,
+  `rights_basis` enum('public_domain','licensed','owned','permission_letter','internal_use','unknown') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unknown',
+  `rights_holder` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `license_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `permission_reference` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `permission_starts_at` date NULL DEFAULT NULL,
+  `permission_ends_at` date NULL DEFAULT NULL,
+  `access_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   `status` enum('draft','active','archived') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
   `uploaded_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
   `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
@@ -445,9 +501,55 @@ CREATE TABLE `digital_assets`  (
   INDEX `idx_digital_assets_policy`(`access_policy`) USING BTREE,
   INDEX `idx_digital_assets_status`(`status`) USING BTREE,
   INDEX `fk_digital_assets_uploaded_by`(`uploaded_by`) USING BTREE,
+  INDEX `idx_digital_assets_rights_basis`(`rights_basis`) USING BTREE,
+  INDEX `idx_digital_assets_permission_ends`(`permission_ends_at`) USING BTREE,
   CONSTRAINT `fk_digital_assets_book` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk_digital_assets_uploaded_by` FOREIGN KEY (`uploaded_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 19 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for event_registrations
+-- ----------------------------
+DROP TABLE IF EXISTS `event_registrations`;
+CREATE TABLE `event_registrations`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `event_id` bigint(20) UNSIGNED NOT NULL,
+  `member_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `participant_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `participant_phone` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `participant_email` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `attendance_token` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `status` enum('registered','attended','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'registered',
+  `registered_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `attended_at` datetime(0) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_event_registrations_event`(`event_id`) USING BTREE,
+  INDEX `idx_event_registrations_member`(`member_id`) USING BTREE,
+  CONSTRAINT `fk_event_registrations_event` FOREIGN KEY (`event_id`) REFERENCES `literacy_events` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_event_registrations_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for inlislite_master_references
+-- ----------------------------
+DROP TABLE IF EXISTS `inlislite_master_references`;
+CREATE TABLE `inlislite_master_references`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'inlislite_v3',
+  `source_table` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_created_at` datetime(0) NULL DEFAULT NULL,
+  `source_updated_at` datetime(0) NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_inlislite_master_refs_source`(`source_system`, `source_table`, `source_id`) USING BTREE,
+  INDEX `idx_inlislite_master_refs_table`(`source_table`) USING BTREE,
+  INDEX `idx_inlislite_master_refs_name`(`name`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 145 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for libraries
@@ -539,17 +641,169 @@ CREATE TABLE `library_types`  (
   `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uq_library_types_code`(`code`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 8 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Records of library_types
+-- Table structure for literacy_events
 -- ----------------------------
-INSERT INTO `library_types` VALUES (1, 'perpusda', 'Perpustakaan Daerah', 'Perpustakaan daerah/kabupaten sebagai simpul utama layanan.', '#0b6b86', 1, '2026-07-29 05:26:06', NULL);
-INSERT INTO `library_types` VALUES (2, 'sekolah', 'Perpustakaan Sekolah', 'Perpustakaan sekolah SD, SMP, SMA/SMK, dan sederajat.', '#2f8f66', 1, '2026-07-29 05:26:06', NULL);
-INSERT INTO `library_types` VALUES (3, 'desa', 'Perpustakaan Desa', 'Perpustakaan desa/kelurahan dan taman baca lokal.', '#c58a12', 1, '2026-07-29 05:26:06', NULL);
-INSERT INTO `library_types` VALUES (4, 'swasta', 'Perpustakaan Swasta', 'Perpustakaan swasta atau institusi non-pemerintah.', '#4263eb', 1, '2026-07-29 05:26:06', NULL);
-INSERT INTO `library_types` VALUES (5, 'komunitas', 'Komunitas Literasi', 'Komunitas, TBM, atau ruang baca masyarakat.', '#ae3ec9', 1, '2026-07-29 05:26:06', NULL);
-INSERT INTO `library_types` VALUES (6, 'mitra', 'Mitra Pojok Baca', 'Lokasi mitra untuk pojok baca digital dan layanan kolaborasi.', '#d9480f', 1, '2026-07-29 05:26:06', NULL);
+DROP TABLE IF EXISTS `literacy_events`;
+CREATE TABLE `literacy_events`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `library_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `title` varchar(220) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `event_type` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `starts_at` datetime(0) NULL DEFAULT NULL,
+  `ends_at` datetime(0) NULL DEFAULT NULL,
+  `location_name` varchar(220) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `latitude` decimal(10, 7) NULL DEFAULT NULL,
+  `longitude` decimal(10, 7) NULL DEFAULT NULL,
+  `quota` int(10) UNSIGNED NULL DEFAULT NULL,
+  `registration_required` tinyint(1) NOT NULL DEFAULT 0,
+  `status` enum('draft','published','closed','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `created_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_literacy_events_library`(`library_id`) USING BTREE,
+  INDEX `idx_literacy_events_status`(`status`, `starts_at`) USING BTREE,
+  INDEX `fk_literacy_events_created_by`(`created_by`) USING BTREE,
+  CONSTRAINT `fk_literacy_events_created_by` FOREIGN KEY (`created_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_literacy_events_library` FOREIGN KEY (`library_id`) REFERENCES `libraries` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for loan_transaction_items
+-- ----------------------------
+DROP TABLE IF EXISTS `loan_transaction_items`;
+CREATE TABLE `loan_transaction_items`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `loan_transaction_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `source_loan_id` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `member_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `book_item_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `source_member_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_collection_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `loan_date` datetime(0) NULL DEFAULT NULL,
+  `due_date` datetime(0) NULL DEFAULT NULL,
+  `actual_return_at` datetime(0) NULL DEFAULT NULL,
+  `late_days` int(11) NULL DEFAULT NULL,
+  `loan_status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_created_at` datetime(0) NULL DEFAULT NULL,
+  `source_updated_at` datetime(0) NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_loan_transaction_items_source`(`source_system`, `source_id`) USING BTREE,
+  INDEX `idx_loan_transaction_items_loan`(`loan_transaction_id`) USING BTREE,
+  INDEX `idx_loan_transaction_items_member`(`member_id`) USING BTREE,
+  INDEX `idx_loan_transaction_items_book_item`(`book_item_id`) USING BTREE,
+  INDEX `idx_loan_transaction_items_status`(`loan_status`) USING BTREE,
+  INDEX `idx_loan_transaction_items_date`(`loan_date`) USING BTREE,
+  CONSTRAINT `fk_loan_transaction_items_book_item` FOREIGN KEY (`book_item_id`) REFERENCES `book_items` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_loan_transaction_items_loan` FOREIGN KEY (`loan_transaction_id`) REFERENCES `loan_transactions` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_loan_transaction_items_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 2273 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for loan_transactions
+-- ----------------------------
+DROP TABLE IF EXISTS `loan_transactions`;
+CREATE TABLE `loan_transactions`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_id` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `member_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `source_member_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `branch_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `location_library_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `collection_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `loan_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `return_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `late_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `extend_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `source_created_at` datetime(0) NULL DEFAULT NULL,
+  `source_updated_at` datetime(0) NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_loan_transactions_source`(`source_system`, `source_id`) USING BTREE,
+  INDEX `idx_loan_transactions_member`(`member_id`) USING BTREE,
+  INDEX `idx_loan_transactions_source_member`(`source_member_id`) USING BTREE,
+  CONSTRAINT `fk_loan_transactions_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 44375 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for member_access_rules
+-- ----------------------------
+DROP TABLE IF EXISTS `member_access_rules`;
+CREATE TABLE `member_access_rules`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `source_table` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `member_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `source_member_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `rule_type` enum('category','location') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_rule_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `rule_label` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `created_at_source` datetime(0) NULL DEFAULT NULL,
+  `updated_at_source` datetime(0) NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_member_access_rules_source`(`source_system`, `source_table`, `source_id`) USING BTREE,
+  INDEX `idx_member_access_rules_member`(`member_id`) USING BTREE,
+  INDEX `idx_member_access_rules_type`(`rule_type`, `source_rule_id`) USING BTREE,
+  CONSTRAINT `fk_member_access_rules_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 36670 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for member_registration_requests
+-- ----------------------------
+DROP TABLE IF EXISTS `member_registration_requests`;
+CREATE TABLE `member_registration_requests`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `registration_code` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `public_token` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `full_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `identity_number` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `birth_place` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `birth_date` date NULL DEFAULT NULL,
+  `gender` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `district` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `village` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `phone` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `email` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `member_type` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'Umum',
+  `education` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `occupation` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `is_rembang_resident` tinyint(1) NOT NULL DEFAULT 1,
+  `residency_note` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `photo_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `ktp_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `kk_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `support_letter_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `status` enum('pending','verified','rejected','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `admin_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `verified_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `verified_at` datetime(0) NULL DEFAULT NULL,
+  `member_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_member_registration_code`(`registration_code`) USING BTREE,
+  UNIQUE INDEX `idx_member_registration_public_token`(`public_token`) USING BTREE,
+  INDEX `idx_member_registration_identity`(`identity_number`) USING BTREE,
+  INDEX `idx_member_registration_status`(`status`, `created_at`) USING BTREE,
+  INDEX `idx_member_registration_member`(`member_id`) USING BTREE,
+  INDEX `fk_member_registration_verified_by`(`verified_by`) USING BTREE,
+  CONSTRAINT `fk_member_registration_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_member_registration_verified_by` FOREIGN KEY (`verified_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for member_sync_runs
@@ -576,7 +830,70 @@ CREATE TABLE `member_sync_runs`  (
   INDEX `idx_member_sync_runs_created_at`(`created_at`) USING BTREE,
   INDEX `fk_member_sync_runs_created_by`(`created_by`) USING BTREE,
   CONSTRAINT `fk_member_sync_runs_created_by` FOREIGN KEY (`created_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 16 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for member_visits
+-- ----------------------------
+DROP TABLE IF EXISTS `member_visits`;
+CREATE TABLE `member_visits`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source_system` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `visit_channel` enum('inlislite_guestbook','library_guestbook','member_dashboard','digital_access','reading_point','service_monitor','qr_checkin') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'inlislite_guestbook',
+  `visit_origin` enum('library','reading_point','digital_external','digital_internal','legacy') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'legacy',
+  `source_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `member_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `library_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `reading_point_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `reading_session_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `auth_user_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `source_member_no` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `visitor_no` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `visitor_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `group_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `group_leader_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `visitor_count` int(10) UNSIGNED NOT NULL DEFAULT 1,
+  `checkin_method` enum('guest_form','member_search','member_qr','member_gps','dashboard_auto','reader_quota','legacy_sync') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'legacy_sync',
+  `qr_token_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `gender_id` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `gender_label` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `profession_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `profession_label` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `education_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `education_label` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `status_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `visit_status_label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `location_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `location_label` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `location_loan_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `location_loan_label` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `purpose_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `purpose_label` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `information` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `ip_address` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `user_agent` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `latitude` decimal(10, 7) NULL DEFAULT NULL,
+  `longitude` decimal(10, 7) NULL DEFAULT NULL,
+  `metadata_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `visited_at` datetime(0) NULL DEFAULT NULL,
+  `source_created_at` datetime(0) NULL DEFAULT NULL,
+  `source_updated_at` datetime(0) NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_member_visits_source`(`source_system`, `source_id`) USING BTREE,
+  INDEX `idx_member_visits_member`(`member_id`) USING BTREE,
+  INDEX `idx_member_visits_no`(`source_member_no`) USING BTREE,
+  INDEX `idx_member_visits_visited`(`visited_at`) USING BTREE,
+  INDEX `idx_member_visits_channel_date`(`visit_channel`, `visited_at`) USING BTREE,
+  INDEX `idx_member_visits_origin_date`(`visit_origin`, `visited_at`) USING BTREE,
+  INDEX `idx_member_visits_library_date`(`library_id`, `visited_at`) USING BTREE,
+  INDEX `idx_member_visits_reading_point_date`(`reading_point_id`, `visited_at`) USING BTREE,
+  INDEX `idx_member_visits_auth_user_date`(`auth_user_id`, `visited_at`) USING BTREE,
+  CONSTRAINT `fk_member_visits_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 67608 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for members
@@ -590,8 +907,10 @@ CREATE TABLE `members`  (
   `member_no` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `full_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `identity_type` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `identity_type_label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `identity_number` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `gender` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `gender_label` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `birth_place` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `birth_date` date NULL DEFAULT NULL,
   `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
@@ -600,14 +919,27 @@ CREATE TABLE `members`  (
   `phone` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `email` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `photo_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `photo_source_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `photo_local_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `photo_migration_status` enum('pending','copied','missing','failed','skipped') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `photo_migrated_at` datetime(0) NULL DEFAULT NULL,
   `member_type` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `member_type_label` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `education` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `education_label` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `occupation` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `occupation_label` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `status` enum('active','inactive','blocked','expired','unknown') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unknown',
+  `member_status_label` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `card_status` enum('active','blocked') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `card_block_reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `card_blocked_at` datetime(0) NULL DEFAULT NULL,
+  `card_blocked_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
   `registered_at` datetime(0) NULL DEFAULT NULL,
   `expired_at` datetime(0) NULL DEFAULT NULL,
   `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
   `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  `deleted_at` datetime(0) NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uq_members_source`(`source_system`, `source_id`) USING BTREE,
   UNIQUE INDEX `uq_members_member_no`(`member_no`) USING BTREE,
@@ -615,7 +947,155 @@ CREATE TABLE `members`  (
   INDEX `idx_members_name`(`full_name`) USING BTREE,
   INDEX `idx_members_status`(`status`) USING BTREE,
   CONSTRAINT `fk_members_auth_user` FOREIGN KEY (`auth_user_id`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 5395 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for membership_renewal_requests
+-- ----------------------------
+DROP TABLE IF EXISTS `membership_renewal_requests`;
+CREATE TABLE `membership_renewal_requests`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `request_code` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `member_id` bigint(20) UNSIGNED NOT NULL,
+  `current_expired_at` datetime(0) NULL DEFAULT NULL,
+  `requested_months` smallint(5) UNSIGNED NOT NULL DEFAULT 12,
+  `status` enum('pending','approved','rejected','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `admin_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `processed_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `processed_at` datetime(0) NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_membership_renewal_code`(`request_code`) USING BTREE,
+  INDEX `idx_membership_renewal_member`(`member_id`) USING BTREE,
+  INDEX `idx_membership_renewal_status`(`status`, `created_at`) USING BTREE,
+  INDEX `fk_membership_renewal_processed_by`(`processed_by`) USING BTREE,
+  CONSTRAINT `fk_membership_renewal_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_membership_renewal_processed_by` FOREIGN KEY (`processed_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for reader_access_logs
+-- ----------------------------
+DROP TABLE IF EXISTS `reader_access_logs`;
+CREATE TABLE `reader_access_logs`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `reading_session_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `member_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `digital_asset_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `book_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `event_type` enum('session_opened','pdf_stream','page_rendered','rate_limited','blocked','finished') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `page_number` int(10) UNSIGNED NULL DEFAULT NULL,
+  `ip_address` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `user_agent` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `meta_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_reader_access_logs_session`(`reading_session_id`) USING BTREE,
+  INDEX `idx_reader_access_logs_member_date`(`member_id`, `created_at`) USING BTREE,
+  INDEX `idx_reader_access_logs_event_date`(`event_type`, `created_at`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 81 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for reading_points
+-- ----------------------------
+DROP TABLE IF EXISTS `reading_points`;
+CREATE TABLE `reading_points`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `library_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `partner_name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `name` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `latitude` decimal(10, 7) NULL DEFAULT NULL,
+  `longitude` decimal(10, 7) NULL DEFAULT NULL,
+  `radius_meters` int(10) UNSIGNED NOT NULL DEFAULT 100,
+  `daily_quota` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `quota_unit` enum('minutes','pages','books') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'minutes',
+  `opening_hours` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `status` enum('draft','active','inactive') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `created_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_reading_points_library`(`library_id`) USING BTREE,
+  INDEX `idx_reading_points_status`(`status`) USING BTREE,
+  INDEX `fk_reading_points_created_by`(`created_by`) USING BTREE,
+  CONSTRAINT `fk_reading_points_created_by` FOREIGN KEY (`created_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_reading_points_library` FOREIGN KEY (`library_id`) REFERENCES `libraries` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 7 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for reading_sessions
+-- ----------------------------
+DROP TABLE IF EXISTS `reading_sessions`;
+CREATE TABLE `reading_sessions`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `member_id` bigint(20) UNSIGNED NOT NULL,
+  `book_id` bigint(20) UNSIGNED NOT NULL,
+  `digital_asset_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `reading_point_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `reading_token_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `secure_token` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `started_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `last_seen_at` datetime(0) NULL DEFAULT NULL,
+  `ended_at` datetime(0) NULL DEFAULT NULL,
+  `last_page` int(10) UNSIGNED NOT NULL DEFAULT 1,
+  `ip_address` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `user_agent` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `latitude` decimal(10, 7) NULL DEFAULT NULL,
+  `longitude` decimal(10, 7) NULL DEFAULT NULL,
+  `access_policy` enum('online_only','download_allowed','location_only','member_only','internal') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'online_only',
+  `access_origin` enum('external','reading_point','library','admin') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'external',
+  `access_location_label` varchar(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `quota_charged` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `quota_unit` enum('minutes','pages','books') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `status` enum('active','finished','expired','blocked') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_reading_sessions_member`(`member_id`) USING BTREE,
+  INDEX `idx_reading_sessions_book`(`book_id`) USING BTREE,
+  INDEX `idx_reading_sessions_asset`(`digital_asset_id`) USING BTREE,
+  INDEX `idx_reading_sessions_point`(`reading_point_id`) USING BTREE,
+  INDEX `fk_reading_sessions_token`(`reading_token_id`) USING BTREE,
+  INDEX `idx_reading_sessions_secure_token`(`secure_token`) USING BTREE,
+  INDEX `idx_reading_sessions_member_asset`(`member_id`, `digital_asset_id`, `status`) USING BTREE,
+  CONSTRAINT `fk_reading_sessions_asset` FOREIGN KEY (`digital_asset_id`) REFERENCES `digital_assets` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_reading_sessions_book` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_reading_sessions_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_reading_sessions_point` FOREIGN KEY (`reading_point_id`) REFERENCES `reading_points` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_reading_sessions_token` FOREIGN KEY (`reading_token_id`) REFERENCES `reading_tokens` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 24 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for reading_tokens
+-- ----------------------------
+DROP TABLE IF EXISTS `reading_tokens`;
+CREATE TABLE `reading_tokens`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `member_id` bigint(20) UNSIGNED NOT NULL,
+  `reading_point_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `token` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `quota_total` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `quota_used` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `quota_unit` enum('minutes','pages','books') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'minutes',
+  `issued_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `expires_at` datetime(0) NULL DEFAULT NULL,
+  `status` enum('active','used','expired','revoked') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `issued_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `revoked_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `revoked_at` datetime(0) NULL DEFAULT NULL,
+  `revoke_reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_reading_tokens_token`(`token`) USING BTREE,
+  INDEX `idx_reading_tokens_member`(`member_id`) USING BTREE,
+  INDEX `idx_reading_tokens_point`(`reading_point_id`) USING BTREE,
+  INDEX `idx_reading_tokens_status`(`status`, `expires_at`) USING BTREE,
+  INDEX `fk_reading_tokens_issued_by`(`issued_by`) USING BTREE,
+  INDEX `idx_reading_tokens_revoked_by`(`revoked_by`) USING BTREE,
+  CONSTRAINT `fk_reading_tokens_issued_by` FOREIGN KEY (`issued_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `fk_reading_tokens_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_reading_tokens_point` FOREIGN KEY (`reading_point_id`) REFERENCES `reading_points` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 8 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for ref_districts
@@ -635,25 +1115,7 @@ CREATE TABLE `ref_districts`  (
   UNIQUE INDEX `uq_ref_districts_code`(`code`) USING BTREE,
   UNIQUE INDEX `uq_ref_districts_name`(`name`) USING BTREE,
   UNIQUE INDEX `uq_ref_districts_full_code`(`full_code`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 43 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of ref_districts
--- ----------------------------
-INSERT INTO `ref_districts` VALUES (1, '33', '17', '01', '33.17.01', 'Sumber', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (2, '33', '17', '02', '33.17.02', 'Bulu', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (3, '33', '17', '03', '33.17.03', 'Gunem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (4, '33', '17', '04', '33.17.04', 'Sale', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (5, '33', '17', '05', '33.17.05', 'Sarang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (6, '33', '17', '06', '33.17.06', 'Sedan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (7, '33', '17', '07', '33.17.07', 'Pamotan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (8, '33', '17', '08', '33.17.08', 'Sulang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (9, '33', '17', '09', '33.17.09', 'Kaliori', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (10, '33', '17', '10', '33.17.10', 'Rembang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (11, '33', '17', '11', '33.17.11', 'Pancur', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (12, '33', '17', '12', '33.17.12', 'Kragan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (13, '33', '17', '13', '33.17.13', 'Sluke', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_districts` VALUES (14, '33', '17', '14', '33.17.14', 'Lasem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
+) ENGINE = InnoDB AUTO_INCREMENT = 30 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for ref_villages
@@ -676,304 +1138,6 @@ CREATE TABLE `ref_villages`  (
   INDEX `idx_ref_villages_district_name`(`district_id`, `name`) USING BTREE,
   CONSTRAINT `fk_ref_villages_district` FOREIGN KEY (`district_id`) REFERENCES `ref_districts` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE = InnoDB AUTO_INCREMENT = 513 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of ref_villages
--- ----------------------------
-INSERT INTO `ref_villages` VALUES (1, 1, '33', '17', '01', '3317012015', 'desa', 'Bogorejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (2, 1, '33', '17', '01', '3317012011', 'desa', 'Grawan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (3, 1, '33', '17', '01', '3317012010', 'desa', 'Jadi', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (4, 1, '33', '17', '01', '3317012008', 'desa', 'Jatihadi', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (5, 1, '33', '17', '01', '3317012017', 'desa', 'Kedungasem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (6, 1, '33', '17', '01', '3317012006', 'desa', 'Kedungtulup', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (7, 1, '33', '17', '01', '3317012005', 'desa', 'Krikilan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (8, 1, '33', '17', '01', '3317012002', 'desa', 'Logede', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (9, 1, '33', '17', '01', '3317012004', 'desa', 'Logung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (10, 1, '33', '17', '01', '3317012016', 'desa', 'Megulung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (11, 1, '33', '17', '01', '3317012003', 'desa', 'Pelemsari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (12, 1, '33', '17', '01', '3317012007', 'desa', 'Polbayem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (13, 1, '33', '17', '01', '3317012012', 'desa', 'Randuagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (14, 1, '33', '17', '01', '3317012001', 'desa', 'Ronggomulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (15, 1, '33', '17', '01', '3317012018', 'desa', 'Sekarsari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (16, 1, '33', '17', '01', '3317012013', 'desa', 'Sukorejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (17, 1, '33', '17', '01', '3317012009', 'desa', 'Sumber', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (18, 1, '33', '17', '01', '3317012014', 'desa', 'Tlogotunggal', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (19, 2, '33', '17', '02', '3317022014', 'desa', 'Bulu', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (20, 2, '33', '17', '02', '3317022006', 'desa', 'Cabean', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (21, 2, '33', '17', '02', '3317022013', 'desa', 'Jukung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (22, 2, '33', '17', '02', '3317022016', 'desa', 'Kadiwono', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (23, 2, '33', '17', '02', '3317022010', 'desa', 'Karangasem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (24, 2, '33', '17', '02', '3317022007', 'desa', 'Lambangan Kulon', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (25, 2, '33', '17', '02', '3317022008', 'desa', 'Lambangan Wetan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (26, 2, '33', '17', '02', '3317022015', 'desa', 'Mantingan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (27, 2, '33', '17', '02', '3317022001', 'desa', 'Mlatirejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (28, 2, '33', '17', '02', '3317022012', 'desa', 'Ngulaan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (29, 2, '33', '17', '02', '3317022011', 'desa', 'Pasedan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (30, 2, '33', '17', '02', '3317022005', 'desa', 'Pinggan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (31, 2, '33', '17', '02', '3317022003', 'desa', 'Pondokrejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (32, 2, '33', '17', '02', '3317022002', 'desa', 'Sendangmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (33, 2, '33', '17', '02', '3317022009', 'desa', 'Sumbermulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (34, 2, '33', '17', '02', '3317022004', 'desa', 'Warugunung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (35, 3, '33', '17', '03', '3317032015', 'desa', 'Banyuurip', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (36, 3, '33', '17', '03', '3317032014', 'desa', 'Demaan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (37, 3, '33', '17', '03', '3317032006', 'desa', 'Dowan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (38, 3, '33', '17', '03', '3317032008', 'desa', 'Gunem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (39, 3, '33', '17', '03', '3317032001', 'desa', 'Kajar', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (40, 3, '33', '17', '03', '3317032009', 'desa', 'Kulutan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (41, 3, '33', '17', '03', '3317032013', 'desa', 'Panohan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (42, 3, '33', '17', '03', '3317032004', 'desa', 'Pasucen', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (43, 3, '33', '17', '03', '3317032016', 'desa', 'Sambongpayak', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (44, 3, '33', '17', '03', '3317032012', 'desa', 'Sendangmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (45, 3, '33', '17', '03', '3317032010', 'desa', 'Sidomulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (46, 3, '33', '17', '03', '3317032005', 'desa', 'Suntri', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (47, 3, '33', '17', '03', '3317032003', 'desa', 'Tegaldowo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (48, 3, '33', '17', '03', '3317032011', 'desa', 'Telgawah', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (49, 3, '33', '17', '03', '3317032002', 'desa', 'Timbrangan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (50, 3, '33', '17', '03', '3317032007', 'desa', 'Trembes', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (51, 4, '33', '17', '04', '3317042001', 'desa', 'Bancang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (52, 4, '33', '17', '04', '3317042012', 'desa', 'Bitingan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (53, 4, '33', '17', '04', '3317042005', 'desa', 'Gading', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (54, 4, '33', '17', '04', '3317042006', 'desa', 'Jinanten', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (55, 4, '33', '17', '04', '3317042007', 'desa', 'Joho', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (56, 4, '33', '17', '04', '3317042002', 'desa', 'Mrayun', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (57, 4, '33', '17', '04', '3317042003', 'desa', 'Ngajaran', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (58, 4, '33', '17', '04', '3317042013', 'desa', 'Pakis', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (59, 4, '33', '17', '04', '3317042014', 'desa', 'Rendeng', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (60, 4, '33', '17', '04', '3317042008', 'desa', 'Sale', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (61, 4, '33', '17', '04', '3317042010', 'desa', 'Sumbermulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (62, 4, '33', '17', '04', '3317042004', 'desa', 'Tahunan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (63, 4, '33', '17', '04', '3317042011', 'desa', 'Tengger', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (64, 4, '33', '17', '04', '3317042015', 'desa', 'Ukir', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (65, 4, '33', '17', '04', '3317042009', 'desa', 'Wonokerto', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (66, 5, '33', '17', '05', '3317052007', 'desa', 'Babaktulung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (67, 5, '33', '17', '05', '3317052021', 'desa', 'Bajingjowo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (68, 5, '33', '17', '05', '3317052022', 'desa', 'Bajingmeduro', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (69, 5, '33', '17', '05', '3317052018', 'desa', 'Banowan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (70, 5, '33', '17', '05', '3317052006', 'desa', 'Baturno', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (71, 5, '33', '17', '05', '3317052003', 'desa', 'Bonjor', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (72, 5, '33', '17', '05', '3317052016', 'desa', 'Dadapmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (73, 5, '33', '17', '05', '3317052011', 'desa', 'Gilis', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (74, 5, '33', '17', '05', '3317052013', 'desa', 'Gonggang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (75, 5, '33', '17', '05', '3317052012', 'desa', 'Gunungmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (76, 5, '33', '17', '05', '3317052009', 'desa', 'Jambangan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (77, 5, '33', '17', '05', '3317052015', 'desa', 'Kalipang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (78, 5, '33', '17', '05', '3317052020', 'desa', 'Karangmangu', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (79, 5, '33', '17', '05', '3317052001', 'desa', 'Lodan Kulon', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (80, 5, '33', '17', '05', '3317052002', 'desa', 'Lodan Wetan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (81, 5, '33', '17', '05', '3317052008', 'desa', 'Nglojo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (82, 5, '33', '17', '05', '3317052010', 'desa', 'Pelang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (83, 5, '33', '17', '05', '3317052005', 'desa', 'Sampung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (84, 5, '33', '17', '05', '3317052023', 'desa', 'Sarangmeduro', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (85, 5, '33', '17', '05', '3317052017', 'desa', 'Sendangmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (86, 5, '33', '17', '05', '3317052014', 'desa', 'Sumbermulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (87, 5, '33', '17', '05', '3317052004', 'desa', 'Tawangrejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (88, 5, '33', '17', '05', '3317052019', 'desa', 'Temperak', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (89, 6, '33', '17', '06', '3317062018', 'desa', 'Bogorejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (90, 6, '33', '17', '06', '3317062013', 'desa', 'Candimulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (91, 6, '33', '17', '06', '3317062016', 'desa', 'Dadapan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (92, 6, '33', '17', '06', '3317062012', 'desa', 'Gandrirojo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (93, 6, '33', '17', '06', '3317062005', 'desa', 'Gesikan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (94, 6, '33', '17', '06', '3317062020', 'desa', 'Jambeyan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (95, 6, '33', '17', '06', '3317062008', 'desa', 'Karangasem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (96, 6, '33', '17', '06', '3317062003', 'desa', 'Karas', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (97, 6, '33', '17', '06', '3317062011', 'desa', 'Kedungringin', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (98, 6, '33', '17', '06', '3317062019', 'desa', 'Kenongo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (99, 6, '33', '17', '06', '3317062015', 'desa', 'Kumbo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (100, 6, '33', '17', '06', '3317062014', 'desa', 'Lemahputih', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (101, 6, '33', '17', '06', '3317062021', 'desa', 'Menoro', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (102, 6, '33', '17', '06', '3317062004', 'desa', 'Mojosari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (103, 6, '33', '17', '06', '3317062001', 'desa', 'Ngulahan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (104, 6, '33', '17', '06', '3317062002', 'desa', 'Pacing', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (105, 6, '33', '17', '06', '3317062006', 'desa', 'Sambiroto', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (106, 6, '33', '17', '06', '3317062017', 'desa', 'Sambong', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (107, 6, '33', '17', '06', '3317062007', 'desa', 'Sedan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (108, 6, '33', '17', '06', '3317062010', 'desa', 'Sidomulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (109, 6, '33', '17', '06', '3317062009', 'desa', 'Sidorejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (110, 7, '33', '17', '07', '3317072006', 'desa', 'Bamban', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (111, 7, '33', '17', '07', '3317072007', 'desa', 'Bangunrejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (112, 7, '33', '17', '07', '3317072005', 'desa', 'Gambiran', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (113, 7, '33', '17', '07', '3317072018', 'desa', 'Gegersimo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (114, 7, '33', '17', '07', '3317072020', 'desa', 'Japerejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (115, 7, '33', '17', '07', '3317072011', 'desa', 'Joho', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (116, 7, '33', '17', '07', '3317072013', 'desa', 'Kepohagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (117, 7, '33', '17', '07', '3317072016', 'desa', 'Ketangi', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (118, 7, '33', '17', '07', '3317072001', 'desa', 'Megal', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (119, 7, '33', '17', '07', '3317072012', 'desa', 'Mlagen', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (120, 7, '33', '17', '07', '3317072014', 'desa', 'Mlawat', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (121, 7, '33', '17', '07', '3317072002', 'desa', 'Ngemplakrejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (122, 7, '33', '17', '07', '3317072008', 'desa', 'Pamotan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (123, 7, '33', '17', '07', '3317072003', 'desa', 'Pragen', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (124, 7, '33', '17', '07', '3317072022', 'desa', 'Ringin', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (125, 7, '33', '17', '07', '3317072004', 'desa', 'Samaran', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (126, 7, '33', '17', '07', '3317072015', 'desa', 'Segoromulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (127, 7, '33', '17', '07', '3317072017', 'desa', 'Sendangagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (128, 7, '33', '17', '07', '3317072009', 'desa', 'Sidorejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (129, 7, '33', '17', '07', '3317072023', 'desa', 'Sumbangrejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (130, 7, '33', '17', '07', '3317072019', 'desa', 'Sumberjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (131, 7, '33', '17', '07', '3317072010', 'desa', 'Tempaling', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (132, 7, '33', '17', '07', '3317072021', 'desa', 'Tulung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (133, 8, '33', '17', '08', '3317082011', 'desa', 'Bogorame', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (134, 8, '33', '17', '08', '3317082010', 'desa', 'Glebeg', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (135, 8, '33', '17', '08', '3317082008', 'desa', 'Jatimudo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (136, 8, '33', '17', '08', '3317082012', 'desa', 'Kaliombo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (137, 8, '33', '17', '08', '3317082007', 'desa', 'Karangharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (138, 8, '33', '17', '08', '3317082014', 'desa', 'Karangsari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (139, 8, '33', '17', '08', '3317082016', 'desa', 'Kebonagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (140, 8, '33', '17', '08', '3317082002', 'desa', 'Kemadu', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (141, 8, '33', '17', '08', '3317082021', 'desa', 'Kerep', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (142, 8, '33', '17', '08', '3317082006', 'desa', 'Korowelang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (143, 8, '33', '17', '08', '3317082009', 'desa', 'Kunir', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (144, 8, '33', '17', '08', '3317082020', 'desa', 'Landoh', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (145, 8, '33', '17', '08', '3317082019', 'desa', 'Pedak', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (146, 8, '33', '17', '08', '3317082004', 'desa', 'Pomahan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (147, 8, '33', '17', '08', '3317082015', 'desa', 'Pragu', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (148, 8, '33', '17', '08', '3317082018', 'desa', 'Pranti', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (149, 8, '33', '17', '08', '3317082005', 'desa', 'Rukem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (150, 8, '33', '17', '08', '3317082017', 'desa', 'Seren', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (151, 8, '33', '17', '08', '3317082013', 'desa', 'Sudo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (152, 8, '33', '17', '08', '3317082003', 'desa', 'Sulang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (153, 8, '33', '17', '08', '3317082001', 'desa', 'Tanjung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (154, 9, '33', '17', '09', '3317092010', 'desa', 'Babadan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (155, 9, '33', '17', '09', '3317092005', 'desa', 'Banggi', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (156, 9, '33', '17', '09', '3317092022', 'desa', 'Banyudono', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (157, 9, '33', '17', '09', '3317092021', 'desa', 'Bogoharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (158, 9, '33', '17', '09', '3317092017', 'desa', 'Dresi Kulon', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (159, 9, '33', '17', '09', '3317092018', 'desa', 'Dresi Wetan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (160, 9, '33', '17', '09', '3317092007', 'desa', 'Gunungsari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (161, 9, '33', '17', '09', '3317092009', 'desa', 'Karangsekar', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (162, 9, '33', '17', '09', '3317092006', 'desa', 'Kuangsan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (163, 9, '33', '17', '09', '3317092002', 'desa', 'Maguan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (164, 9, '33', '17', '09', '3317092001', 'desa', 'Meteseh', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (165, 9, '33', '17', '09', '3317092013', 'desa', 'Mojorembun', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (166, 9, '33', '17', '09', '3317092016', 'desa', 'Mojowarno', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (167, 9, '33', '17', '09', '3317092023', 'desa', 'Pantiharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (168, 9, '33', '17', '09', '3317092011', 'desa', 'Pengkol', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (169, 9, '33', '17', '09', '3317092020', 'desa', 'Purworejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (170, 9, '33', '17', '09', '3317092012', 'desa', 'Sambiyan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (171, 9, '33', '17', '09', '3317092008', 'desa', 'Sendangagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (172, 9, '33', '17', '09', '3317092003', 'desa', 'Sidomulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (173, 9, '33', '17', '09', '3317092015', 'desa', 'Tambakagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (174, 9, '33', '17', '09', '3317092019', 'desa', 'Tasikharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (175, 9, '33', '17', '09', '3317092014', 'desa', 'Tunggulsari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (176, 9, '33', '17', '09', '3317092004', 'desa', 'Wiroto', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (177, 10, '33', '17', '10', '3317102011', 'desa', 'Gedangan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (178, 10, '33', '17', '10', '3317102021', 'desa', 'Gegunung Wetan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (179, 10, '33', '17', '10', '3317102033', 'desa', 'Kabongan Kidul', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (180, 10, '33', '17', '10', '3317102032', 'desa', 'Kabongan Lor', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (181, 10, '33', '17', '10', '3317102007', 'desa', 'Kasreman', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (182, 10, '33', '17', '10', '3317102001', 'desa', 'Kedungrejo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (183, 10, '33', '17', '10', '3317102016', 'desa', 'Ketanggi', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (184, 10, '33', '17', '10', '3317102003', 'desa', 'Kumendung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (185, 10, '33', '17', '10', '3317102014', 'desa', 'Mondoteko', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (186, 10, '33', '17', '10', '3317102015', 'desa', 'Ngadem', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (187, 10, '33', '17', '10', '3317102013', 'desa', 'Ngotet', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (188, 10, '33', '17', '10', '3317102030', 'desa', 'Padaran', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (189, 10, '33', '17', '10', '3317102005', 'desa', 'Pandean', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (190, 10, '33', '17', '10', '3317102010', 'desa', 'Pasarbanggi', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (191, 10, '33', '17', '10', '3317102017', 'desa', 'Pulo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (192, 10, '33', '17', '10', '3317102008', 'desa', 'Punjulharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (193, 10, '33', '17', '10', '3317102026', 'desa', 'Sawahan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (194, 10, '33', '17', '10', '3317102004', 'desa', 'Sridadi', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (195, 10, '33', '17', '10', '3317102031', 'desa', 'Sukoharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (196, 10, '33', '17', '10', '3317102024', 'desa', 'Sumberjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (197, 10, '33', '17', '10', '3317102025', 'desa', 'Tasikagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (198, 10, '33', '17', '10', '3317102034', 'desa', 'Tireman', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (199, 10, '33', '17', '10', '3317102006', 'desa', 'Tlogomojo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (200, 10, '33', '17', '10', '3317102009', 'desa', 'Tritunggal', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (201, 10, '33', '17', '10', '3317102002', 'desa', 'Turusgede', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (202, 10, '33', '17', '10', '3317102018', 'desa', 'Waru', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (203, 10, '33', '17', '10', '3317102012', 'desa', 'Weton', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (204, 10, '33', '17', '10', '3317101028', 'desa', 'Sidowayah', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (205, 10, '33', '17', '10', '3317101029', 'desa', 'Kutoharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (206, 10, '33', '17', '10', '3317101027', 'desa', 'Leteh', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (207, 10, '33', '17', '10', '3317101022', 'desa', 'Pacar', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (208, 10, '33', '17', '10', '3317101023', 'desa', 'Tanjungsari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (209, 10, '33', '17', '10', '3317101019', 'desa', 'Magersari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (210, 10, '33', '17', '10', '3317101020', 'desa', 'Gegunung Kulon', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (211, 11, '33', '17', '11', '3317112020', 'desa', 'Banyuurip', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (212, 11, '33', '17', '11', '3317112017', 'desa', 'Criwik', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (213, 11, '33', '17', '11', '3317112003', 'desa', 'Doropayung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (214, 11, '33', '17', '11', '3317112007', 'desa', 'Gemblengmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (215, 11, '33', '17', '11', '3317112001', 'desa', 'Japeledok', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (216, 11, '33', '17', '11', '3317112002', 'desa', 'Jeruk', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (217, 11, '33', '17', '11', '3317112021', 'desa', 'Johogunung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (218, 11, '33', '17', '11', '3317112009', 'desa', 'Kalitengah', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (219, 11, '33', '17', '11', '3317112004', 'desa', 'Karaskepoh', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (220, 11, '33', '17', '11', '3317112011', 'desa', 'Kedung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (221, 11, '33', '17', '11', '3317112013', 'desa', 'Langkir', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (222, 11, '33', '17', '11', '3317112023', 'desa', 'Ngroto', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (223, 11, '33', '17', '11', '3317112019', 'desa', 'Ngulangan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (224, 11, '33', '17', '11', '3317112014', 'desa', 'Pancur', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (225, 11, '33', '17', '11', '3317112006', 'desa', 'Pandan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (226, 11, '33', '17', '11', '3317112015', 'desa', 'Pohlandak', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (227, 11, '33', '17', '11', '3317112012', 'desa', 'Punggurharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (228, 11, '33', '17', '11', '3317112010', 'desa', 'Sidowayah', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (229, 11, '33', '17', '11', '3317112008', 'desa', 'Sumberagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (230, 11, '33', '17', '11', '3317112022', 'desa', 'Trenggulunan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (231, 11, '33', '17', '11', '3317112005', 'desa', 'Tuyuhan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (232, 11, '33', '17', '11', '3317112016', 'desa', 'Warugunung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (233, 11, '33', '17', '11', '3317112018', 'desa', 'Wuwur', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (234, 12, '33', '17', '12', '3317122014', 'desa', 'Balongmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (235, 12, '33', '17', '12', '3317122009', 'desa', 'Karanganyar', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (236, 12, '33', '17', '12', '3317122011', 'desa', 'Karangharjo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (237, 12, '33', '17', '12', '3317122010', 'desa', 'Karanglincak', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (238, 12, '33', '17', '12', '3317122008', 'desa', 'Kebloran', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (239, 12, '33', '17', '12', '3317122005', 'desa', 'Kendalagung', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (240, 12, '33', '17', '12', '3317122012', 'desa', 'Kragan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (241, 12, '33', '17', '12', '3317122006', 'desa', 'Mojokerto', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (242, 12, '33', '17', '12', '3317122015', 'desa', 'Narukan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (243, 12, '33', '17', '12', '3317122004', 'desa', 'Ngasinan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (244, 12, '33', '17', '12', '3317122025', 'desa', 'Pandangan Kulon', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (245, 12, '33', '17', '12', '3317122024', 'desa', 'Pandangan Wetan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (246, 12, '33', '17', '12', '3317122022', 'desa', 'Plawangan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (247, 12, '33', '17', '12', '3317122018', 'desa', 'Sendang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (248, 12, '33', '17', '12', '3317122002', 'desa', 'Sendangmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (249, 12, '33', '17', '12', '3317122003', 'desa', 'Sendangwaru', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (250, 12, '33', '17', '12', '3317122016', 'desa', 'Sudan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (251, 12, '33', '17', '12', '3317122023', 'desa', 'Sumbergayam', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (252, 12, '33', '17', '12', '3317122027', 'desa', 'Sumbersari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (253, 12, '33', '17', '12', '3317122021', 'desa', 'Sumurpule', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (254, 12, '33', '17', '12', '3317122026', 'desa', 'Sumurtawang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (255, 12, '33', '17', '12', '3317122007', 'desa', 'Tanjungan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (256, 12, '33', '17', '12', '3317122001', 'desa', 'Tanjungsari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (257, 12, '33', '17', '12', '3317122013', 'desa', 'Tegalmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (258, 12, '33', '17', '12', '3317122017', 'desa', 'Terjan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (259, 12, '33', '17', '12', '3317122019', 'desa', 'Watupecah', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (260, 12, '33', '17', '12', '3317122020', 'desa', 'Woro', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (261, 13, '33', '17', '13', '3317132003', 'desa', 'Bendo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (262, 13, '33', '17', '13', '3317132006', 'desa', 'Blimbing', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (263, 13, '33', '17', '13', '3317132008', 'desa', 'Jatisari', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (264, 13, '33', '17', '13', '3317132011', 'desa', 'Jurangjero', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (265, 13, '33', '17', '13', '3317132004', 'desa', 'Labuhan Kidul', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (266, 13, '33', '17', '13', '3317132009', 'desa', 'Langgar', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (267, 13, '33', '17', '13', '3317132012', 'desa', 'Leran', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (268, 13, '33', '17', '13', '3317132007', 'desa', 'Manggar', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (269, 13, '33', '17', '13', '3317132014', 'desa', 'Pangkalan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (270, 13, '33', '17', '13', '3317132002', 'desa', 'Rakitan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (271, 13, '33', '17', '13', '3317132001', 'desa', 'Sanetan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (272, 13, '33', '17', '13', '3317132005', 'desa', 'Sendangmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (273, 13, '33', '17', '13', '3317132010', 'desa', 'Sluke', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (274, 13, '33', '17', '13', '3317132013', 'desa', 'Trahan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (275, 14, '33', '17', '14', '3317142005', 'desa', 'Babagan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (276, 14, '33', '17', '14', '3317142020', 'desa', 'Binangun', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (277, 14, '33', '17', '14', '3317142019', 'desa', 'Bonang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (278, 14, '33', '17', '14', '3317142008', 'desa', 'Dasun', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (279, 14, '33', '17', '14', '3317142006', 'desa', 'Dorokandang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (280, 14, '33', '17', '14', '3317142007', 'desa', 'Gedongmulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (281, 14, '33', '17', '14', '3317142015', 'desa', 'Gowak', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (282, 14, '33', '17', '14', '3317142002', 'desa', 'Jolotundo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (283, 14, '33', '17', '14', '3317142014', 'desa', 'Kajar', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (284, 14, '33', '17', '14', '3317142004', 'desa', 'Karangturi', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (285, 14, '33', '17', '14', '3317142001', 'desa', 'Karasgede', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (286, 14, '33', '17', '14', '3317142013', 'desa', 'Ngargomulyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (287, 14, '33', '17', '14', '3317142010', 'desa', 'Ngemplak', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (288, 14, '33', '17', '14', '3317142011', 'desa', 'Selopuro', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (289, 14, '33', '17', '14', '3317142016', 'desa', 'Sendangasri', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (290, 14, '33', '17', '14', '3317142012', 'desa', 'Sendangcoyo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (291, 14, '33', '17', '14', '3317142009', 'desa', 'Soditan', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (292, 14, '33', '17', '14', '3317142018', 'desa', 'Sriombo', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (293, 14, '33', '17', '14', '3317142003', 'desa', 'Sumbergirang', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
-INSERT INTO `ref_villages` VALUES (294, 14, '33', '17', '14', '3317142017', 'desa', 'Tasiksono', 1, '2026-07-29 07:56:57', '2026-07-29 08:58:35');
 
 -- ----------------------------
 -- Table structure for sys_menu
@@ -1001,25 +1165,7 @@ CREATE TABLE `sys_menu`  (
   INDEX `idx_sys_menu_area_order`(`menu_area`, `sort_order`) USING BTREE,
   CONSTRAINT `fk_sys_menu_page` FOREIGN KEY (`page_id`) REFERENCES `sys_page` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
   CONSTRAINT `fk_sys_menu_parent` FOREIGN KEY (`parent_id`) REFERENCES `sys_menu` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 39 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of sys_menu
--- ----------------------------
-INSERT INTO `sys_menu` VALUES (1, NULL, 1, 'MAIN', 'dashboard', 'Dashboard', 'ti ti-layout-dashboard', 'admin', 10, 1, 1, 1, '2026-07-28 22:09:29', '2026-07-29 06:00:52');
-INSERT INTO `sys_menu` VALUES (2, NULL, 2, 'MAIN', 'libraries.gis', 'Perpustakaan GIS', 'ti ti-map-2', 'libraries', 20, 1, 1, 0, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_menu` VALUES (3, NULL, 3, 'MAIN', 'catalog', 'Katalog', 'ti ti-books', 'catalog', 30, 1, 1, 0, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_menu` VALUES (4, NULL, 4, 'MAIN', 'members', 'Membership', 'ti ti-id-badge-2', 'members', 40, 1, 1, 0, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_menu` VALUES (5, NULL, 6, 'MAIN', 'reading-points', 'Pojok Baca', 'ti ti-current-location', 'reading-points', 50, 1, 1, 0, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_menu` VALUES (6, NULL, 7, 'MAIN', 'events', 'Event', 'ti ti-calendar-event', 'events', 60, 1, 1, 0, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_menu` VALUES (7, NULL, NULL, 'MAIN', 'system', 'Pengaturan Akses', 'ti ti-shield-lock', NULL, 80, 1, 1, 1, '2026-07-28 22:09:29', '2026-07-29 20:36:48');
-INSERT INTO `sys_menu` VALUES (8, 7, 8, 'MAIN', 'system.users', 'User', 'ti ti-users', 'rbac/users', 10, 1, 1, 0, '2026-07-28 22:09:29', '2026-07-29 20:36:48');
-INSERT INTO `sys_menu` VALUES (9, 7, 9, 'MAIN', 'system.roles', 'Role & Permission', 'ti ti-key', 'rbac/roles', 20, 1, 1, 0, '2026-07-28 22:09:29', '2026-07-29 20:36:48');
-INSERT INTO `sys_menu` VALUES (10, 7, 10, 'MAIN', 'system.sidebar', 'Sidebar', 'ti ti-layout-sidebar', 'rbac/sidebar', 40, 1, 1, 0, '2026-07-28 22:09:29', '2026-07-29 20:36:48');
-INSERT INTO `sys_menu` VALUES (31, 7, 31, 'MAIN', 'system.pages', 'Registry Halaman', 'ti ti-file-settings', 'rbac/pages', 30, 1, 1, 0, '2026-07-29 06:43:15', '2026-07-29 20:36:48');
-INSERT INTO `sys_menu` VALUES (33, 7, 33, 'MAIN', 'system.audit', 'Audit Log', 'ti ti-history', 'audit', 50, 1, 1, 0, '2026-07-29 07:56:57', '2026-07-29 20:36:48');
-INSERT INTO `sys_menu` VALUES (35, NULL, NULL, 'MAIN', 'master-data', 'Data Master', 'ti ti-database', NULL, 70, 1, 1, 1, '2026-07-29 11:45:36', '2026-07-29 20:36:48');
-INSERT INTO `sys_menu` VALUES (36, 35, 35, 'MAIN', 'master.regions', 'Master Wilayah', 'ti ti-map-pin-cog', 'regions', 10, 1, 1, 0, '2026-07-29 11:45:36', '2026-07-29 20:36:48');
+) ENGINE = InnoDB AUTO_INCREMENT = 71 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for sys_page
@@ -1039,26 +1185,7 @@ CREATE TABLE `sys_page`  (
   UNIQUE INDEX `uq_sys_page_code`(`code`) USING BTREE,
   INDEX `idx_sys_page_module`(`module`) USING BTREE,
   INDEX `idx_sys_page_route`(`route`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 41 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of sys_page
--- ----------------------------
-INSERT INTO `sys_page` VALUES (1, 'dashboard.index', 'dashboard', 'Dashboard', 'admin/index', 'Ringkasan aplikasi dan status migrasi.', 1, '2026-07-28 22:09:29', '2026-07-29 06:00:52');
-INSERT INTO `sys_page` VALUES (2, 'libraries.index', 'libraries', 'Perpustakaan GIS', 'libraries', 'Direktori perpustakaan terintegrasi berbasis GIS.', 1, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_page` VALUES (3, 'catalog.index', 'catalog', 'Katalog Buku', 'catalog', 'Manajemen katalog dan koleksi buku.', 1, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_page` VALUES (4, 'members.index', 'members', 'Membership Digital', 'members', 'Manajemen akun/member dan kartu digital.', 1, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_page` VALUES (5, 'gis.index', 'gis', 'Peta GIS', 'gis', 'Peta seluruh titik perpustakaan dan pojok baca.', 1, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_page` VALUES (6, 'reading_points.index', 'reading_points', 'Pojok Baca Digital', 'reading-points', 'Lokasi GPS, token, dan kuota baca digital.', 1, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_page` VALUES (7, 'events.index', 'events', 'Event Literasi', 'events', 'Agenda dan kegiatan literasi.', 1, '2026-07-28 22:09:29', NULL);
-INSERT INTO `sys_page` VALUES (8, 'auth.users.index', 'auth', 'Manajemen User', 'rbac/users', 'Kelola user, status, dan penugasan role.', 1, '2026-07-28 22:09:29', '2026-07-29 06:43:15');
-INSERT INTO `sys_page` VALUES (9, 'auth.roles.index', 'auth', 'Role dan Hak Akses', 'rbac/roles', 'Kelola role dan matriks permission.', 1, '2026-07-28 22:09:29', '2026-07-29 06:43:15');
-INSERT INTO `sys_page` VALUES (10, 'system.sidebar.manage', 'system', 'Manajemen Sidebar', 'rbac/sidebar', 'Kelola susunan, ikon, dan akses menu sidebar.', 1, '2026-07-28 22:09:29', '2026-07-29 06:43:15');
-INSERT INTO `sys_page` VALUES (31, 'system.pages.index', 'system', 'Registry Halaman', 'rbac/pages', 'Kelola registry halaman yang menjadi dasar permission dan sidebar.', 1, '2026-07-29 06:43:15', NULL);
-INSERT INTO `sys_page` VALUES (33, 'audit.index', 'audit', 'Audit Log', 'audit', 'Pantauan aktivitas penting sistem.', 1, '2026-07-29 07:56:57', NULL);
-INSERT INTO `sys_page` VALUES (35, 'regions.index', 'regions', 'Master Wilayah', 'regions', 'Kelola kecamatan dan Desa / Kelurahan Rembang.', 1, '2026-07-29 11:45:36', NULL);
-INSERT INTO `sys_page` VALUES (36, 'catalog.sync', 'catalog', 'Sinkronisasi Katalog', 'catalog/sync', 'Pantau dan jalankan sinkronisasi katalog dari INLISLite.', 1, '2026-07-29 11:45:36', NULL);
-INSERT INTO `sys_page` VALUES (39, 'members.sync', 'members', 'Sinkronisasi Member', 'members/sync', 'Pantau dan jalankan sinkronisasi anggota dari INLISLite.', 1, '2026-07-29 20:07:25', NULL);
+) ENGINE = InnoDB AUTO_INCREMENT = 62 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for sys_sidebar_favorite
@@ -1074,5 +1201,67 @@ CREATE TABLE `sys_sidebar_favorite`  (
   CONSTRAINT `fk_sys_sidebar_favorite_menu` FOREIGN KEY (`menu_id`) REFERENCES `sys_menu` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk_sys_sidebar_favorite_user` FOREIGN KEY (`user_id`) REFERENCES `auth_user` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for transaction_sync_runs
+-- ----------------------------
+DROP TABLE IF EXISTS `transaction_sync_runs`;
+CREATE TABLE `transaction_sync_runs`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source_database` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'inlislite_v3',
+  `source_table` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `sync_type` enum('manual','scheduled','dry_run') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'manual',
+  `mode` enum('import_new','refresh_existing','dry_run') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'import_new',
+  `status` enum('queued','running','success','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'queued',
+  `started_at` datetime(0) NULL DEFAULT NULL,
+  `finished_at` datetime(0) NULL DEFAULT NULL,
+  `total_source` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `total_inserted` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `total_updated` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `total_failed` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `created_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_transaction_sync_runs_status`(`status`) USING BTREE,
+  INDEX `idx_transaction_sync_runs_created_at`(`created_at`) USING BTREE,
+  INDEX `fk_transaction_sync_runs_created_by`(`created_by`) USING BTREE,
+  CONSTRAINT `fk_transaction_sync_runs_created_by` FOREIGN KEY (`created_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 20 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for visit_kiosk_qr_tokens
+-- ----------------------------
+DROP TABLE IF EXISTS `visit_kiosk_qr_tokens`;
+CREATE TABLE `visit_kiosk_qr_tokens`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `library_id` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `token` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('active','used','expired','revoked') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `expires_at` datetime(0) NOT NULL,
+  `used_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `created_by` bigint(20) UNSIGNED NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_visit_kiosk_qr_tokens_token`(`token`) USING BTREE,
+  INDEX `idx_visit_kiosk_qr_tokens_library`(`library_id`) USING BTREE,
+  INDEX `idx_visit_kiosk_qr_tokens_status_expiry`(`status`, `expires_at`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 88 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for visit_kiosk_settings
+-- ----------------------------
+DROP TABLE IF EXISTS `visit_kiosk_settings`;
+CREATE TABLE `visit_kiosk_settings`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `setting_key` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `setting_value` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `created_at` datetime(0) NOT NULL DEFAULT current_timestamp(0),
+  `updated_at` datetime(0) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uq_visit_kiosk_settings_key`(`setting_key`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;

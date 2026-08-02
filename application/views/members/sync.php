@@ -118,7 +118,7 @@ $run_mode_label = function ($run) {
 							</div>
 							<div class="datagrid-item">
 								<div class="datagrid-title">Username</div>
-								<div class="datagrid-content">Nomor anggota, fallback ke ID sumber.</div>
+								<div class="datagrid-content">NIK/nomor identitas, fallback ke nomor anggota atau ID sumber.</div>
 							</div>
 						</div>
 					</div>

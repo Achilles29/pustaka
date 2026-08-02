@@ -6,6 +6,7 @@ class Home extends CI_Controller
 	public function index()
 	{
 		$this->load->model('Library_model');
+		$this->load->model('Catalog_model');
 
 		$libraries = $this->db->table_exists('libraries')
 			? $this->Library_model->get_libraries(['status' => 'active'])
@@ -23,6 +24,8 @@ class Home extends CI_Controller
 			'libraries' => $libraries,
 			'map_payload' => $this->Library_model->map_payload($libraries),
 			'source_counts' => $source_counts,
+			'public_catalog_count' => $this->Catalog_model->count_public_books(['availability' => 'with_items']),
+			'catalog_preview' => $this->Catalog_model->get_public_books(['availability' => 'available'], 4, 0),
 		]);
 	}
 }
