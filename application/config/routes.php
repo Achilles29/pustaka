@@ -194,3 +194,109 @@ $route['users'] = 'rbac/users';
 $route['users/store'] = 'rbac/store_user';
 $route['users/roles/(:num)'] = 'rbac/update_user_roles/$1';
 $route['users/toggle/(:num)'] = 'rbac/toggle_user/$1';
+
+// ── Quiz Engine ──────────────────────────────────────────────────────────────
+$route['quiz-config']                                   = 'quiz_config/index';
+$route['quiz-config/store_grade']                       = 'quiz_config/store_grade';
+$route['quiz-config/update_grade/(:num)']               = 'quiz_config/update_grade/$1';
+$route['quiz-config/delete_grade/(:num)']               = 'quiz_config/delete_grade/$1';
+$route['quiz-config/store_subject']                     = 'quiz_config/store_subject';
+$route['quiz-config/update_subject/(:num)']             = 'quiz_config/update_subject/$1';
+$route['quiz-config/delete_subject/(:num)']             = 'quiz_config/delete_subject/$1';
+
+$route['quiz-bank']                                     = 'quiz_bank/index';
+$route['quiz-bank/create']                              = 'quiz_bank/create';
+$route['quiz-bank/store']                               = 'quiz_bank/store';
+$route['quiz-bank/edit/(:num)']                         = 'quiz_bank/edit/$1';
+$route['quiz-bank/update/(:num)']                       = 'quiz_bank/update/$1';
+$route['quiz-bank/delete/(:num)']                       = 'quiz_bank/delete/$1';
+$route['quiz-bank/bulk-delete']                         = 'quiz_bank/bulk_delete';
+$route['quiz-bank/import']                              = 'quiz_bank/import';
+$route['quiz-bank/do_import']                           = 'quiz_bank/do_import';
+$route['quiz-bank/template']                            = 'quiz_bank/template';
+
+$route['quiz-sessions']                                 = 'quiz_sessions/index';
+$route['quiz-sessions/create']                          = 'quiz_sessions/create';
+$route['quiz-sessions/store']                           = 'quiz_sessions/store';
+$route['quiz-sessions/edit/(:num)']                     = 'quiz_sessions/edit/$1';
+$route['quiz-sessions/update/(:num)']                   = 'quiz_sessions/update/$1';
+$route['quiz-sessions/delete/(:num)']                   = 'quiz_sessions/delete/$1';
+$route['quiz-sessions/toggle_status/(:num)']            = 'quiz_sessions/toggle_status/$1';
+$route['quiz-sessions/attempts/(:num)']                 = 'quiz_sessions/attempts/$1';
+$route['quiz-sessions/grade/(:num)']                    = 'quiz_sessions/grade/$1';
+
+$route['quiz-competitions']                             = 'quiz_competitions/index';
+$route['quiz-competitions/create']                      = 'quiz_competitions/create';
+$route['quiz-competitions/store']                       = 'quiz_competitions/store';
+$route['quiz-competitions/edit/(:num)']                 = 'quiz_competitions/edit/$1';
+$route['quiz-competitions/update/(:num)']               = 'quiz_competitions/update/$1';
+$route['quiz-competitions/delete/(:num)']               = 'quiz_competitions/delete/$1';
+$route['quiz-competitions/set_status/(:num)']           = 'quiz_competitions/set_status/$1';
+$route['quiz-competitions/questions/(:num)']            = 'quiz_competitions/questions/$1';
+$route['quiz-competitions/add_question/(:num)']         = 'quiz_competitions/add_question/$1';
+$route['quiz-competitions/remove_question/(:num)/(:num)'] = 'quiz_competitions/remove_question/$1/$2';
+$route['quiz-competitions/participants/(:num)']         = 'quiz_competitions/participants/$1';
+$route['quiz-competitions/add_participant/(:num)']      = 'quiz_competitions/add_participant/$1';
+$route['quiz-competitions/edit_participant/(:num)']     = 'quiz_competitions/edit_participant/$1';
+$route['quiz-competitions/delete_participant/(:num)']   = 'quiz_competitions/delete_participant/$1';
+$route['quiz-competitions/import_participants/(:num)']  = 'quiz_competitions/import_participants/$1';
+$route['quiz-competitions/export_participants/(:num)']  = 'quiz_competitions/export_participants/$1';
+$route['quiz-competitions/results/(:num)']              = 'quiz_competitions/results/$1';
+$route['quiz-competitions/grade/(:num)']                = 'quiz_competitions/grade/$1';
+
+// ── Learn Config (admin: poin & lencana) ─────────────────────────────────────
+$route['learn-config']                          = 'learn_config/index';
+$route['learn-config/store_rule']               = 'learn_config/store_rule';
+$route['learn-config/update_rule/(:num)']       = 'learn_config/update_rule/$1';
+$route['learn-config/delete_rule/(:num)']       = 'learn_config/delete_rule/$1';
+$route['learn-config/store_badge']              = 'learn_config/store_badge';
+$route['learn-config/update_badge/(:num)']      = 'learn_config/update_badge/$1';
+$route['learn-config/delete_badge/(:num)']      = 'learn_config/delete_badge/$1';
+$route['learn-config/leaderboard']              = 'learn_config/leaderboard';
+
+// ── Learn Games (admin: konten game) ─────────────────────────────────────────
+$route['learn-games']                           = 'learn_games/index';
+$route['learn-games/toggle/(:num)']             = 'learn_games/toggle_game_type/$1';
+$route['learn-games/update_type/(:num)']        = 'learn_games/update_game_type/$1';
+$route['learn-games/store_category']            = 'learn_games/store_category';
+$route['learn-games/update_category/(:num)']    = 'learn_games/update_category/$1';
+$route['learn-games/delete_category/(:num)']    = 'learn_games/delete_category/$1';
+$route['learn-games/content/(:num)']            = 'learn_games/content/$1';
+$route['learn-games/store_set/(:num)']          = 'learn_games/store_set/$1';
+$route['learn-games/update_set/(:num)']         = 'learn_games/update_set/$1';
+$route['learn-games/delete_set/(:num)']         = 'learn_games/delete_set/$1';
+$route['learn-games/items/(:num)']              = 'learn_games/items/$1';
+$route['learn-games/store_item/(:num)']         = 'learn_games/store_item/$1';
+$route['learn-games/update_item/(:num)']        = 'learn_games/update_item/$1';
+$route['learn-games/delete_item/(:num)']        = 'learn_games/delete_item/$1';
+
+// ── Tukar Poin (reward catalog admin) ────────────────────────────────────────
+$route['learn-rewards']                         = 'learn_rewards/index';
+$route['learn-rewards/store']                   = 'learn_rewards/store';
+$route['learn-rewards/update/(:num)']           = 'learn_rewards/update/$1';
+$route['learn-rewards/delete/(:num)']           = 'learn_rewards/delete/$1';
+$route['learn-rewards/toggle/(:num)']           = 'learn_rewards/toggle/$1';
+$route['learn-rewards/redemptions']             = 'learn_rewards/redemptions';
+
+// ── Public arena belajar (no admin auth) ─────────────────────────────────────
+$route['belajar']                               = 'play_game/index';
+$route['belajar/pilih/(:any)']                  = 'play_game/choose/$1';
+$route['belajar/play/(:any)/(:num)']            = 'play_game/play/$1/$2';
+$route['belajar/play/(:any)']                   = 'play_game/play/$1';
+$route['belajar/finish']                        = 'play_game/finish';
+$route['belajar/content/(:num)']                = 'play_game/content_api/$1';
+$route['belajar/tukar/redeem']                  = 'play_game/redeem_reward';
+$route['belajar/tukar']                         = 'play_game/hadiah';
+
+// Public quiz (no admin auth required)
+$route['quiz/practice/(:any)']   = 'quiz_play/practice/$1';
+$route['quiz/login']             = 'quiz_play/login';
+$route['quiz/login/(:any)']      = 'quiz_play/login/$1';
+$route['quiz/do_login']          = 'quiz_play/do_login';
+$route['quiz/exam/(:any)']       = 'quiz_play/exam/$1';
+$route['quiz/save_answer']       = 'quiz_play/save_answer';
+$route['quiz/fraud_event']       = 'quiz_play/fraud_event';
+$route['quiz/heartbeat']         = 'quiz_play/heartbeat';
+$route['quiz/submit']            = 'quiz_play/submit';
+$route['quiz/result/(:num)']     = 'quiz_play/result/$1';
+$route['quiz/review/(:num)']     = 'quiz_play/review/$1';

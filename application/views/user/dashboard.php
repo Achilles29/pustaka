@@ -339,6 +339,107 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 					</div>
 				</div>
 			</section>
+
+			<!-- ── Progress Belajar ──────────────────────────────────── -->
+			<section class="member-content-grid member-content-grid-wide" style="margin-top:0">
+				<div class="member-panel" style="grid-column:1/-1">
+					<div class="member-panel-head">
+						<div>
+							<div class="section-kicker">Pembelajaran</div>
+							<h3>Progress Belajarmu</h3>
+						</div>
+						<a href="<?= base_url('belajar'); ?>" class="btn btn-primary btn-sm">
+							<i class="ti ti-joystick me-1"></i>Arena Belajar
+						</a>
+					</div>
+
+					<!-- Poin + lencana summary -->
+					<div class="row g-3 mb-3">
+						<div class="col-6 col-md-3">
+							<div style="background:linear-gradient(135deg,#4338ca,#7c3aed);border-radius:14px;padding:16px;color:#fff;text-align:center">
+								<div style="font-size:2rem;font-weight:900"><?= number_format($learn_total_points); ?></div>
+								<div style="font-size:.8rem;opacity:.8">Total Poin</div>
+							</div>
+						</div>
+						<div class="col-6 col-md-3">
+							<div style="background:#f0fdf4;border-radius:14px;padding:16px;text-align:center;border:1px solid #bbf7d0">
+								<div style="font-size:2rem;font-weight:900;color:#15803d"><?= count($learn_badges); ?></div>
+								<div style="font-size:.8rem;color:#4b5563">Lencana Diraih</div>
+							</div>
+						</div>
+						<div class="col-12 col-md-6">
+							<!-- Badge grid -->
+							<?php if (!empty($learn_badges)): ?>
+							<div style="background:#fafafa;border-radius:14px;padding:14px;border:1px solid #e5e7eb">
+								<div style="font-size:.75rem;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Lencana</div>
+								<div style="display:flex;gap:10px;flex-wrap:wrap">
+									<?php foreach (array_slice($learn_badges, 0, 8) as $badge): ?>
+									<div title="<?= html_escape($badge['name']); ?>" style="width:36px;height:36px;border-radius:10px;background:<?= html_escape($badge['color']); ?>1a;display:flex;align-items:center;justify-content:center;color:<?= html_escape($badge['color']); ?>">
+										<i class="<?= html_escape($badge['icon']); ?>" style="font-size:1.2rem"></i>
+									</div>
+									<?php endforeach; ?>
+									<?php if (count($learn_badges) > 8): ?>
+									<div style="width:36px;height:36px;border-radius:10px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#9ca3af">
+										+<?= count($learn_badges) - 8; ?>
+									</div>
+									<?php endif; ?>
+								</div>
+							</div>
+							<?php else: ?>
+							<div style="background:#fafafa;border-radius:14px;padding:14px;border:1px solid #e5e7eb;text-align:center;color:#9ca3af;font-size:.9rem">
+								<i class="ti ti-award d-block mb-1" style="font-size:1.5rem"></i>
+								Belum ada lencana. Kerjakan quiz dan game untuk mendapatkannya!
+							</div>
+							<?php endif; ?>
+						</div>
+					</div>
+
+					<div class="row g-3">
+						<!-- Riwayat poin -->
+						<div class="col-12 col-md-6">
+							<div style="font-size:.75rem;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Aktivitas Poin Terakhir</div>
+							<div class="member-mini-list">
+								<?php if (empty($learn_points_log)): ?>
+								<div class="member-mini-empty">Belum ada aktivitas. <a href="<?= base_url('belajar'); ?>">Mulai belajar</a> untuk kumpulkan poin!</div>
+								<?php endif; ?>
+								<?php foreach ($learn_points_log as $log): ?>
+								<div class="member-mini-item">
+									<div>
+										<strong><?= html_escape($log['rule_label'] ?: $log['description']); ?></strong>
+										<span><?= date('d M Y', strtotime($log['awarded_at'])); ?></span>
+									</div>
+									<span style="color:#4338ca;font-weight:700;font-size:.95rem">+<?= (int)$log['points']; ?></span>
+								</div>
+								<?php endforeach; ?>
+							</div>
+						</div>
+
+						<!-- Riwayat game -->
+						<div class="col-12 col-md-6">
+							<div style="font-size:.75rem;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Riwayat Game Terakhir</div>
+							<div class="member-mini-list">
+								<?php if (empty($learn_game_history)): ?>
+								<div class="member-mini-empty">Belum pernah main game. <a href="<?= base_url('belajar'); ?>">Coba sekarang!</a></div>
+								<?php endif; ?>
+								<?php foreach ($learn_game_history as $gs): ?>
+								<div class="member-mini-item">
+									<div>
+										<strong style="display:flex;align-items:center;gap:6px">
+											<span style="width:20px;height:20px;border-radius:6px;background:<?= html_escape($gs['game_color']); ?>1a;color:<?= html_escape($gs['game_color']); ?>;display:inline-flex;align-items:center;justify-content:center">
+												<i class="<?= html_escape($gs['game_icon']); ?>" style="font-size:.75rem"></i>
+											</span>
+											<?= html_escape($gs['game_name']); ?>
+										</strong>
+										<span><?= date('d M', strtotime($gs['played_at'])); ?> · <?= html_escape($gs['set_name'] ?: 'Generated'); ?></span>
+									</div>
+									<span style="font-weight:700;color:#0f766e"><?= (int)$gs['score']; ?> poin</span>
+								</div>
+								<?php endforeach; ?>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
 		</div>
 	</main>
 

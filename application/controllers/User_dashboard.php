@@ -23,6 +23,8 @@ class User_dashboard extends CI_Controller
 		$this->load->model('Member_model');
 		$this->load->model('Reading_point_model');
 		$this->load->model('Visit_model');
+		$this->load->model('Learn_points_model');
+		$this->load->model('Learn_games_model');
 		$member = $this->Member_model->get_member_by_auth_user_id((int) ($user['id'] ?? 0));
 		if ($member) {
 			$this->Visit_model->record_member_dashboard_visit($member, $user);
@@ -31,6 +33,8 @@ class User_dashboard extends CI_Controller
 		if ($member) {
 			$verify_url = base_url('membership/verify/' . (int) $member['id'] . '/' . $this->Member_model->digital_card_token($member));
 		}
+
+		$user_id = (int) ($user['id'] ?? 0);
 
 		$this->load->view('user/dashboard', [
 			'title' => 'Dashboard Pemustaka',
@@ -46,6 +50,11 @@ class User_dashboard extends CI_Controller
 			'reading_token' => $member ? $this->Reading_point_model->get_member_active_token((int) $member['id']) : null,
 			'reading_tokens' => $member ? $this->Reading_point_model->get_member_tokens((int) $member['id'], 5) : [],
 			'event_label' => 'Agenda literasi segera hadir',
+			// Belajar widgets
+			'learn_total_points' => $user_id ? $this->Learn_points_model->get_user_total_points($user_id) : 0,
+			'learn_badges'       => $user_id ? $this->Learn_points_model->get_user_badges($user_id) : [],
+			'learn_points_log'   => $user_id ? $this->Learn_points_model->get_user_points_log($user_id, 5) : [],
+			'learn_game_history' => $user_id ? $this->Learn_games_model->get_user_game_history($user_id, 5) : [],
 		]);
 	}
 
