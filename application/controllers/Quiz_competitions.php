@@ -101,6 +101,28 @@ class Quiz_competitions extends MY_Controller
         redirect('quiz-competitions');
     }
 
+    public function announce($id)
+    {
+        $this->require_permission('quiz_competitions.index', 'edit');
+        $session = $this->get_competition_or_404((int) $id);
+
+        $this->load->model('Learn_notifications_model');
+        $count = $this->Learn_notifications_model->broadcast([
+            'type'           => 'competition',
+            'title'          => 'Kompetisi baru: ' . $session['title'],
+            'message'        => 'Kompetisi "' . $session['title'] . '" telah dibuka. Ayo ikut berkompetisi dan raih poin!',
+            'icon'           => 'ti-trophy',
+            'color'          => '#f59e0b',
+            'url'            => 'belajar',
+            'reference_type' => 'competition',
+            'reference_id'   => (int) $id,
+        ], (int) $this->current_user['id']);
+
+        $this->audit_event('quiz.competition.announce', 'quiz_sessions', (int) $id, null, ['recipients' => $count]);
+        $this->session->set_flashdata('success', "Kompetisi diumumkan ke {$count} member.");
+        redirect('quiz-competitions');
+    }
+
     public function set_status($id)
     {
         $this->require_permission('quiz_competitions.index', 'edit');

@@ -232,6 +232,7 @@ $route['quiz-competitions/edit/(:num)']                 = 'quiz_competitions/edi
 $route['quiz-competitions/update/(:num)']               = 'quiz_competitions/update/$1';
 $route['quiz-competitions/delete/(:num)']               = 'quiz_competitions/delete/$1';
 $route['quiz-competitions/set_status/(:num)']           = 'quiz_competitions/set_status/$1';
+$route['quiz-competitions/announce/(:num)']             = 'quiz_competitions/announce/$1';
 $route['quiz-competitions/questions/(:num)']            = 'quiz_competitions/questions/$1';
 $route['quiz-competitions/add_question/(:num)']         = 'quiz_competitions/add_question/$1';
 $route['quiz-competitions/remove_question/(:num)/(:num)'] = 'quiz_competitions/remove_question/$1/$2';
@@ -270,6 +271,42 @@ $route['learn-games/store_item/(:num)']         = 'learn_games/store_item/$1';
 $route['learn-games/update_item/(:num)']        = 'learn_games/update_item/$1';
 $route['learn-games/delete_item/(:num)']        = 'learn_games/delete_item/$1';
 
+// ── Raport Belajar (admin) ───────────────────────────────────────────────────
+$route['learn-reports']                         = 'learn_reports/index';
+$route['learn-reports/view/(:num)']             = 'learn_reports/view/$1';
+
+// ── Mode Battle (admin pool soal) ────────────────────────────────────────────
+$route['learn-battle']                          = 'learn_battle/index';
+$route['learn-battle/store']                    = 'learn_battle/store';
+$route['learn-battle/update/(:num)']            = 'learn_battle/update/$1';
+$route['learn-battle/delete/(:num)']            = 'learn_battle/delete/$1';
+
+// ── Notifikasi (admin broadcast) ─────────────────────────────────────────────
+$route['learn-notifications']                   = 'learn_notifications/index';
+$route['learn-notifications/send']              = 'learn_notifications/send';
+
+// ── Story Quiz (admin) ───────────────────────────────────────────────────────
+$route['learn-story']                           = 'learn_story/index';
+$route['learn-story/store_passage']             = 'learn_story/store_passage';
+$route['learn-story/update_passage/(:num)']     = 'learn_story/update_passage/$1';
+$route['learn-story/delete_passage/(:num)']     = 'learn_story/delete_passage/$1';
+$route['learn-story/toggle_passage/(:num)']     = 'learn_story/toggle_passage/$1';
+$route['learn-story/questions/(:num)']          = 'learn_story/questions/$1';
+$route['learn-story/store_question/(:num)']     = 'learn_story/store_question/$1';
+$route['learn-story/update_question/(:num)']    = 'learn_story/update_question/$1';
+$route['learn-story/delete_question/(:num)']    = 'learn_story/delete_question/$1';
+
+// ── Flashcard (admin) ────────────────────────────────────────────────────────
+$route['learn-flashcards']                      = 'learn_flashcards/index';
+$route['learn-flashcards/store_deck']           = 'learn_flashcards/store_deck';
+$route['learn-flashcards/update_deck/(:num)']   = 'learn_flashcards/update_deck/$1';
+$route['learn-flashcards/delete_deck/(:num)']   = 'learn_flashcards/delete_deck/$1';
+$route['learn-flashcards/toggle_deck/(:num)']   = 'learn_flashcards/toggle_deck/$1';
+$route['learn-flashcards/cards/(:num)']         = 'learn_flashcards/cards/$1';
+$route['learn-flashcards/store_card/(:num)']    = 'learn_flashcards/store_card/$1';
+$route['learn-flashcards/update_card/(:num)']   = 'learn_flashcards/update_card/$1';
+$route['learn-flashcards/delete_card/(:num)']   = 'learn_flashcards/delete_card/$1';
+
 // ── Tukar Poin (reward catalog admin) ────────────────────────────────────────
 $route['learn-rewards']                         = 'learn_rewards/index';
 $route['learn-rewards/store']                   = 'learn_rewards/store';
@@ -287,6 +324,22 @@ $route['belajar/finish']                        = 'play_game/finish';
 $route['belajar/content/(:num)']                = 'play_game/content_api/$1';
 $route['belajar/tukar/redeem']                  = 'play_game/redeem_reward';
 $route['belajar/tukar']                         = 'play_game/hadiah';
+$route['belajar/flashcard/progress']            = 'play_game/flashcard_progress';
+$route['belajar/flashcard/finish']              = 'play_game/flashcard_finish';
+$route['belajar/flashcard/(:any)']              = 'play_game/flashcard_study/$1';
+$route['belajar/flashcard']                     = 'play_game/flashcard';
+$route['belajar/cerita/submit']                 = 'play_game/cerita_submit';
+$route['belajar/cerita/(:any)']                 = 'play_game/cerita_read/$1';
+$route['belajar/cerita']                        = 'play_game/cerita';
+$route['belajar/notifikasi/read']               = 'play_game/notif_read';
+$route['belajar/notifikasi']                    = 'play_game/notifikasi';
+$route['belajar/battle/create']                 = 'play_game/battle_create';
+$route['belajar/battle/join']                   = 'play_game/battle_join';
+$route['belajar/battle/answer']                 = 'play_game/battle_answer';
+$route['belajar/battle/state/(:any)']           = 'play_game/battle_state/$1';
+$route['belajar/battle/room/(:any)']            = 'play_game/battle_room/$1';
+$route['belajar/battle']                        = 'play_game/battle';
+$route['belajar/raport']                        = 'play_game/raport';
 
 // Public quiz (no admin auth required)
 $route['quiz/practice/(:any)']   = 'quiz_play/practice/$1';

@@ -28,6 +28,19 @@
     <a href="<?= base_url('user/dashboard'); ?>" class="btn btn-sm btn-white back-btn">
         <i class="ti ti-arrow-left me-1"></i>Dashboard
     </a>
+    <?php if ($user): ?>
+    <div class="position-fixed d-flex gap-2" style="top:16px;right:16px;z-index:10">
+        <a href="<?= base_url('belajar/raport'); ?>" class="btn btn-sm btn-white" title="Raport belajarku">
+            <i class="ti ti-report"></i>
+        </a>
+        <a href="<?= base_url('belajar/notifikasi'); ?>" class="btn btn-sm btn-white">
+            <i class="ti ti-bell"></i>
+            <?php if (! empty($unread_notif)): ?>
+            <span class="badge bg-red text-white ms-1"><?= (int)$unread_notif > 99 ? '99+' : (int)$unread_notif; ?></span>
+            <?php endif; ?>
+        </a>
+    </div>
+    <?php endif; ?>
 
     <div class="lobby-hero">
         <div class="container">
@@ -77,6 +90,46 @@
             </div>
             <i class="ti ti-arrow-right fs-1"></i>
         </a>
+
+        <!-- Belajar Mandiri -->
+        <h3 class="mb-3 fw-bold">Belajar Mandiri</h3>
+        <div class="row g-3 mb-5">
+            <div class="col-12 col-md-6">
+                <a href="<?= base_url('belajar/flashcard'); ?>" class="game-card">
+                    <div class="game-icon" style="background:#f5f3ff;color:#7c3aed">
+                        <i class="ti ti-cards"></i>
+                    </div>
+                    <h4 class="fw-bold mb-1">Flashcard</h4>
+                    <p class="text-secondary mb-3">Kartu bolak-balik istilah &amp; definisi. Balik, ingat, tandai yang sudah hafal!</p>
+                    <span class="game-tag" style="background:#f5f3ff;color:#7c3aed"><i class="ti ti-coin me-1"></i>+5 poin / sesi</span>
+                </a>
+            </div>
+            <div class="col-12 col-md-6">
+                <a href="<?= base_url('belajar/cerita'); ?>" class="game-card">
+                    <div class="game-icon" style="background:#ecfeff;color:#0891b2">
+                        <i class="ti ti-book"></i>
+                    </div>
+                    <h4 class="fw-bold mb-1">Story Quiz</h4>
+                    <p class="text-secondary mb-3">Baca cerita pendek, lalu jawab pertanyaan pemahaman. Uji seberapa teliti kamu membaca!</p>
+                    <span class="game-tag" style="background:#ecfeff;color:#0891b2"><i class="ti ti-coin me-1"></i>+10 poin / bacaan</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Adu Cepat -->
+        <h3 class="mb-3 fw-bold">Adu Cepat</h3>
+        <div class="row g-3 mb-5">
+            <div class="col-12 col-md-6">
+                <a href="<?= base_url('belajar/battle'); ?>" class="game-card">
+                    <div class="game-icon" style="background:#fce7f3;color:#e11d48">
+                        <i class="ti ti-swords"></i>
+                    </div>
+                    <h4 class="fw-bold mb-1">Mode Battle</h4>
+                    <p class="text-secondary mb-3">Tantang temanmu adu cepat menjawab soal yang sama. Siapa paling banyak benar, dia menang!</p>
+                    <span class="game-tag" style="background:#fce7f3;color:#e11d48"><i class="ti ti-trophy me-1"></i>+20 poin jika menang</span>
+                </a>
+            </div>
+        </div>
 
         <!-- Game Section -->
         <?php if (!empty($game_types)): ?>

@@ -130,11 +130,90 @@ Semua lencana bisa dikelola admin: nama, ikon, kriteria, warna.
 | Fitur | Deskripsi | Prioritas | Status |
 |-------|-----------|-----------|--------|
 | Poin → Token Baca | Tukar poin dengan token baca tambahan | High | ✅ SELESAI (2026-08-04) |
-| Flashcard | Buat set flashcard, belajar mandiri | Medium | 📋 Planned |
-| Story Quiz | Bacaan pendek + pertanyaan pemahaman | Medium | 📋 Planned |
-| Notifikasi | Notif saat ada kompetisi baru / lencana baru | Medium | 📋 Planned |
-| Mode Battle | Kuis real-time 2 pemain via WebSocket | Low | 📋 Planned |
-| Export Raport | PDF raport per member berisi progress belajar | Low | 📋 Planned |
+| Flashcard | Buat set flashcard, belajar mandiri | Medium | ✅ SELESAI (2026-08-06) |
+| Story Quiz | Bacaan pendek + pertanyaan pemahaman | Medium | ✅ SELESAI (2026-08-06) |
+| Notifikasi | Notif saat ada kompetisi baru / lencana baru | Medium | ✅ SELESAI (2026-08-06) |
+| Mode Battle | Kuis 2 pemain (polling, bukan WebSocket) | Low | ✅ SELESAI (2026-08-07) |
+| Export Raport | Raport progress belajar member (cetak/PDF via browser) | Low | ✅ SELESAI (2026-08-07) |
+
+> **Fase 5 TUNTAS** — seluruh fitur lanjutan (High→Low) selesai 2026-08-07.
+
+### Fase 5b: Flashcard belajar mandiri ✅ SELESAI (2026-08-06)
+
+Deck berisi kartu istilah↔definisi. Member belajar mandiri: balik kartu (3D flip),
+tandai "sudah hafal", progress tersimpan per kartu, dapat poin per sesi (cooldown 12 jam).
+
+**File Kunci**
+- SQL: `pustaka/sql/2026-08-06a_flashcards.sql` (3 tabel: `learn_flashcard_decks`, `learn_flashcard_cards` [FK cascade], `learn_flashcard_progress` [unik user+card]; seed rule `flashcard.study` + deck contoh 5 kartu + sys_page/menu + perm ADMIN)
+- Model: `Learn_flashcards_model.php` (deck/card CRUD + `get_deck_cards_with_progress` + `set_card_status` upsert + summary)
+- Controller Admin: `Learn_flashcards.php` → `/learn-flashcards` (deck + kartu per deck)
+- Controller Publik: `Play_game::flashcard()` `/belajar/flashcard`, `flashcard_study($code)` `/belajar/flashcard/:code`, AJAX `flashcard_progress` & `flashcard_finish`
+- Views: `learn/flashcards/index.php`+`cards.php`+partials, `game/flashcard_list.php`, `game/flashcard_study.php`
+
+**Fitur**
+- [x] Deck & kartu DB-driven, CRUD admin (mapel, jenjang, ikon, warna, urutan)
+- [x] Kartu flip 3D + petunjuk opsional, keyboard (Spasi/1/2)
+- [x] Progress "learning/known" per user per kartu (upsert), bar progress per deck
+- [x] Poin otomatis per sesi (cooldown 12 jam) + cek badge
+- [x] Halaman publik responsif di arena `/belajar`
+
+### Fase 5c: Story Quiz (bacaan + pemahaman) ✅ SELESAI (2026-08-06)
+
+Bacaan pendek + soal pilihan ganda pemahaman. Penilaian di server (anti-cheat),
+poin sekali per bacaan (dedup via reference) + bonus nilai sempurna.
+
+**File Kunci**
+- SQL: `pustaka/sql/2026-08-06b_story_quiz.sql` (3 tabel: `learn_story_passages`, `learn_story_questions` [FK cascade], `learn_story_attempts`; rule `story.read` 10pt & `story.perfect` 15pt; bacaan contoh "Semut dan Belalang" 3 soal; sys_page/menu `learn.story` + perm ADMIN)
+- Model: `Learn_story_model.php` (passage/question CRUD + `grade()` server-side + `record_attempt` + best scores)
+- Controller Admin: `Learn_story.php` → `/learn-story` (bacaan + soal per bacaan)
+- Controller Publik: `Play_game::cerita()` `/belajar/cerita`, `cerita_read($code)` `/belajar/cerita/:code`, AJAX `cerita_submit` `/belajar/cerita/submit`
+- Views: `learn/story/index.php`+`questions.php`+partials, `game/story_list.php`, `game/story_read.php`
+
+**Fitur**
+- [x] Bacaan & soal DB-driven, CRUD admin (paragraf, mapel/jenjang, estimasi baca)
+- [x] Halaman baca + soal pilihan ganda, timer durasi, opsi acak-friendly
+- [x] Penilaian server-side (kunci tak bocor ke DOM) + reveal jawaban + penjelasan
+- [x] Poin `story.read` (10) sekali/bacaan + bonus `story.perfect` (15) bila 100%
+- [x] Nilai terbaik per bacaan tampil di daftar; badge auto-cek
+
+### Fase 5d: Notifikasi in-app ✅ SELESAI (2026-08-06)
+
+Notifikasi per-member: lencana baru (otomatis), pengumuman kompetisi & broadcast admin.
+
+**File Kunci**
+- SQL: `pustaka/sql/2026-08-06c_notifications.sql` (`learn_notifications` + `learn_broadcasts` log; sys_page/menu `learn.notifications` + perm ADMIN)
+- Model: `Learn_notifications_model.php` (`notify` per-user, `broadcast` set-based INSERT..SELECT ke semua member, `unread_count`, `mark_read`)
+- Hook: `Learn_points_model::_notify_badge()` — otomatis notif saat lencana diraih (guard `table_exists`)
+- Admin: `Learn_notifications.php` → `/learn-notifications` (compose broadcast + riwayat)
+- Kompetisi: `Quiz_competitions::announce($id)` — tombol "Umumkan ke Member" di daftar kompetisi
+- Publik: `Play_game::notifikasi()` `/belajar/notifikasi` (auto mark-read) + `notif_read()` AJAX; lonceng + badge unread di lobby
+- Views: `learn/notifications/index.php`, `game/notifications.php`
+
+**Fitur**
+- [x] Notif lencana baru otomatis (hook di award badge)
+- [x] Broadcast admin ke semua member (5389) via 1 query set-based + log ringkasan
+- [x] Tombol "Umumkan ke Member" pada kompetisi → notif tipe competition
+- [x] Halaman notifikasi member + lonceng unread di arena; auto tandai terbaca
+
+### Fase 5e: Mode Battle (adu cepat 2 pemain) ✅ SELESAI (2026-08-07)
+
+Dua pemain menjawab soal yang sama, sinkron via **AJAX polling** (bukan WebSocket —
+tidak butuh daemon, jalan di stack XAMPP/CI3). Skor & pemenang ditentukan server.
+
+**File Kunci**
+- SQL: `pustaka/sql/2026-08-07a_battle.sql` (`learn_battle_questions` [pool CRUD] + `learn_battle_rooms`; rule `battle.play` 5pt & `battle.win` 20pt; 10 soal contoh; sys_page/menu `learn.battle` + perm ADMIN)
+- Model: `Learn_battle_model.php` (soal CRUD + `create_room`/`join_room`/`submit_answer` [nilai server, guard urutan]/`state`/`_maybe_finish` [tentukan pemenang + poin sekali via ref room])
+- Controller Admin: `Learn_battle.php` → `/learn-battle` (pool soal + monitor ronde)
+- Controller Publik: `Play_game::battle()` `/belajar/battle`, `battle_create`/`battle_join`, `battle_room($code)` `/belajar/battle/room/:code`, AJAX `battle_state($code)` & `battle_answer`
+- Views: `learn/battle/index.php`, `game/battle_lobby.php`, `game/battle_room.php`
+
+**Fitur**
+- [x] Pool soal DB-driven, CRUD admin (kategori, kunci, aktif) + monitor ronde
+- [x] Buat room (soal dibekukan acak) / gabung via kode 5-char
+- [x] Gameplay polling ~1.5s: skor & progress lawan live; feedback benar/salah
+- [x] Penilaian server-side + guard jawaban out-of-order/dobel
+- [x] Pemenang otomatis (skor tertinggi/seri) + poin `battle.play`/`battle.win` sekali per room
+- [x] Verifikasi CLI end-to-end (5–0, poin benar) + perbaikan bug tabel `visits`→`member_visits`
 
 ### Fase 5a: Tukar Poin → Token Baca ✅ SELESAI (2026-08-04)
 
@@ -171,6 +250,34 @@ untuk member (via `members.auth_user_id`), semua dalam satu transaksi DB.
 | 2026-08-04 | Sidebar "Pembelajaran" + wizard kompetisi 3-langkah + bank soal bulk-select |
 | 2026-08-04 | Import penuh skema quiz+learn ke DB lokal; perbaikan idempotensi SQL sidebar |
 | 2026-08-04 | Fase 5a: Tukar Poin → Token Baca selesai (katalog, transaksi, halaman member) |
+| 2026-08-06 | Fase 5b: Flashcard belajar mandiri selesai (deck/kartu CRUD, flip-card, progress, poin) |
+| 2026-08-06 | Fase 5c: Story Quiz selesai (bacaan+soal CRUD, penilaian server-side, poin+bonus) |
+| 2026-08-06 | Fase 5d: Notifikasi in-app selesai (badge auto, broadcast admin, umumkan kompetisi) |
+| 2026-08-07 | Fase 5e: Mode Battle selesai (polling 2 pemain, penilaian server, poin); fix bug member_visits |
+| 2026-08-07 | Fase 5f: Export Raport selesai (agregasi lintas-modul, cetak/PDF via browser). FASE 5 TUNTAS |
+
+---
+
+## Fase 5f: Export Raport Belajar ✅ SELESAI (2026-08-07)
+
+Raport progress belajar per member: poin, lencana, ringkasan aktivitas (quiz, story,
+flashcard, game, battle), riwayat quiz & poin. Cetak/PDF via browser (`window.print()`
++ `@media print`) — tanpa library PDF (composer belum terpasang di stack).
+
+**File Kunci**
+- SQL: `pustaka/sql/2026-08-07b_reports.sql` (hanya sys_page/menu `learn.reports` + perm ADMIN view+export; tanpa tabel baru)
+- Model: `Learn_report_model.php` (`get_report()` agregasi lintas-modul dgn guard `table_exists`; `search_members`/`count_members` untuk picker)
+- Controller Admin: `Learn_reports.php` → `/learn-reports` (picker member) + `/learn-reports/view/:user_id` (lembar printable)
+- Controller Publik: `Play_game::raport()` → `/belajar/raport` (raport milik sendiri)
+- Views: `learn/reports/index.php` (picker), `learn/reports/sheet.php` (lembar printable, dipakai admin & member)
+- Arena: ikon Raport di lobby untuk member login
+
+**Fitur**
+- [x] Agregasi lintas-modul (poin, lencana, quiz/kompetisi, game, flashcard, story, battle)
+- [x] Lembar raport rapi + KPI ringkas + riwayat, CSS `@media print`
+- [x] Admin: cari member (5389) & buka raport siapa pun; Member: raport sendiri
+- [x] Cetak/Simpan-PDF via browser (tombol + auto-print `?print=1`)
+- [x] Verifikasi CLI: semua query agregasi jalan tanpa error
 
 ---
 

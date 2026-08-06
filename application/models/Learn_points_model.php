@@ -250,8 +250,29 @@ class Learn_points_model extends CI_Model
                     'badge_id'   => (int) $badge['id'],
                     'awarded_at' => date('Y-m-d H:i:s'),
                 ]);
+                $this->_notify_badge($user_id, $badge);
             }
         }
+    }
+
+    /** Buat notifikasi in-app saat lencana baru diraih (aman bila tabel belum ada). */
+    private function _notify_badge($user_id, $badge)
+    {
+        if (! $this->db->table_exists('learn_notifications')) {
+            return;
+        }
+        $this->db->insert('learn_notifications', [
+            'user_id'        => (int) $user_id,
+            'type'           => 'badge',
+            'title'          => 'Lencana baru: ' . $badge['name'],
+            'message'        => $badge['description'] ?: 'Selamat! Kamu meraih lencana baru.',
+            'icon'           => $badge['icon'] ?: 'ti-award',
+            'color'          => $badge['color'] ?: '#f59e0b',
+            'url'            => 'belajar/notifikasi',
+            'reference_type' => 'badge',
+            'reference_id'   => (int) $badge['id'],
+            'created_at'     => date('Y-m-d H:i:s'),
+        ]);
     }
 
     private function _check_badge_criteria($user_id, $badge)
@@ -318,11 +339,12 @@ class Learn_points_model extends CI_Model
 
     private function _count_visits($user_id)
     {
-        return $this->db
-            ->join('members m', 'm.id = v.member_id')
-            ->join('auth_user u', 'u.id = m.auth_user_id')
-            ->where('u.id', $user_id)
-            ->count_all_results('visits v');
+        if (! $this->db->table_exists('member_visits')) {
+            return 0;
+        }
+        return (int) $this->db
+            ->where('auth_user_id', (int) $user_id)
+            ->count_all_results('member_visits');
     }
 
     private function _count_books_read($user_id)
