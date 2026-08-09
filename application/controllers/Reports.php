@@ -174,7 +174,7 @@ class Reports extends MY_Controller
 	private function channel_labels()
 	{
 		return [
-			'inlislite_guestbook' => 'Buku Tamu INLISLite',
+			'inlislite_guestbook' => 'Buku Tamu Legacy',
 			'library_guestbook' => 'Buku Tamu Perpus',
 			'member_dashboard' => 'Online Dashboard',
 			'digital_access' => 'Baca Digital',
@@ -206,7 +206,7 @@ class Reports extends MY_Controller
 			'member_gps' => 'GPS Pojok Baca',
 			'dashboard_auto' => 'Dashboard',
 			'reader_quota' => 'Reader',
-			'legacy_sync' => 'Sinkron INLISLite',
+			'legacy_sync' => 'Sinkron Data Lama',
 			'unknown' => 'Tidak diketahui',
 		];
 	}

@@ -136,16 +136,11 @@ class Asset_migration_model extends CI_Model
 
 		$rows = $this->db
 			->query(
-				"SELECT b.id, b.source_id, b.cover_path, w.Name AS worksheet_name
+				"SELECT b.id, b.source_id, b.cover_path
 				FROM books b
-				LEFT JOIN inlislite_v3.catalogs c
-					ON b.source_system = ?
-					AND b.source_id = CONVERT(CAST(c.ID AS CHAR) USING utf8mb4) COLLATE utf8mb4_unicode_ci
-				LEFT JOIN inlislite_v3.worksheets w ON w.ID = c.Worksheet_id
 				WHERE " . $condition . "
 				ORDER BY b.id ASC
-				LIMIT " . (int) $limit,
-				[self::SOURCE_SYSTEM]
+				LIMIT " . (int) $limit
 			)
 			->result_array();
 
@@ -233,7 +228,10 @@ class Asset_migration_model extends CI_Model
 
 		if (! is_file($source)) {
 			$found = $this->find_file_in_direct_subdirs($this->source_root('sampul_koleksi' . DIRECTORY_SEPARATOR . 'original'), $filename);
-			$source = $found ?: $source;
+			if ($found) {
+				$source = $found;
+				$worksheet = basename(dirname($found));
+			}
 		}
 
 		$target = 'assets/uploads/inlislite/covers/' . $this->slug($worksheet) . '/' . $this->source_prefix($row['source_id'] ?? $row['id']) . '_' . $this->sanitize_filename($filename);

@@ -84,6 +84,90 @@ class User_dashboard extends CI_Controller
 		]);
 	}
 
+	public function account()
+	{
+		$user = $this->require_member_user();
+		$this->load->model('Member_model');
+		$this->load->model('Auth_model');
+
+		$member = $this->Member_model->get_member_by_auth_user_id((int) ($user['id'] ?? 0));
+		$account = $this->Auth_model->get_user_with_password((int) ($user['id'] ?? 0));
+		if (! $account) {
+			$this->session->sess_destroy();
+			redirect('login');
+		}
+		unset($account['password_hash']);
+
+		$this->load->view('user/account', [
+			'title' => 'Pengaturan Akun',
+			'current_user' => $user,
+			'account' => $account,
+			'member' => $member,
+		]);
+	}
+
+	public function update_username()
+	{
+		$user = $this->require_member_user();
+		$this->load->model('Auth_model');
+
+		$username = trim((string) $this->input->post('username', true));
+		$current_password = (string) $this->input->post('current_password', false);
+		$account = $this->Auth_model->get_user_with_password((int) ($user['id'] ?? 0));
+
+		if (! $account || ! password_verify($current_password, (string) $account['password_hash'])) {
+			$this->session->set_flashdata('error', 'Password saat ini tidak sesuai.');
+			redirect('user/account');
+		}
+
+		if (! $this->valid_username($username)) {
+			$this->session->set_flashdata('error', 'Username hanya boleh huruf, angka, titik, underscore, atau strip. Panjang 5-80 karakter.');
+			redirect('user/account');
+		}
+
+		if ($this->Auth_model->username_exists($username, (int) $account['id'])) {
+			$this->session->set_flashdata('error', 'Username sudah digunakan akun lain.');
+			redirect('user/account');
+		}
+
+		$this->Auth_model->update_username((int) $account['id'], $username);
+		$this->refresh_session_user(['username' => $username]);
+		$this->session->set_flashdata('success', 'Username login berhasil diperbarui.');
+		redirect('user/account');
+	}
+
+	public function update_password()
+	{
+		$user = $this->require_member_user();
+		$this->load->model('Auth_model');
+
+		$current_password = (string) $this->input->post('current_password', false);
+		$new_password = (string) $this->input->post('new_password', false);
+		$confirm_password = (string) $this->input->post('confirm_password', false);
+		$account = $this->Auth_model->get_user_with_password((int) ($user['id'] ?? 0));
+
+		if (! $account || ! password_verify($current_password, (string) $account['password_hash'])) {
+			$this->session->set_flashdata('error', 'Password saat ini tidak sesuai.');
+			redirect('user/account');
+		}
+
+		if (strlen($new_password) < 8 || strlen($new_password) > 72) {
+			$this->session->set_flashdata('error', 'Password baru minimal 8 karakter dan maksimal 72 karakter.');
+			redirect('user/account');
+		}
+
+		if ($new_password !== $confirm_password) {
+			$this->session->set_flashdata('error', 'Konfirmasi password baru tidak sama.');
+			redirect('user/account');
+		}
+
+		$this->Auth_model->update_password((int) $account['id'], $new_password);
+		$this->refresh_session_user(['force_password_change' => 0]);
+		$this->Auth_model->write_event('password_changed', (int) $account['id'], $account['username']);
+		$this->session->set_flashdata('success', 'Password login berhasil diperbarui.');
+		redirect('user/account');
+	}
+
 	public function store_reading_checkin()
 	{
 		$user = $this->require_member_user();
@@ -125,5 +209,19 @@ class User_dashboard extends CI_Controller
 		}
 
 		return $user;
+	}
+
+	private function valid_username($username)
+	{
+		$username = trim((string) $username);
+		return strlen($username) >= 5
+			&& strlen($username) <= 80
+			&& (bool) preg_match('/^[A-Za-z0-9._-]+$/', $username);
+	}
+
+	private function refresh_session_user(array $patch)
+	{
+		$user = (array) $this->session->userdata('auth_user');
+		$this->session->set_userdata('auth_user', array_merge($user, $patch));
 	}
 }

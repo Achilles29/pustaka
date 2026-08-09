@@ -71,9 +71,11 @@ class Catalog extends MY_Controller
   - pagination,
   - filter status/kategori/jenis data yang relevan,
   - card ringkasan jika membantu membaca kondisi data.
+- Default filter baris untuk halaman admin adalah `25`, dengan opsi umum `10`, `25`, `50`, dan `100`.
 - Tombol utama seperti `Tambah` diletakkan di header halaman atau card toolbar, bukan di dalam tabel.
 - Aksi edit/nonaktifkan boleh berada di kolom aksi per baris, tetapi form besar tetap modal/halaman terpisah.
 - Untuk data besar, query model harus memakai `limit` dan `offset`; jangan render semua row sekaligus.
+- Tabel admin wajib berada dalam area scrollable dengan header sticky agar daftar 25 baris tidak membuat halaman turun terlalu jauh.
 - Untuk data kecil/referensi, modal tambah/edit boleh dirender di halaman index selama tetap dipisahkan sebagai partial view.
 - Semua halaman wajib mobile friendly:
   - header dan tombol aksi harus bisa wrap di layar kecil,

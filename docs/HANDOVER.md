@@ -43,13 +43,9 @@ cmd /c ""C:\xampp\mysql\bin\mysql.exe" -u root inlislite_v3 < "C:\xampp\htdocs\i
 
 ## Akun Lokal
 
-Semua password awal:
+Password awal lama sudah tidak didokumentasikan untuk deployment produksi. Gunakan akun aktif yang ada di database server dan lakukan reset password melalui admin atau patch SQL resmi.
 
-```text
-admin123
-```
-
-User:
+User seed historis:
 
 - `superadmin` role `SUPERADMIN`
 - `admin` role `ADMIN`
@@ -231,7 +227,8 @@ git push origin main
 - Tab halaman/tampilan memakai pola workspace segmented agar state aktif jelas.
 - Tombol aksi tabel memakai ikon plus label singkat, bukan ikon-only.
 - `/catalog` dan `/members` sudah memakai metric ribbon ringkas dan tab workspace agar tabel utama tidak terlalu turun.
-- `/rbac/users` sudah dipisah: tabel user ringkas, pengaturan role/scope ada di modal edit per user.
+- `/rbac/admins` adalah daftar khusus admin operasional; `/rbac/users` tetap menjadi alias lama. Akun member tidak ditampilkan di daftar admin dan tetap dikelola dari modul Membership.
+- Tabel admin memakai standar scrollable, filter default `25` baris, dan header sticky.
 - `/rbac/roles` sudah menampilkan tipe user lebih dulu; permission dibuka dari aksi `Hak Akses`, dan tipe user bisa tambah/edit dari UI.
 - Favicon dan logo resmi lokal dari folder `img` sudah dipasang di landing, login, admin layout, dan dashboard pemustaka.
 - Modal edit admin punya fallback JavaScript lokal; URL edit seperti `/regions?tab=districts&edit_district_id=2` harus tetap membuka modal walaupun Bootstrap/Tabler JS CDN tidak tersedia.
@@ -240,6 +237,8 @@ git push origin main
 - `/catalog` sudah berupa data table dengan search, filter status/tahun, pagination, cover, jumlah eksemplar, dan detail.
 - CRUD manual katalog sudah tersedia di `/catalog/create` dan `/catalog/edit/{id}`. Delete memakai soft-delete `books.deleted_at`.
 - `/members` sudah berupa data table dengan search, filter membership/akun, pagination, foto, status akun, dan detail.
+- Akun login member berada di modul `/members` melalui relasi `members.auth_user_id` ke `auth_user`; tidak ditampilkan di RBAC admin.
+- Pemustaka dapat mengubah username/password sendiri dari `/user/account`, dengan link dari `/user/dashboard` dan navigasi member. Jika `auth_user.force_password_change = 1`, login member diarahkan ke `/user/account`.
 - CRUD manual member sudah tersedia di `/members/create` dan `/members/edit/{id}`. Form dapat membuat/update akun login pemustaka role `USER`. Delete memakai soft-delete `members.deleted_at` dan menonaktifkan akun terkait.
 - Mode sinkronisasi tersedia:
   - `Import data baru`,

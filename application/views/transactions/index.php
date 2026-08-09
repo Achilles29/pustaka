@@ -16,7 +16,7 @@ $tabs = [
 	'items' => ['label' => 'Item Koleksi', 'icon' => 'ti ti-books', 'stat' => 'loan_items'],
 ];
 $tab_descriptions = [
-	'visits' => 'Pantau aktivitas kunjungan tamu dan anggota dari buku tamu INLISLite.',
+	'visits' => 'Pantau aktivitas kunjungan tamu, anggota, pojok baca, dan akses digital.',
 	'access' => 'Lihat hak layanan anggota berdasarkan kategori dan lokasi koleksi.',
 	'loans' => 'Ringkasan header peminjaman untuk membaca volume layanan harian.',
 	'items' => 'Rincian item buku yang dipinjam, status, jatuh tempo, dan barcode.',
@@ -26,7 +26,7 @@ $rule_type_labels = [
 	'location' => 'Lokasi Koleksi',
 ];
 $visit_channel_labels = [
-	'inlislite_guestbook' => 'Buku Tamu INLISLite',
+	'inlislite_guestbook' => 'Buku Tamu Legacy',
 	'library_guestbook' => 'Buku Tamu Perpus',
 	'member_dashboard' => 'Online Dashboard',
 	'digital_access' => 'Baca Digital',
@@ -79,7 +79,7 @@ $text = function ($value, $fallback = '-') {
 
 		<div class="ops-summary-strip">
 			<div>
-				<div class="section-kicker">Live dari INLISLite</div>
+				<div class="section-kicker">Data layanan terpadu</div>
 				<h2><?= html_escape($tabs[$active_tab]['label']); ?></h2>
 				<p><?= html_escape($tab_descriptions[$active_tab]); ?></p>
 			</div>

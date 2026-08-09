@@ -107,7 +107,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 				</div>
 				<div class="public-hero-stats" aria-label="Ringkasan layanan">
 					<div><strong><?= number_format($public_catalog_count, 0, ',', '.'); ?></strong><span>Katalog publik</span></div>
-					<div><strong><?= number_format($source_counts['collections'], 0, ',', '.'); ?></strong><span>Eksemplar acuan</span></div>
+					<div><strong><?= number_format($service_counts['collections'], 0, ',', '.'); ?></strong><span>Eksemplar acuan</span></div>
 					<div><strong><?= number_format(count($libraries), 0, ',', '.'); ?></strong><span>Titik layanan</span></div>
 				</div>
 			</div>
@@ -119,8 +119,8 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 				<div class="row g-4 align-items-end">
 					<div class="col-lg-6">
 						<div class="section-kicker">Katalog terpadu</div>
-						<h2>Koleksi dari INLISLite sudah hadir sebagai layanan publik yang ringan dan siap dicari.</h2>
-						<p class="text-secondary mt-3">Data katalog, eksemplar, cover, dan status OPAC dibaca dari database baru `pustaka`, sehingga portal publik tidak bergantung langsung pada aplikasi INLISLite lama.</p>
+						<h2>Koleksi terpadu sudah hadir sebagai layanan publik yang ringan dan siap dicari.</h2>
+						<p class="text-secondary mt-3">Data katalog, eksemplar, cover, dan status layanan dibaca dari database `pustaka`, sehingga portal publik berjalan mandiri dari sistem lama.</p>
 						<a href="<?= base_url('katalog'); ?>" class="btn btn-primary mt-3">
 							<i class="ti ti-search me-1"></i>Buka Katalog Publik
 						</a>
@@ -132,11 +132,11 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 								<div>Katalog publik</div>
 							</div>
 							<div class="public-stat">
-								<div class="h1"><?= number_format($source_counts['collections'], 0, ',', '.'); ?></div>
+								<div class="h1"><?= number_format($service_counts['collections'], 0, ',', '.'); ?></div>
 								<div>Eksemplar</div>
 							</div>
 							<div class="public-stat">
-								<div class="h1"><?= number_format($source_counts['members'], 0, ',', '.'); ?></div>
+								<div class="h1"><?= number_format($service_counts['members'], 0, ',', '.'); ?></div>
 								<div>Anggota</div>
 							</div>
 						</div>

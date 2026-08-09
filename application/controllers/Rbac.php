@@ -20,15 +20,52 @@ class Rbac extends MY_Controller
 
 	public function users()
 	{
+		$this->admin_users('rbac/users');
+	}
+
+	public function admins()
+	{
+		$this->admin_users('rbac/admins');
+	}
+
+	private function admin_users($base_route)
+	{
 		$this->require_permission('auth.users.index', 'view');
 
 		$edit_id = (int) $this->input->get('edit_id', true);
+		$per_page = (int) $this->input->get('per_page', true);
+		$per_page = in_array($per_page, [10, 25, 50, 100], true) ? $per_page : 25;
+		$page = max(1, (int) $this->input->get('page', true));
+		$filters = [
+			'account_type' => 'admin',
+			'q' => trim((string) $this->input->get('q', true)),
+			'status' => trim((string) $this->input->get('status', true)),
+			'role_id' => (int) $this->input->get('role_id', true),
+			'library_id' => (int) $this->input->get('library_id', true),
+			'source' => trim((string) $this->input->get('source', true)),
+			'per_page' => $per_page,
+		];
+		$total_rows = $this->User_model->count_users($filters);
+		$total_pages = max(1, (int) ceil($total_rows / $per_page));
+		$page = min($page, $total_pages);
+		$offset = ($page - 1) * $per_page;
+
 		$this->render('rbac/users', [
-			'title' => 'RBAC - User',
-			'active_rbac_tab' => 'users',
-			'users' => $this->User_model->get_users(),
+			'title' => 'RBAC - Daftar Admin',
+			'active_rbac_tab' => 'admins',
+			'base_route' => $base_route,
+			'filters' => $filters,
+			'pagination' => [
+				'total_rows' => $total_rows,
+				'total_pages' => $total_pages,
+				'page' => $page,
+				'per_page' => $per_page,
+				'offset' => $offset,
+			],
+			'stats' => $this->User_model->get_user_stats($filters),
+			'users' => $this->User_model->get_users($filters, $per_page, $offset),
 			'edit_user' => $edit_id > 0 ? $this->User_model->get_user($edit_id) : null,
-			'roles' => $this->User_model->get_roles(),
+			'roles' => $this->User_model->get_admin_roles(),
 			'libraries' => $this->Library_model->get_library_options(),
 		]);
 	}
@@ -40,16 +77,19 @@ class Rbac extends MY_Controller
 		$username = trim((string) $this->input->post('username', true));
 		$full_name = trim((string) $this->input->post('full_name', true));
 		$password = (string) $this->input->post('password', false);
-		$role_ids = (array) $this->input->post('role_ids');
+		$allowed_role_ids = array_map(function ($role) {
+			return (int) $role['id'];
+		}, $this->User_model->get_admin_roles());
+		$role_ids = array_values(array_intersect(array_map('intval', (array) $this->input->post('role_ids')), $allowed_role_ids));
 
 		if ($username === '' || $full_name === '' || strlen($password) < 6 || empty($role_ids)) {
 			$this->session->set_flashdata('error', 'Username, nama, password minimal 6 karakter, dan role wajib diisi.');
-			redirect('rbac/users');
+			redirect('rbac/admins');
 		}
 
 		if ($this->User_model->username_exists($username) || $this->User_model->email_exists($this->input->post('email', true))) {
 			$this->session->set_flashdata('error', 'Username atau email sudah digunakan.');
-			redirect('rbac/users');
+			redirect('rbac/admins');
 		}
 
 		$user_id = $this->User_model->create_user([
@@ -68,7 +108,7 @@ class Rbac extends MY_Controller
 		]);
 
 		$this->session->set_flashdata('success', 'User baru berhasil dibuat.');
-		redirect('rbac/users');
+		redirect('rbac/admins');
 	}
 
 	public function update_user_roles($user_id)
@@ -81,7 +121,7 @@ class Rbac extends MY_Controller
 		$this->audit_event('user.scope_updated', 'auth_user', (int) $user_id, $before, $after);
 
 		$this->session->set_flashdata('success', 'Role dan scope perpustakaan user berhasil diperbarui.');
-		redirect('rbac/users');
+		redirect('rbac/admins');
 	}
 
 	public function toggle_user($user_id)
@@ -90,14 +130,14 @@ class Rbac extends MY_Controller
 
 		if ((int) $user_id === (int) ($this->current_user['id'] ?? 0)) {
 			$this->session->set_flashdata('error', 'Akun yang sedang dipakai tidak bisa dinonaktifkan dari halaman ini.');
-			redirect('rbac/users');
+			redirect('rbac/admins');
 		}
 
 		$status = (string) $this->input->post('status', true);
 		$this->User_model->set_status((int) $user_id, $status === 'active' ? 'inactive' : 'active');
 		$this->audit_event('user.status_changed', 'auth_user', (int) $user_id, ['status' => $status], ['status' => $status === 'active' ? 'inactive' : 'active']);
 		$this->session->set_flashdata('success', 'Status user berhasil diperbarui.');
-		redirect('rbac/users');
+		redirect('rbac/admins');
 	}
 
 	public function roles()
@@ -414,12 +454,6 @@ class Rbac extends MY_Controller
 
 	private function find_user_snapshot($user_id)
 	{
-		foreach ($this->User_model->get_users() as $user) {
-			if ((int) $user['id'] === (int) $user_id) {
-				return $user;
-			}
-		}
-
-		return null;
+		return $this->User_model->get_user((int) $user_id);
 	}
 }

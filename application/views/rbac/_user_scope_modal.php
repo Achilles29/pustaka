@@ -10,9 +10,9 @@ $user_role_ids = $is_edit ? array_map(function ($role) {
 	<div class="modal-dialog modal-lg">
 		<div class="modal-content">
 			<?php if ($is_edit): ?>
-				<?= form_open('rbac/users/roles/' . (int) $edit_user['id']); ?>
+				<?= form_open('rbac/admins/roles/' . (int) $edit_user['id']); ?>
 					<div class="modal-header">
-						<h2 class="modal-title">Edit Role & Scope User</h2>
+						<h2 class="modal-title">Edit Role & Scope Admin</h2>
 						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 					</div>
 					<div class="modal-body">

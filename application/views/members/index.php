@@ -88,7 +88,7 @@ $asset_url = function ($member) {
 				</div>
 				<ul class="nav nav-tabs card-header-tabs workspace-tabs" role="tablist">
 					<li class="nav-item" role="presentation"><a href="#tab-member-data" class="nav-link active" data-bs-toggle="tab" role="tab"><i class="ti ti-table me-1"></i>Data</a></li>
-					<li class="nav-item" role="presentation"><a href="#tab-member-source" class="nav-link" data-bs-toggle="tab" role="tab"><i class="ti ti-database-search me-1"></i>Sumber</a></li>
+					<li class="nav-item" role="presentation"><a href="#tab-member-source" class="nav-link" data-bs-toggle="tab" role="tab"><i class="ti ti-database-search me-1"></i>Data Lokal</a></li>
 					<li class="nav-item" role="presentation"><a href="#tab-member-schema" class="nav-link" data-bs-toggle="tab" role="tab"><i class="ti ti-sitemap me-1"></i>Mapping</a></li>
 				</ul>
 			</div>
@@ -210,7 +210,7 @@ $asset_url = function ($member) {
 
 				<div class="tab-pane" id="tab-member-source" role="tabpanel">
 					<div class="list-group list-group-flush">
-						<?php foreach ($source_stats as $source): ?>
+						<?php foreach ($local_stats as $source): ?>
 							<div class="list-group-item d-flex align-items-center">
 								<div class="flex-fill"><?= html_escape($source['label']); ?></div>
 								<span class="badge bg-blue-lt"><?= number_format((int) $source['value'], 0, ',', '.'); ?></span>

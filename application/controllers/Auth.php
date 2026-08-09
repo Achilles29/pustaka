@@ -57,6 +57,10 @@ class Auth extends CI_Controller
 
 		$redirect_to = (string) $this->session->flashdata('redirect_after_login');
 		$target = $this->post_login_target($roles);
+		if (! empty($user['force_password_change']) && $target === 'user/dashboard') {
+			$target = 'user/account';
+			$redirect_to = '';
+		}
 		if ($redirect_to !== '' && $this->is_safe_redirect($redirect_to)) {
 			redirect($redirect_to);
 		}

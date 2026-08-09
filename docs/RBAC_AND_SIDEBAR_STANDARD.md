@@ -68,11 +68,7 @@ Tipe user tambahan dapat dibuat dari UI, misalnya:
 
 Role turunan yang mengelola unit/perpustakaan memakai `scope_type = library`. Role publik/pemustaka memakai `scope_type = self`. Role lintas sistem memakai `scope_type = global`.
 
-Seed user lokal:
-
-- `superadmin` / `admin123` role `SUPERADMIN`
-- `admin` / `admin123` role `ADMIN`
-- `pemustaka` / `admin123` role `USER`
+Seed user lokal awal sudah tidak dipakai sebagai acuan produksi. Akun operasional wajib memakai password baru dan role sesuai tugas.
 
 ## Menu Sidebar
 

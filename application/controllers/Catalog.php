@@ -27,11 +27,17 @@ class Catalog extends MY_Controller
 		$total_pages = max(1, (int) ceil($total_rows / $per_page));
 		$page = min($page, $total_pages);
 		$offset = ($page - 1) * $per_page;
+		$stats = $this->Catalog_model->stats($this->current_library_scope_id());
 
 		$this->render('catalog/index', [
 			'title' => 'Katalog Buku',
-			'stats' => $this->Catalog_model->stats($this->current_library_scope_id()),
-			'source_stats' => $this->Catalog_model->source_stats(),
+			'stats' => $stats,
+			'local_stats' => [
+				['label' => 'Judul buku lokal', 'value' => $stats['books'] ?? 0],
+				['label' => 'Eksemplar lokal', 'value' => $stats['items'] ?? 0],
+				['label' => 'Aset digital', 'value' => $stats['digital_assets'] ?? 0],
+				['label' => 'Riwayat sinkronisasi', 'value' => $stats['sync_runs'] ?? 0],
+			],
 			'books' => $this->Catalog_model->get_books($filters, $per_page, $offset, $this->current_library_scope_id()),
 			'sync_runs' => $this->Catalog_model->recent_sync_runs(),
 			'filters' => [

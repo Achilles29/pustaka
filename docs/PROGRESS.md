@@ -186,14 +186,14 @@ Yang sudah dilakukan:
 Validasi:
 
 - Lint PHP bersih untuk controller, model, dan view baru/terubah.
-- Login `superadmin` / `admin123` berhasil.
+- Login akun superadmin seed berhasil.
 - Setelah login, URL berikut status 200: `welcome/index`, `libraries`, `catalog`, `members`, `reading-points`, `events`, `users`, `roles`, dan `sidebar/manage`.
 - Semua URL tersebut memuat layout Pustaka dan tombol logout.
 - Setelah logout, akses root kembali ke halaman login dan dashboard tidak tampil.
 
 Catatan:
 
-- Password default `superadmin` masih `admin123`; modul ganti password wajib dibuat sebelum aplikasi dipakai serius.
+- Password default seed lama wajib diganti sebelum aplikasi dipakai serius.
 - UI Manajemen Sidebar saat ini sudah CRUD dasar, belum drag/drop.
 - Role jangka panjang seperti admin sekolah/desa/mitra akan paling bersih dibuat setelah tabel perpustakaan/unit (`libraries`) tersedia.
 
@@ -249,7 +249,7 @@ Langkah berikutnya:
 
 ## 2026-07-29 06:10 WIB
 
-Status: root publik, redirect login per role, dummy user, dan diagnosa Git selesai.
+Status: root publik, redirect login per role, seed user awal, dan diagnosa Git selesai.
 
 Yang sudah dilakukan:
 
@@ -263,10 +263,7 @@ Yang sudah dilakukan:
   - `SUPERADMIN` ke admin panel.
   - `ADMIN` ke admin panel.
   - `USER` ke dashboard pemustaka.
-- Menambahkan dummy user:
-  - `superadmin` / `admin123` role `SUPERADMIN`.
-  - `admin` / `admin123` role `ADMIN`.
-  - `pemustaka` / `admin123` role `USER`.
+- Menambahkan seed user awal untuk `SUPERADMIN`, `ADMIN`, dan `USER`.
 - Membuat migrasi `sql/2026-07-29b_public_root_demo_users_routes.sql`.
 - Mengubah menu dashboard di database agar mengarah ke `/admin`.
 - Mempercantik admin panel: sidebar kiri lebih tegas, topbar berisi label Admin Panel dan judul halaman.
@@ -1630,7 +1627,7 @@ Validasi:
   - `reader/location_gate.php`.
 - HTTP landing `/` status 200.
 - HTTP katalog publik `/katalog?q=Alice` status 200 dan menampilkan sampel.
-- HTTP login `superadmin` / `admin123` ke `/admin` status 200 dan sidebar terdeteksi.
+- HTTP login akun superadmin seed ke `/admin` status 200 dan sidebar terdeteksi.
 - Direct URL PDF `http://localhost/pustaka/storage/ebooks/free_samples/alice-adventures-wonderland.pdf` status 403.
 - Database setelah seed:
   - sample books: 10,
@@ -1735,7 +1732,7 @@ Validasi:
   - `Daftar Member` hilang,
   - `Dashboard` tampil dan mengarah ke `/user/dashboard`,
   - `Logout` tampil.
-- Login admin `superadmin` / `admin123`, lalu buka `/`:
+- Login admin seed, lalu buka `/`:
   - status 200,
   - `Masuk` hilang,
   - `Daftar Member` hilang,
@@ -2311,7 +2308,7 @@ Validasi:
   - `reader/read`,
   - `reader/member_read`,
   - routes.
-- Login `superadmin` / `admin123`.
+- Login akun superadmin seed.
 - `/reader/assets` status 200 dan memuat `Tambah Ebook`, `Filter Ebook`, dan `Audit Reader Terbaru`.
 - `/reader/audit` status 200 dan memuat `Log Akses Reader`.
 - `/reader/assets/create` status 200 dan memuat form upload PDF serta hak publikasi.
@@ -2436,7 +2433,7 @@ Validasi:
   - `Reader`,
   - `reader/form`,
   - `catalog/form`.
-- Login `superadmin` / `admin123`.
+- Login akun superadmin seed.
 - `/catalog/detail/14100` status 200, memuat panel `Ebook / Aset Digital`, dan link `reader/assets/create?book_id=14100`.
 - `/reader/assets/create?book_id=14100` status 200, memuat `Pride and Prejudice`, dan opsi buku `14100` terpilih.
 - `/catalog/create` status 200 dan memuat catatan `Katalog adalah data induk buku`.
@@ -2568,7 +2565,7 @@ Validasi:
   - `application/models/Event_model.php`,
   - `application/config/routes.php`,
   - `application/views/libraries/form.php`.
-- HTTP smoke test login `superadmin` / `admin123` berhasil.
+- HTTP smoke test login akun superadmin seed berhasil.
 - `/events/create` memuat:
   - modal tambah kategori,
   - peta lokasi event,
@@ -2624,7 +2621,7 @@ Validasi:
   - `agenda/detail`,
   - `events/detail`.
 - HTTP smoke test admin:
-  - login `superadmin` / `admin123`,
+  - login akun superadmin seed,
   - `/events/detail/3` memuat `QR Attendance`,
   - tombol/modal QR peserta muncul saat ada registrasi,
   - link tiket peserta muncul.
@@ -2690,7 +2687,7 @@ Validasi:
   - `events/detail.php`,
   - `routes.php`.
 - HTTP smoke test:
-  - admin `superadmin` / `admin123` dapat membuka `/events/qr?event_id=3`,
+  - admin seed dapat membuka `/events/qr?event_id=3`,
   - halaman memuat `QR Event`,
   - halaman tidak memuat istilah lama,
   - URL QR memakai `from=qr-event`,
@@ -2721,3 +2718,236 @@ Validasi:
   - `memberguesses`: `45543`,
   - `collectionloans`: `31678`,
   - `collectionloanitems`: `2392`.
+
+## 2026-08-09 21:42 WIB
+
+Status: hotfix import database server untuk modul quiz selesai.
+
+Masalah:
+
+- Import database `pustaka` di server gagal pada tabel `quiz_import_batches`.
+- Penyebabnya adalah kolom `format` bertipe `ENUM('csv','xlsx','json')`, tetapi ada data batch import dari file `.txt` yang tersimpan sebagai nilai kosong.
+- MySQL/MariaDB lokal menerima nilai enum kosong saat mode tidak strict, sedangkan server menolak dengan error `1265 - Data truncated for column 'format'`.
+- Error lanjutan `Table 'pustaka.quiz_questions' doesn't exist` muncul karena proses import sudah berhenti/berantakan setelah error pertama.
+
+Yang dilakukan:
+
+- Menambahkan `txt` sebagai nilai valid enum `quiz_import_batches.format`.
+- Membetulkan data lokal `MTK_KELAS_2.txt` dari format kosong menjadi `txt`.
+- Menambahkan patch SQL `sql/2026-08-09b_quiz_import_txt_format_fix.sql`.
+- Menyesuaikan referensi schema di `docs/quiz_engine.sql`.
+- Membuat dump server-ready baru:
+  - `C:\xampp\htdocs\pustaka\db_backup\pustaka_server_ready_20260809_214200.sql`.
+
+Validasi:
+
+- Patch SQL berhasil dieksekusi di database lokal `pustaka`.
+- `quiz_import_batches.format` sekarang `ENUM('csv','xlsx','json','txt')`.
+- Tidak ada lagi nilai enum kosong pada `quiz_import_batches`.
+- `quiz_questions` ada dan berisi `25` data.
+
+## 2026-08-09 22:20 WIB
+
+Status: dependensi tampilan umum ke database INLISLite diputus.
+
+Prinsip:
+
+- Halaman operasional dan publik harus membaca dari database aplikasi `pustaka`.
+- Koneksi/database `inlislite_v3` hanya boleh dipakai di halaman sinkronisasi/migrasi yang memang bertugas menarik data sumber.
+
+Yang dilakukan:
+
+- `Home` tidak lagi membuka koneksi `inlislite`; statistik landing membaca `books`, `book_items`, dan `members` dari `pustaka`.
+- `Admin` dan `Welcome` tidak lagi membuka koneksi `inlislite`; dashboard admin memakai statistik lokal `pustaka`.
+- `/catalog` tidak lagi memanggil `Catalog_model::source_stats()`; tab ringkasan menjadi `Data Lokal`.
+- `/members` tidak lagi memanggil `Member_model::source_stats()`; tab ringkasan menjadi `Data Lokal`.
+- `Asset_migration_model::process_covers()` tidak lagi join ke `inlislite_v3.catalogs` dan `inlislite_v3.worksheets`; migrasi cover memakai data lokal `books.cover_path` lalu mencari file fisik di folder sumber.
+- Label tampilan umum dibersihkan:
+  - `Katalog INLISLite` menjadi `Katalog Buku`,
+  - `Live dari INLISLite` menjadi `Data layanan terpadu`,
+  - `Status INLISLite` menjadi `Status Sumber`,
+  - `Aktivitas INLISLite` menjadi `Aktivitas Layanan`,
+  - `Buku Tamu INLISLite` menjadi `Buku Tamu Legacy`.
+
+Validasi:
+
+- Lint PHP bersih untuk controller/model/view yang diubah.
+- HTTP smoke test:
+  - `/` status `200`,
+  - login akun superadmin seed berhasil redirect `303`,
+  - `/admin`, `/catalog`, `/members`, `/transactions` status `200`.
+- Halaman admin umum tidak lagi memuat teks visible lama:
+  - `Live dari INLISLite`,
+  - `Katalog INLISLite`,
+  - `Status INLISLite`,
+  - `Aktivitas INLISLite`,
+  - `Sumber Migrasi`,
+  - `Buku Tamu INLISLite`.
+- Audit kode:
+  - pemanggilan `source_stats()` tersisa hanya di `/catalog/sync`, `/members/sync`, dan `/transactions/sync`,
+  - koneksi `load->database('inlislite')` tersisa hanya di model sinkronisasi.
+
+Catatan:
+
+- URL aset hasil migrasi masih mengandung path `assets/uploads/inlislite/...`; ini hanya nama folder aset lokal hasil salin, bukan pembacaan database INLISLite.
+- Rename folder aset bisa dilakukan belakangan jika ingin steril sampai level URL/network path.
+
+## 2026-08-09 23:10 WIB
+
+Status: hardening awal server aaPanel/Nginx dan dashboard production selesai.
+
+Yang dilakukan:
+
+- Menambahkan contoh rewrite Nginx aaPanel:
+  - `deploy/nginx/aapanel-codeigniter3-rewrite.conf`,
+  - `docs/NGINX_AAPANEL.md`.
+- Memperkuat `.htaccess` Apache lokal agar folder privat tidak bisa dibuka langsung:
+  - `application`,
+  - `system`,
+  - `storage`,
+  - `db_backup`,
+  - `Buku`,
+  - `docs`,
+  - `sql`,
+  - `scripts`,
+  - `deploy`.
+- Menghapus petunjuk kredensial default dari halaman login.
+- Membersihkan dokumentasi aktif dari password seed lama agar tidak ikut terbawa ke deployment.
+- Merombak dashboard admin menjadi dashboard operasional produksi:
+  - kotak masuk layanan,
+  - statistik katalog, member, GIS, dan aset digital,
+  - aktivitas hari ini,
+  - quick action admin,
+  - kesehatan sinkronisasi.
+- Menghapus objek penanda internal dari dashboard, termasuk panel ringkasan eksperimen dan label fase/roadmap yang tidak cocok untuk production.
+- Menaikkan cache-buster admin polish CSS ke `20260809c`.
+- Menambahkan patch SQL server:
+  - `sql/2026-08-09c_production_admin_cleanup_and_inlislite_users.sql`.
+- Patch SQL tersebut:
+  - menambah kolom penanda sumber pada `auth_user`,
+  - menambah unique index sumber,
+  - mengimpor user aktif dari `inlislite_v3.users` sebagai role `ADMIN`,
+  - mengikat admin lama ke perpustakaan utama lokal jika ditemukan,
+  - memakai password awal admin import sesuai standar operasional terbaru dan `force_password_change = 1`,
+  - mensuspensi akun demo generik `admin` dan `pemustaka`.
+
+Validasi:
+
+- SQL patch berhasil dijalankan lokal dan aman dijalankan ulang.
+- User aktif INLISLite yang berhasil masuk sebagai admin: `16`.
+- User INLISLite nonaktif tidak ikut dimigrasikan.
+- Akun demo `admin` dan `pemustaka` lokal berstatus `suspended`.
+- Lint PHP bersih untuk:
+  - `Admin.php`,
+  - `Welcome.php`,
+  - `auth/login.php`,
+  - `dashboard/index.php`.
+- HTTP smoke test:
+  - login `superadmin` redirect `303`,
+  - `/admin`, `/catalog`, `/members`, `/transactions`, `/guestbook/monitor`, `/reports/visits` status `200`.
+- Marker production yang harus hilang tidak muncul di HTML halaman admin, termasuk panel eksperimen, petunjuk kredensial lama, label fase, dan prioritas roadmap internal.
+- Folder privat lokal sudah ditolak:
+  - `/application/config/database.php` -> `403`,
+  - `/system/core/CodeIgniter.php` -> `403`,
+  - `/storage/...` -> `403`,
+  - `/sql/...` -> `403`,
+  - `/docs/...` -> `403`,
+  - `/deploy/...` -> `403`.
+
+Catatan:
+
+- Untuk Nginx, `.htaccess` tidak berlaku; rewrite aaPanel harus memakai snippet di `docs/NGINX_AAPANEL.md`.
+- Modul Arena Belajar tetap tidak disentuh karena merupakan pekerjaan paralel.
+
+## 2026-08-09 23:45 WIB
+
+Status: daftar admin khusus dan standar tabel admin selesai.
+
+Yang dilakukan:
+
+- Membuat route khusus `rbac/admins` untuk daftar admin operasional.
+- Route lama `rbac/users` tetap aktif sebagai alias agar link lama tidak 404.
+- Mengubah tab RBAC dari `User` menjadi `Daftar Admin`.
+- Memisahkan akun admin dari akun member:
+  - daftar admin hanya mengambil akun dengan role selain `USER`,
+  - akun member hasil migrasi tidak ikut dirender di daftar admin.
+- Menambahkan filter pada daftar admin:
+  - pencarian nama/username/email/perpustakaan,
+  - status,
+  - role,
+  - scope perpustakaan,
+  - sumber lokal atau admin INLISLite,
+  - jumlah baris.
+- Default tabel admin memakai `25` baris, pagination, dan area scrollable.
+- Menambahkan CSS global tabel admin:
+  - filter lebih padat,
+  - header tabel sticky,
+  - area tabel scrollable,
+  - footer pagination responsif.
+- Mengubah menu database `system.users` menjadi `Daftar Admin` dengan URL `rbac/admins`.
+- Mengganti password awal admin hasil import INLISLite sesuai permintaan dan tetap mewajibkan `force_password_change = 1`.
+- Menambahkan patch SQL server:
+  - `sql/2026-08-09d_admin_accounts_password_and_menu.sql`.
+- Menaikkan cache-buster polish CSS ke `20260809d`.
+
+Validasi:
+
+- SQL patch `2026-08-09d_admin_accounts_password_and_menu.sql` berhasil dijalankan lokal.
+- Password baru admin import terverifikasi cocok pada sampel user INLISLite.
+- Total akun admin yang tampil dari query admin: `18`.
+- Akun member terhubung yang ikut query admin: `0`.
+- Login salah satu admin INLISLite dengan password baru berhasil dan dapat membuka `/admin`.
+- HTTP smoke test:
+  - `/rbac/admins` status `200`,
+  - `/rbac/users` status `200`,
+  - `/rbac/admins?per_page=25&source=inlislite_admin` status `200`,
+  - `/rbac/admins?role_id=2&status=active` status `200`.
+- Lint PHP bersih untuk:
+  - `User_model.php`,
+  - `Rbac.php`,
+  - `Users.php`,
+  - `routes.php`,
+  - view RBAC admin dan modalnya.
+
+## 2026-08-10 00:20 WIB
+
+Status: pengaturan akun pemustaka selesai.
+
+Yang dilakukan:
+
+- Memastikan akun member tetap menjadi bagian dari modul Membership:
+  - data profil di `members`,
+  - akun login di `auth_user`,
+  - relasi melalui `members.auth_user_id`.
+- Menambahkan route pemustaka:
+  - `/user/account`,
+  - `/user/account/username`,
+  - `/user/account/password`.
+- Menambahkan halaman `/user/account` untuk ganti username dan password.
+- Jika akun member masih `force_password_change = 1`, login member diarahkan ke `/user/account`.
+- Menambahkan link `Akun` di:
+  - topbar `/user/dashboard`,
+  - bottom navigation member,
+  - quick action dashboard,
+  - halaman `/user/reading-checkin`.
+- Update username wajib memasukkan password saat ini, username unik, dan format username dibatasi huruf/angka/titik/underscore/strip.
+- Update password wajib memasukkan password saat ini, password baru minimal 8 karakter, dan konfirmasi cocok.
+- Setelah password berhasil diganti, `auth_user.force_password_change` diset `0`.
+- Tidak ada perubahan struktur database sehingga tidak perlu patch SQL baru.
+
+Validasi:
+
+- Lint PHP bersih untuk:
+  - `Auth_model.php`,
+  - `User_dashboard.php`,
+  - `routes.php`,
+  - `user/account.php`,
+  - `user/dashboard.php`,
+  - `user/reading_checkin.php`.
+- Akun member contoh `3317101401620001` ditemukan aktif dan terhubung ke member.
+- Total akun member terhubung: `5.504`.
+- HTTP smoke test login member berhasil redirect `303`.
+- Login member dengan password awal diarahkan ke `/user/account`.
+- `/user/dashboard`, `/user/account`, dan `/user/reading-checkin` status `200`.
+- Halaman `/user/account` memuat form ganti username dan form ganti password.
+- Test negatif update username dengan password salah tidak mengubah username.

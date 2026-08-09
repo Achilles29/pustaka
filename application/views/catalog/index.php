@@ -39,7 +39,7 @@ $asset_url = function ($book) {
 		<div class="row g-2 align-items-center">
 			<div class="col">
 				<div class="page-pretitle">Fase 2</div>
-				<h1 class="page-title">Katalog INLISLite</h1>
+				<h1 class="page-title">Katalog Buku</h1>
 			</div>
 			<div class="col-auto ms-auto">
 				<div class="btn-list">
@@ -80,7 +80,7 @@ $asset_url = function ($book) {
 				</div>
 				<ul class="nav nav-tabs card-header-tabs workspace-tabs" role="tablist">
 					<li class="nav-item" role="presentation"><a href="#tab-catalog-data" class="nav-link active" data-bs-toggle="tab" role="tab"><i class="ti ti-table me-1"></i>Data</a></li>
-					<li class="nav-item" role="presentation"><a href="#tab-catalog-source" class="nav-link" data-bs-toggle="tab" role="tab"><i class="ti ti-database-search me-1"></i>Sumber</a></li>
+					<li class="nav-item" role="presentation"><a href="#tab-catalog-source" class="nav-link" data-bs-toggle="tab" role="tab"><i class="ti ti-database-search me-1"></i>Data Lokal</a></li>
 					<li class="nav-item" role="presentation"><a href="#tab-catalog-schema" class="nav-link" data-bs-toggle="tab" role="tab"><i class="ti ti-sitemap me-1"></i>Mapping</a></li>
 				</ul>
 			</div>
@@ -218,7 +218,7 @@ $asset_url = function ($book) {
 
 				<div class="tab-pane" id="tab-catalog-source" role="tabpanel">
 					<div class="list-group list-group-flush">
-						<?php foreach ($source_stats as $source): ?>
+						<?php foreach ($local_stats as $source): ?>
 							<div class="list-group-item d-flex align-items-center">
 								<div class="flex-fill"><?= html_escape($source['label']); ?></div>
 								<span class="badge bg-blue-lt"><?= number_format((int) $source['value'], 0, ',', '.'); ?></span>
@@ -238,7 +238,7 @@ $asset_url = function ($book) {
 								<tr><td class="fw-semibold">Kontributor</td><td><code>book_authors</code>, <code>book_subjects</code></td><td>Penulis, peran, subjek untuk pencarian.</td></tr>
 								<tr><td class="fw-semibold">Eksemplar</td><td><code>book_items</code></td><td>Barcode, lokasi, status, dan relasi perpustakaan.</td></tr>
 								<tr><td class="fw-semibold">Digital</td><td><code>digital_assets</code></td><td>File PDF, kebijakan akses, dan status aset digital.</td></tr>
-								<tr><td class="fw-semibold">Sinkronisasi</td><td><code>catalog_sync_runs</code>, <code>catalog_sync_maps</code></td><td>Riwayat import dan pemetaan ID INLISLite.</td></tr>
+								<tr><td class="fw-semibold">Sinkronisasi</td><td><code>catalog_sync_runs</code>, <code>catalog_sync_maps</code></td><td>Riwayat import dan pemetaan ID sumber.</td></tr>
 							</tbody>
 						</table>
 					</div>

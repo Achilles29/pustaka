@@ -19,7 +19,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810a'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -30,15 +30,19 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 		<div class="btn-list">
 			<a href="<?= base_url(); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-home me-1"></i>Beranda</a>
 			<a href="<?= base_url('katalog'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-search me-1"></i>Katalog</a>
+			<a href="<?= base_url('agenda'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-calendar-event me-1"></i>Agenda</a>
 			<a href="<?= base_url('user/dashboard'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-id me-1"></i>Dashboard</a>
+			<a href="<?= base_url('user/account'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-user-cog me-1"></i>Akun</a>
 			<a href="<?= base_url('logout'); ?>" class="btn btn-primary btn-sm"><i class="ti ti-logout me-1"></i>Logout</a>
 		</div>
 	</header>
 	<nav class="member-bottom-nav" aria-label="Navigasi pemustaka">
 		<a href="<?= base_url(); ?>"><i class="ti ti-home"></i><span>Beranda</span></a>
 		<a href="<?= base_url('katalog'); ?>"><i class="ti ti-search"></i><span>Katalog</span></a>
+		<a href="<?= base_url('agenda'); ?>"><i class="ti ti-calendar-event"></i><span>Agenda</span></a>
 		<a href="<?= base_url('user/dashboard'); ?>"><i class="ti ti-id"></i><span>Dashboard</span></a>
 		<a href="<?= base_url('user/reading-checkin'); ?>" class="active"><i class="ti ti-map-pin-check"></i><span>Pojok</span></a>
+		<a href="<?= base_url('user/account'); ?>"><i class="ti ti-user-cog"></i><span>Akun</span></a>
 	</nav>
 
 	<main class="user-dashboard user-dashboard-v2">

@@ -117,7 +117,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 							</select>
 						</div>
 						<div class="col-md-6 col-lg-2">
-							<label class="form-label">Kategori INLISLite</label>
+							<label class="form-label">Kategori Sumber</label>
 							<select class="form-select form-select-lg" name="category">
 								<option value="">Semua</option>
 								<?php foreach ($filter_options['categories'] as $category): ?>

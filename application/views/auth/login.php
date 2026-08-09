@@ -72,9 +72,6 @@ $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min
 					<div class="auth-secondary-link">
 						Belum punya akun member? <a href="<?= base_url('membership/register'); ?>">Daftar online sekarang</a>
 					</div>
-					<div class="text-secondary small mt-3">
-						Default awal admin: <code>superadmin</code> / <code>admin123</code>
-					</div>
 				</section>
 			</div>
 		</div>

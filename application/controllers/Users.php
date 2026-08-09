@@ -5,21 +5,21 @@ class Users extends MY_Controller
 {
 	public function index()
 	{
-		redirect('rbac/users');
+		redirect('rbac/admins');
 	}
 
 	public function store()
 	{
-		redirect('rbac/users');
+		redirect('rbac/admins');
 	}
 
 	public function update_roles($user_id)
 	{
-		redirect('rbac/users');
+		redirect('rbac/admins');
 	}
 
 	public function toggle($user_id)
 	{
-		redirect('rbac/users');
+		redirect('rbac/admins');
 	}
 }

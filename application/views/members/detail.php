@@ -149,7 +149,7 @@ if (! empty($member['photo_local_path'])) {
 							<div class="datagrid-item"><div class="datagrid-title">Telepon</div><div class="datagrid-content"><?= html_escape($member['phone'] ?: '-'); ?></div></div>
 							<div class="datagrid-item"><div class="datagrid-title">Email Profil</div><div class="datagrid-content"><?= html_escape($member['email'] ?: '-'); ?></div></div>
 							<div class="datagrid-item"><div class="datagrid-title">Jenis Member</div><div class="datagrid-content"><?= html_escape($member_label('member_type_label', 'member_type')); ?></div></div>
-							<div class="datagrid-item"><div class="datagrid-title">Status INLISLite</div><div class="datagrid-content"><?= html_escape($member['member_status_label'] ?: '-'); ?></div></div>
+							<div class="datagrid-item"><div class="datagrid-title">Status Sumber</div><div class="datagrid-content"><?= html_escape($member['member_status_label'] ?: '-'); ?></div></div>
 							<div class="datagrid-item"><div class="datagrid-title">Pendidikan</div><div class="datagrid-content"><?= html_escape($member_label('education_label', 'education')); ?></div></div>
 							<div class="datagrid-item"><div class="datagrid-title">Pekerjaan</div><div class="datagrid-content"><?= html_escape($member_label('occupation_label', 'occupation')); ?></div></div>
 							<div class="datagrid-item"><div class="datagrid-title">Tanggal Daftar</div><div class="datagrid-content"><?= html_escape($member['registered_at'] ?: '-'); ?></div></div>
@@ -169,7 +169,7 @@ if (! empty($member['photo_local_path'])) {
 				<div class="card admin-card mt-3 data-workspace">
 					<div class="card-header workspace-header">
 						<div>
-							<h2 class="card-title">Aktivitas INLISLite</h2>
+							<h2 class="card-title">Aktivitas Layanan</h2>
 							<div class="text-secondary small">Kunjungan, hak pinjam, dan histori peminjaman yang sudah disinkronkan.</div>
 						</div>
 						<ul class="nav nav-tabs card-header-tabs workspace-tabs" role="tablist">

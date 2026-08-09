@@ -155,7 +155,7 @@ $status_labels = [
 							<div class="mb-3">
 								<label class="form-label">Nama File Cover</label>
 								<input type="text" class="form-control" name="cover_path" value="<?= html_escape($field('cover_path')); ?>" placeholder="contoh: cover.jpg">
-								<div class="form-hint">Untuk data INLISLite, file fisik tetap diproses dari modul Migrasi Aset.</div>
+								<div class="form-hint">Untuk data hasil migrasi, file fisik tetap diproses dari modul Migrasi Aset.</div>
 							</div>
 							<?php if ($is_edit): ?>
 								<div class="datagrid mb-3">

@@ -62,7 +62,7 @@ $status_options = [
 							</select>
 						</div>
 						<div class="col-md-4">
-							<label class="form-label">Status INLISLite</label>
+							<label class="form-label">Status Sumber</label>
 							<select class="form-select" name="source_status_id">
 								<option value="">Tidak dipilih</option>
 								<?php $select_options($reference_options['statuses'] ?? [], $field('source_status_id')); ?>

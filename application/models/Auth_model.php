@@ -3,6 +3,17 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Auth_model extends CI_Model
 {
+	public function get_user_with_password($user_id)
+	{
+		return $this->db
+			->select('id, username, email, password_hash, full_name, status, force_password_change, library_id')
+			->from('auth_user')
+			->where('id', (int) $user_id)
+			->limit(1)
+			->get()
+			->row_array();
+	}
+
 	public function attempt_login($identifier, $password)
 	{
 		$row = $this->db
@@ -36,6 +47,44 @@ class Auth_model extends CI_Model
 		unset($row['password_hash']);
 
 		return $row;
+	}
+
+	public function username_exists($username, $exclude_user_id = null)
+	{
+		$this->db
+			->from('auth_user')
+			->where('username', (string) $username);
+
+		if ($exclude_user_id !== null) {
+			$this->db->where('id <>', (int) $exclude_user_id);
+		}
+
+		return $this->db->count_all_results() > 0;
+	}
+
+	public function update_username($user_id, $username)
+	{
+		$this->db
+			->where('id', (int) $user_id)
+			->update('auth_user', [
+				'username' => trim((string) $username),
+				'updated_at' => date('Y-m-d H:i:s'),
+			]);
+
+		return $this->db->affected_rows() >= 0;
+	}
+
+	public function update_password($user_id, $password)
+	{
+		$this->db
+			->where('id', (int) $user_id)
+			->update('auth_user', [
+				'password_hash' => password_hash((string) $password, PASSWORD_BCRYPT),
+				'force_password_change' => 0,
+				'updated_at' => date('Y-m-d H:i:s'),
+			]);
+
+		return $this->db->affected_rows() >= 0;
 	}
 
 	public function load_roles($user_id)

@@ -70,7 +70,7 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260809b'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260809d'); ?>">
 </head>
 <body class="admin-body">
 	<div class="page">

@@ -56,7 +56,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260808b'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810a'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -71,6 +71,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 			<a href="<?= base_url('katalog'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-search me-1"></i>Katalog</a>
 			<a href="<?= base_url('agenda'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-calendar-event me-1"></i>Agenda</a>
 			<a href="<?= base_url('user/reading-checkin'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-map-pin-check me-1"></i>Pojok Baca</a>
+			<a href="<?= base_url('user/account'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-user-cog me-1"></i>Akun</a>
 			<a href="<?= base_url('logout'); ?>" class="btn btn-primary btn-sm"><i class="ti ti-logout me-1"></i>Logout</a>
 		</div>
 	</header>
@@ -80,6 +81,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 		<a href="<?= base_url('agenda'); ?>"><i class="ti ti-calendar-event"></i><span>Agenda</span></a>
 		<a href="<?= base_url('user/dashboard'); ?>" class="active"><i class="ti ti-id"></i><span>Dashboard</span></a>
 		<a href="<?= base_url('user/reading-checkin'); ?>"><i class="ti ti-map-pin-check"></i><span>Pojok</span></a>
+		<a href="<?= base_url('user/account'); ?>"><i class="ti ti-user-cog"></i><span>Akun</span></a>
 	</nav>
 
 	<main class="user-dashboard user-dashboard-v2">
@@ -176,6 +178,10 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 						<a href="<?= base_url('user/reading-checkin'); ?>" class="member-action">
 							<i class="ti ti-map-pin-check"></i>
 							<span>Pojok Baca</span>
+						</a>
+						<a href="<?= base_url('user/account'); ?>" class="member-action">
+							<i class="ti ti-user-cog"></i>
+							<span>Akun Login</span>
 						</a>
 					</div>
 					<div class="member-status-stack">

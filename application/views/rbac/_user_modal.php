@@ -4,9 +4,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 <div class="modal fade" id="user-modal" tabindex="-1" aria-hidden="true">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<?= form_open('rbac/users/store'); ?>
+			<?= form_open('rbac/admins/store'); ?>
 				<div class="modal-header">
-					<h2 class="modal-title">Tambah User</h2>
+					<h2 class="modal-title">Tambah Admin</h2>
 					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 				</div>
 				<div class="modal-body">
@@ -37,6 +37,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 					</div>
 					<div class="mb-3">
 						<label class="form-label">Role</label>
+						<div class="form-hint mb-2">Role pemustaka tidak ditampilkan di halaman ini. Member dibuat dari modul Membership.</div>
 						<div class="stacked-checks">
 							<?php foreach ($roles as $role): ?>
 								<label class="form-check">
@@ -49,7 +50,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-					<button type="submit" class="btn btn-primary">Buat User</button>
+					<button type="submit" class="btn btn-primary">Buat Admin</button>
 				</div>
 			<?= form_close(); ?>
 		</div>

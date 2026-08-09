@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS quiz_question_tags (
 CREATE TABLE IF NOT EXISTS quiz_import_batches (
     id           INT AUTO_INCREMENT PRIMARY KEY,
     filename     VARCHAR(500) NOT NULL,
-    format       ENUM('csv','xlsx','json') NOT NULL DEFAULT 'csv',
+    format       ENUM('csv','xlsx','json','txt') NOT NULL DEFAULT 'csv',
     total_rows   INT NOT NULL DEFAULT 0,
     imported     INT NOT NULL DEFAULT 0,
     skipped      INT NOT NULL DEFAULT 0,

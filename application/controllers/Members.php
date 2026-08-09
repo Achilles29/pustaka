@@ -27,11 +27,17 @@ class Members extends MY_Controller
 		$total_pages = max(1, (int) ceil($total_rows / $per_page));
 		$page = min($page, $total_pages);
 		$offset = ($page - 1) * $per_page;
+		$stats = $this->Member_model->stats();
 
 		$this->render('members/index', [
 			'title' => 'Membership Digital',
-			'stats' => $this->Member_model->stats(),
-			'source_stats' => $this->Member_model->source_stats(),
+			'stats' => $stats,
+			'local_stats' => [
+				['label' => 'Profil member lokal', 'value' => $stats['members'] ?? 0],
+				['label' => 'Akun login aktif', 'value' => $stats['linked_users'] ?? 0],
+				['label' => 'Referensi foto', 'value' => $stats['photo_refs'] ?? 0],
+				['label' => 'Riwayat sinkronisasi', 'value' => $stats['sync_runs'] ?? 0],
+			],
 			'members' => $this->Member_model->get_members($filters, $per_page, $offset),
 			'sync_runs' => $this->Member_model->recent_sync_runs(),
 			'filters' => [
