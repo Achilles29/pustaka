@@ -2697,3 +2697,27 @@ Validasi:
   - target QR `event-registration-qr` dan kartu print tampil,
   - member `3317101401620001` / `perpus2026` mendapat HTTP 403 saat membuka `/events/qr`.
 - Push Git tidak dilakukan otomatis.
+
+## 2026-08-09 20:08 WIB
+
+Status: import database acuan INLISLite lokal selesai.
+
+Yang dilakukan:
+
+- Mengimpor dump `C:\xampp\htdocs\inlislite3\inlis.sql` ke database MySQL lokal `inlislite_v3`.
+- Nama database yang aktif di MySQL adalah `inlislite_v3` tanpa huruf `t` tambahan.
+- Backup database sebelum import dibuat di `C:\xampp\htdocs\pustaka\db_backup\inlislite_v3_before_import_20260809_200621.sql`.
+- Log import dibuat di `C:\xampp\htdocs\pustaka\db_backup\inlislite_v3_import_20260809_200621.log`.
+
+Validasi:
+
+- Import via CLI MySQL selesai dengan exit code `0`.
+- Log import kosong, tidak ada error.
+- Jumlah tabel setelah import: `201`.
+- Data utama terisi:
+  - `catalogs`: `14098`,
+  - `members`: `5504`,
+  - `collections`: `22927`,
+  - `memberguesses`: `45543`,
+  - `collectionloans`: `31678`,
+  - `collectionloanitems`: `2392`.
