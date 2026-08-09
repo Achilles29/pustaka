@@ -70,7 +70,7 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260802j'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260809b'); ?>">
 </head>
 <body class="admin-body">
 	<div class="page">
@@ -307,5 +307,87 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 		});
 	})();
 	</script>
+<!-- Reusable Confirm Modal (global) — pakai atribut data-confirm="..." pada link/tombol.
+     Opsi: data-confirm-title, data-confirm-ok, data-confirm-variant="danger|primary|success|warning". -->
+<div class="modal modal-blur fade" id="appConfirm" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-status bg-primary" id="appConfirmStatus"></div>
+            <div class="modal-body text-center py-4">
+                <div id="appConfirmIcon" class="mb-2"><i class="ti ti-help-circle text-primary" style="font-size:2.6rem"></i></div>
+                <h3 class="mb-1" id="appConfirmTitle">Konfirmasi</h3>
+                <div class="text-secondary" id="appConfirmMsg">Yakin ingin melanjutkan?</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-link link-secondary me-auto" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="appConfirmOk">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var el = document.getElementById('appConfirm');
+    if (!el || typeof bootstrap === 'undefined') return;
+    var modal = new bootstrap.Modal(el);
+    var pending = null;      // elemen pemicu (data-confirm)
+    var pendingCb = null;    // callback (API programatik)
+    var statusEl = document.getElementById('appConfirmStatus');
+    var iconEl   = document.getElementById('appConfirmIcon');
+    var titleEl  = document.getElementById('appConfirmTitle');
+    var msgEl    = document.getElementById('appConfirmMsg');
+    var okBtn    = document.getElementById('appConfirmOk');
+    var icons = { danger: 'ti-alert-triangle', warning: 'ti-alert-circle', success: 'ti-circle-check', primary: 'ti-help-circle' };
+
+    function paint(opts) {
+        var variant = opts.variant || 'primary';
+        msgEl.textContent   = opts.message || 'Yakin ingin melanjutkan?';
+        titleEl.textContent = opts.title || 'Konfirmasi';
+        okBtn.textContent   = opts.ok || 'Ya, Lanjutkan';
+        okBtn.className      = 'btn btn-' + variant;
+        statusEl.className   = 'modal-status bg-' + variant;
+        iconEl.innerHTML     = '<i class="ti ' + (icons[variant] || icons.primary) + ' text-' + variant + '" style="font-size:2.6rem"></i>';
+        modal.show();
+    }
+
+    // API programatik: appConfirm({message,title,ok,variant}, onConfirm)
+    window.appConfirm = function (opts, onConfirm) {
+        opts = opts || {};
+        pending = null; pendingCb = (typeof onConfirm === 'function') ? onConfirm : null;
+        paint(opts);
+    };
+
+    // Deklaratif: elemen dengan atribut data-confirm
+    document.addEventListener('click', function (e) {
+        var trg = e.target.closest('[data-confirm]');
+        if (!trg) return;
+        e.preventDefault();
+        e.stopPropagation();
+        pending = trg; pendingCb = null;
+        paint({
+            message: trg.getAttribute('data-confirm'),
+            title:   trg.getAttribute('data-confirm-title'),
+            ok:      trg.getAttribute('data-confirm-ok'),
+            variant: trg.getAttribute('data-confirm-variant')
+        });
+    }, true);
+
+    okBtn.addEventListener('click', function () {
+        modal.hide();
+        if (pendingCb) { var cb = pendingCb; pendingCb = null; cb(); return; }
+        if (!pending) return;
+        var t = pending; pending = null;
+        if (t.tagName === 'A' && t.getAttribute('href')) { window.location.href = t.getAttribute('href'); return; }
+        var form = t.closest('form');
+        if (!form && t.getAttribute('data-form')) { form = document.querySelector(t.getAttribute('data-form')); }
+        if (form) {
+            if (t.name) { var h = document.createElement('input'); h.type = 'hidden'; h.name = t.name; h.value = t.value || '1'; form.appendChild(h); }
+            if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
+        }
+    });
+
+    el.addEventListener('hidden.bs.modal', function () { pending = null; pendingCb = null; });
+})();
+</script>
 </body>
 </html>

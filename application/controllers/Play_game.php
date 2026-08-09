@@ -35,6 +35,36 @@ class Play_game extends CI_Controller
         ]);
     }
 
+    // ── Latihan Soal (daftar sesi latihan untuk member) ───────────────────────
+
+    /** Daftar sesi latihan yang terbuka; member klik untuk mengerjakan via /quiz/practice */
+    public function latihan()
+    {
+        $user = $this->_current_user();
+
+        // Sesi latihan (practice) yang berstatus open.
+        $now = date('Y-m-d H:i:s');
+        $sessions = $this->db
+            ->select('s.code, s.title, s.question_count, s.time_limit_minutes, s.passing_score, s.start_time, s.end_time, sub.name AS subject_name, g.name AS grade_name')
+            ->from('quiz_sessions s')
+            ->join('quiz_subjects sub', 'sub.id = s.subject_id', 'left')
+            ->join('quiz_grade_levels g', 'g.id = s.grade_level_id', 'left')
+            ->where('s.type', 'practice')
+            ->where('s.status', 'open')
+            ->where('s.deleted_at IS NULL', null, false)
+            // Sembunyikan yang sudah lewat masa tutup.
+            ->group_start()->where('s.end_time IS NULL', null, false)->or_where('s.end_time >=', $now)->group_end()
+            ->order_by('s.start_time', 'DESC')
+            ->order_by('s.id', 'DESC')
+            ->get()->result_array();
+
+        $this->load->view('game/latihan_list', [
+            'title'    => 'Latihan Soal',
+            'user'     => $user,
+            'sessions' => $sessions,
+        ]);
+    }
+
     // ── Notifikasi (member) ────────────────────────────────────────────────────
 
     /** Halaman notifikasi member (menandai semua terbaca saat dibuka) */
@@ -180,25 +210,32 @@ class Play_game extends CI_Controller
         $new_badges    = [];
 
         if ($user) {
-            // Cek highscore sebelumnya (sebelum sesi ini)
-            $prev_high = $this->Learn_games_model->get_user_highscore(
-                $user['id'], $game_type['id'], $set_id
-            );
+            // Anti-farming: sesi wajar berdurasi >= 5 detik, dan poin game
+            // dibatasi maksimal 10 award / 5 menit per user (cegah spam skrip).
+            $legit = $duration >= 5
+                && $this->Learn_points_model->recent_award_count($user['id'], 'game.complete', 5) < 10;
 
-            $points_earned += (int) $this->Learn_points_model->award_points(
-                $user['id'], 'game.complete', 'game_session', $session_id,
-                'Selesaikan game: ' . $game_type['name']
-            );
-
-            // Bonus highscore hanya jika skor baru lebih tinggi dari sebelumnya
-            if ($score > $prev_high && $prev_high > 0) {
-                $points_earned += (int) $this->Learn_points_model->award_points(
-                    $user['id'], 'game.highscore', 'game_session', $session_id . '_hs',
-                    'Rekor baru di ' . $game_type['name']
+            if ($legit) {
+                // Cek highscore sebelumnya (sebelum sesi ini)
+                $prev_high = $this->Learn_games_model->get_user_highscore(
+                    $user['id'], $game_type['id'], $set_id
                 );
-            }
 
-            $new_badges = $this->_new_badges_for_user($user['id']);
+                $points_earned += (int) $this->Learn_points_model->award_points(
+                    $user['id'], 'game.complete', 'game_session', $session_id,
+                    'Selesaikan game: ' . $game_type['name']
+                );
+
+                // Bonus highscore hanya jika skor baru lebih tinggi dari sebelumnya
+                if ($score > $prev_high && $prev_high > 0) {
+                    $points_earned += (int) $this->Learn_points_model->award_points(
+                        $user['id'], 'game.highscore', 'game_session', $session_id . '_hs',
+                        'Rekor baru di ' . $game_type['name']
+                    );
+                }
+
+                $new_badges = $this->_new_badges_for_user($user['id']);
+            }
         }
 
         $this->output->set_content_type('application/json')->set_output(json_encode([
@@ -505,11 +542,15 @@ class Play_game extends CI_Controller
         ]);
     }
 
-    /** AJAX: state room untuk polling */
+    /** AJAX: state room untuk polling (hanya pemain di room ini) */
     public function battle_state($code)
     {
+        $user = $this->_current_user();
         $room = $this->Learn_battle_model->get_room_by_code($code);
         if (! $room) return $this->_json(['ok' => false], 404);
+        if (! $user || ! $this->Learn_battle_model->role_of($room, (int) $user['id'])) {
+            return $this->_json(['ok' => false], 403);
+        }
         return $this->_json(['ok' => true, 'state' => $this->Learn_battle_model->state($room)]);
     }
 

@@ -18,7 +18,7 @@ $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260802j'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
 </head>
 <body class="d-flex flex-column auth-page-v2">
 	<div class="page page-center auth-page auth-page-v2">

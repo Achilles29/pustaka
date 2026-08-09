@@ -50,6 +50,11 @@ $chk = function($key,$default=true) use ($session,$is_edit) { return !$is_edit ?
                             <div class="col-md-4"><label class="form-label">Maks Percobaan (0=∞)</label><input type="number" name="max_attempts" class="form-control" value="<?= $v('max_attempts',0); ?>" min="0"></div>
                             <div class="col-md-4"><label class="form-label">Nilai Lulus (%)</label><input type="number" name="passing_score" class="form-control" value="<?= $v('passing_score',60); ?>" min="0" max="100"></div>
                         </div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-12"><div class="form-label mb-0"><i class="ti ti-calendar-clock me-1"></i>Jadwal Buka (opsional)</div><small class="text-secondary">Di luar rentang ini, member tidak bisa mengikuti. Kosongkan salah satu/keduanya untuk tanpa batas.</small></div>
+                            <div class="col-md-4"><label class="form-label">Dibuka Mulai</label><input type="datetime-local" name="start_time" class="form-control" value="<?= str_replace(' ','T',substr((string)$v('start_time',''),0,16)); ?>"></div>
+                            <div class="col-md-4"><label class="form-label">Ditutup Pada</label><input type="datetime-local" name="end_time" class="form-control" value="<?= str_replace(' ','T',substr((string)$v('end_time',''),0,16)); ?>"></div>
+                        </div>
                         <div class="row g-2 mt-1">
                             <div class="col-auto"><label class="form-check"><input type="checkbox" name="shuffle_questions" value="1" class="form-check-input" <?= $chk('shuffle_questions')?'checked':''; ?>><span class="form-check-label">Acak urutan soal</span></label></div>
                             <div class="col-auto"><label class="form-check"><input type="checkbox" name="shuffle_options" value="1" class="form-check-input" <?= $chk('shuffle_options')?'checked':''; ?>><span class="form-check-label">Acak pilihan jawaban</span></label></div>

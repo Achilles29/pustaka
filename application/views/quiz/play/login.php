@@ -55,7 +55,7 @@
                 <?php endif; ?>
 
                 <form method="post" action="<?= base_url('quiz/do_login'); ?>">
-                    <?= csrf_field(); ?>
+                    <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
                     <div class="mb-3">
                         <label class="form-label fw-semibold required">Kode Registrasi</label>
                         <input type="text" name="registration_code" class="form-control form-control-lg text-uppercase" value="<?= html_escape($presel_code??''); ?>" placeholder="PST1234567" autocomplete="off" autofocus style="letter-spacing:.1em">

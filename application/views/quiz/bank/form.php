@@ -1,9 +1,15 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 $is_edit = ! empty($question);
-$options = $is_edit ? array_column($question['options'] ?? [], 'option_text', 'option_index') : [];
-$correct = $is_edit ? (int)($question['correct_option_index'] ?? 0) : 0;
-$tag_string = $is_edit ? implode(', ', array_column($question['tags']??[], 'name')) : '';
-$letters = ['A','B','C','D','E'];
+$opt_rows = [];
+if ($is_edit) {
+    foreach (($question['options'] ?? []) as $o) {
+        $opt_rows[(int) $o['option_index']] = $o;
+    }
+}
+$correct = $is_edit ? (int) ($question['correct_option_index'] ?? 0) : 0;
+$tag_string = $is_edit ? implode(', ', array_column($question['tags'] ?? [], 'name')) : '';
+$letters = ['A', 'B', 'C', 'D', 'E'];
+$img_url = function ($path) { return $path ? base_url($path) : ''; };
 ?>
 <div class="page-header d-print-none">
     <div class="container-xl">
@@ -16,9 +22,9 @@ $letters = ['A','B','C','D','E'];
 
 <div class="page-body">
     <div class="container-xl">
-        <?php if($e=$this->session->flashdata('error')): ?><div class="alert alert-danger"><?= html_escape($e); ?></div><?php endif; ?>
+        <?php if ($e = $this->session->flashdata('error')): ?><div class="alert alert-danger"><?= html_escape($e); ?></div><?php endif; ?>
 
-        <?= form_open($action, ['id'=>'quiz-question-form']); ?>
+        <?= form_open_multipart($action, ['id' => 'quiz-question-form']); ?>
         <div class="row g-3">
             <div class="col-lg-8">
                 <div class="card">
@@ -26,45 +32,88 @@ $letters = ['A','B','C','D','E'];
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label required">Teks Soal</label>
-                            <textarea name="question_text" class="form-control" rows="5" required><?= html_escape($is_edit ? $question['question_text'] : ''); ?></textarea>
+                            <textarea name="question_text" class="form-control" rows="4" required><?= html_escape($is_edit ? $question['question_text'] : ''); ?></textarea>
+                        </div>
+
+                        <!-- Gambar soal -->
+                        <div class="mb-3">
+                            <label class="form-label">Gambar Soal <span class="text-secondary">(opsional)</span></label>
+                            <?php $qi = $is_edit ? ($question['question_image'] ?? '') : ''; ?>
+                            <input type="hidden" name="question_image_existing" value="<?= html_escape($qi); ?>">
+                            <input type="file" name="question_image_file" class="form-control" accept="image/png,image/jpeg,image/webp,image/gif">
+                            <?php if ($qi): ?>
+                            <div class="mt-2 d-flex align-items-center gap-2">
+                                <img src="<?= $img_url($qi); ?>" alt="" style="max-height:70px;border-radius:6px;border:1px solid #eee">
+                                <label class="form-check"><input type="checkbox" name="question_image_remove" value="1" class="form-check-input"><span class="form-check-label text-danger">Hapus gambar</span></label>
+                            </div>
+                            <?php endif; ?>
+                            <small class="form-hint">JPG/PNG/WEBP/GIF, maks 2 MB.</small>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label required">Tipe Soal</label>
                             <div class="d-flex gap-3">
-                                <label class="form-check"><input type="radio" name="type" value="multiple_choice" class="form-check-input" id="type-mc" <?= (!$is_edit || $question['type']==='multiple_choice')?'checked':''; ?> onchange="toggleType()"><span class="form-check-label">Pilihan Ganda</span></label>
-                                <label class="form-check"><input type="radio" name="type" value="essay" class="form-check-input" id="type-essay" <?= ($is_edit&&$question['type']==='essay')?'checked':''; ?> onchange="toggleType()"><span class="form-check-label">Essay</span></label>
+                                <label class="form-check"><input type="radio" name="type" value="multiple_choice" class="form-check-input" id="type-mc" <?= (! $is_edit || $question['type'] === 'multiple_choice') ? 'checked' : ''; ?> onchange="toggleType()"><span class="form-check-label">Pilihan Ganda</span></label>
+                                <label class="form-check"><input type="radio" name="type" value="essay" class="form-check-input" id="type-essay" <?= ($is_edit && $question['type'] === 'essay') ? 'checked' : ''; ?> onchange="toggleType()"><span class="form-check-label">Essay</span></label>
                             </div>
                         </div>
 
                         <!-- Multiple Choice Options -->
                         <div id="mc-section">
-                            <div class="mb-3">
-                                <label class="form-label required">Pilihan Jawaban</label>
-                                <?php for($i=0;$i<4;$i++): ?>
-                                <div class="input-group mb-2">
-                                    <span class="input-group-text">
-                                        <input type="radio" name="correct_option_index" value="<?=$i?>" <?= $correct===$i?'checked':''; ?> title="Tandai sebagai jawaban benar">
-                                        &nbsp;<strong><?= $letters[$i]; ?></strong>
-                                    </span>
-                                    <input type="text" name="options[<?=$i?>]" class="form-control" value="<?= html_escape($options[$i]??''); ?>" placeholder="Pilihan <?= $letters[$i]; ?>">
+                            <label class="form-label required">Pilihan Jawaban &amp; Kunci</label>
+                            <p class="form-hint mt-0 mb-2">Tandai <strong>huruf</strong> pilihan yang benar lewat radio di kiri. Isi minimal 2 pilihan; kosongkan yang tak dipakai (hingga 5: A–E).</p>
+                            <?php for ($i = 0; $i < 5; $i++):
+                                $o = $opt_rows[$i] ?? null;
+                                $otext = $o['option_text'] ?? '';
+                                $oimg  = $o['option_image'] ?? '';
+                            ?>
+                            <div class="card card-sm mb-2">
+                                <div class="card-body py-2">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <input type="radio" name="correct_option_index" value="<?= $i; ?>" <?= $correct === $i ? 'checked' : ''; ?> title="Tandai sebagai kunci jawaban">
+                                            &nbsp;<strong><?= $letters[$i]; ?></strong>
+                                        </span>
+                                        <input type="text" name="options[<?= $i; ?>]" class="form-control" value="<?= html_escape($otext); ?>" placeholder="Teks pilihan <?= $letters[$i]; ?>">
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2 mt-2 ms-1">
+                                        <span class="text-secondary small" style="min-width:70px"><i class="ti ti-photo me-1"></i>Gambar:</span>
+                                        <input type="hidden" name="option_image_existing[<?= $i; ?>]" value="<?= html_escape($oimg); ?>">
+                                        <input type="file" name="option_image_file[<?= $i; ?>]" class="form-control form-control-sm" accept="image/png,image/jpeg,image/webp,image/gif" style="max-width:260px">
+                                        <?php if ($oimg): ?>
+                                        <img src="<?= $img_url($oimg); ?>" alt="" style="max-height:44px;border-radius:5px;border:1px solid #eee">
+                                        <label class="form-check mb-0"><input type="checkbox" name="option_image_remove[<?= $i; ?>]" value="1" class="form-check-input"><span class="form-check-label small text-danger">hapus</span></label>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
-                                <?php endfor; ?>
-                                <p class="form-hint">Klik radio button di kiri untuk menandai jawaban benar.</p>
                             </div>
+                            <?php endfor; ?>
                         </div>
 
                         <!-- Essay Section -->
                         <div id="essay-section" style="display:none">
                             <div class="mb-3">
                                 <label class="form-label">Rubrik Penilaian</label>
-                                <textarea name="essay_rubric" class="form-control" rows="3" placeholder="Kriteria penilaian untuk jawaban essay..."><?= html_escape($is_edit ? ($question['essay_rubric']??'') : ''); ?></textarea>
+                                <textarea name="essay_rubric" class="form-control" rows="3" placeholder="Kriteria penilaian untuk jawaban essay..."><?= html_escape($is_edit ? ($question['essay_rubric'] ?? '') : ''); ?></textarea>
                             </div>
                         </div>
 
+                        <hr>
                         <div class="mb-3">
-                            <label class="form-label">Pembahasan / Kunci Jawaban</label>
-                            <textarea name="explanation" class="form-control" rows="3" placeholder="Penjelasan jawaban yang benar..."><?= html_escape($is_edit ? ($question['explanation']??'') : ''); ?></textarea>
+                            <label class="form-label">Pembahasan <span class="text-secondary">(opsional)</span></label>
+                            <textarea name="explanation" class="form-control" rows="3" placeholder="Penjelasan mengapa jawaban itu benar..."><?= html_escape($is_edit ? ($question['explanation'] ?? '') : ''); ?></textarea>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label">Gambar Pembahasan <span class="text-secondary">(opsional)</span></label>
+                            <?php $ei = $is_edit ? ($question['explanation_image'] ?? '') : ''; ?>
+                            <input type="hidden" name="explanation_image_existing" value="<?= html_escape($ei); ?>">
+                            <input type="file" name="explanation_image_file" class="form-control" accept="image/png,image/jpeg,image/webp,image/gif">
+                            <?php if ($ei): ?>
+                            <div class="mt-2 d-flex align-items-center gap-2">
+                                <img src="<?= $img_url($ei); ?>" alt="" style="max-height:60px;border-radius:6px;border:1px solid #eee">
+                                <label class="form-check"><input type="checkbox" name="explanation_image_remove" value="1" class="form-check-input"><span class="form-check-label text-danger">Hapus gambar</span></label>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -78,8 +127,8 @@ $letters = ['A','B','C','D','E'];
                             <label class="form-label required">Mata Pelajaran</label>
                             <select name="subject_id" class="form-select" required>
                                 <option value="">— Pilih —</option>
-                                <?php foreach($subjects as $s): ?>
-                                <option value="<?=$s['id']?>" <?= ($is_edit&&(int)$question['subject_id']===$s['id'])?'selected':''; ?>><?= html_escape($s['name']); ?></option>
+                                <?php foreach ($subjects as $s): ?>
+                                <option value="<?= $s['id']; ?>" <?= ($is_edit && (int) $question['subject_id'] === $s['id']) ? 'selected' : ''; ?>><?= html_escape($s['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -87,17 +136,17 @@ $letters = ['A','B','C','D','E'];
                             <label class="form-label required">Jenjang Kelas</label>
                             <select name="grade_level_id" class="form-select" required>
                                 <option value="">— Pilih —</option>
-                                <?php foreach($grades as $g): ?>
-                                <option value="<?=$g['id']?>" <?= ($is_edit&&(int)$question['grade_level_id']===$g['id'])?'selected':''; ?>><?= html_escape($g['name']); ?></option>
+                                <?php foreach ($grades as $g): ?>
+                                <option value="<?= $g['id']; ?>" <?= ($is_edit && (int) $question['grade_level_id'] === $g['id']) ? 'selected' : ''; ?>><?= html_escape($g['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label required">Tingkat Kesulitan</label>
                             <select name="difficulty" class="form-select">
-                                <option value="easy" <?= ($is_edit&&$question['difficulty']==='easy')?'selected':''; ?>>Mudah</option>
-                                <option value="medium" <?= (!$is_edit||$question['difficulty']==='medium')?'selected':''; ?>>Sedang</option>
-                                <option value="hard" <?= ($is_edit&&$question['difficulty']==='hard')?'selected':''; ?>>Sulit</option>
+                                <option value="easy" <?= ($is_edit && $question['difficulty'] === 'easy') ? 'selected' : ''; ?>>Mudah</option>
+                                <option value="medium" <?= (! $is_edit || $question['difficulty'] === 'medium') ? 'selected' : ''; ?>>Sedang</option>
+                                <option value="hard" <?= ($is_edit && $question['difficulty'] === 'hard') ? 'selected' : ''; ?>>Sulit</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -107,16 +156,16 @@ $letters = ['A','B','C','D','E'];
                         <div class="mb-3">
                             <label class="form-label">Tag (pisah koma)</label>
                             <input type="text" name="tags" class="form-control" value="<?= html_escape($tag_string); ?>" placeholder="aritmatika, penjumlahan">
-                            <?php if(!empty($tags)): ?>
+                            <?php if (! empty($tags)): ?>
                             <div class="mt-1 d-flex flex-wrap gap-1">
-                                <?php foreach(array_slice($tags,0,15) as $t): ?>
+                                <?php foreach (array_slice($tags, 0, 15) as $t): ?>
                                 <button type="button" class="badge bg-blue-lt border-0" onclick="addTag('<?= html_escape($t['name']); ?>')"><?= html_escape($t['name']); ?></button>
                                 <?php endforeach; ?>
                             </div>
                             <?php endif; ?>
                         </div>
                         <div class="mb-3">
-                            <label class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" <?= (!$is_edit||$question['is_active'])?'checked':''; ?>><span class="form-check-label">Soal Aktif</span></label>
+                            <label class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" <?= (! $is_edit || $question['is_active']) ? 'checked' : ''; ?>><span class="form-check-label">Soal Aktif</span></label>
                         </div>
                     </div>
                 </div>
@@ -139,7 +188,7 @@ function toggleType() {
 }
 function addTag(name) {
     const inp = document.querySelector('input[name="tags"]');
-    const existing = inp.value.split(',').map(s=>s.trim()).filter(Boolean);
+    const existing = inp.value.split(',').map(s => s.trim()).filter(Boolean);
     if (!existing.includes(name)) { existing.push(name); inp.value = existing.join(', '); }
 }
 document.addEventListener('DOMContentLoaded', toggleType);

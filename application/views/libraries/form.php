@@ -8,6 +8,35 @@ $field = function ($key, $default = '') use ($library) {
 $lat = (float) $field('latitude', -6.7071);
 $lng = (float) $field('longitude', 111.3502);
 $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$day_options = [
+	'Senin',
+	'Selasa',
+	'Rabu',
+	'Kamis',
+	'Jumat',
+	'Sabtu',
+	'Minggu',
+];
+$opening_hours_raw = (string) $field('opening_hours');
+$opening_schedule = [];
+foreach ($day_options as $day) {
+	$opening_schedule[$day] = [
+		'checked' => ! $is_edit && in_array($day, ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'], true),
+		'open' => '08:00',
+		'close' => '15:00',
+	];
+}
+if ($opening_hours_raw !== '') {
+	foreach ($day_options as $day) {
+		if (preg_match('/' . preg_quote($day, '/') . '\s+(\d{1,2})[:.](\d{2})\s*-\s*(\d{1,2})[:.](\d{2})/i', $opening_hours_raw, $match)) {
+			$opening_schedule[$day] = [
+				'checked' => true,
+				'open' => str_pad($match[1], 2, '0', STR_PAD_LEFT) . ':' . $match[2],
+				'close' => str_pad($match[3], 2, '0', STR_PAD_LEFT) . ':' . $match[4],
+			];
+		}
+	}
+}
 ?>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
@@ -113,16 +142,36 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 									<input type="text" class="form-control" name="website" value="<?= html_escape($field('website')); ?>">
 								</div>
 							</div>
+							<div class="mb-3">
+								<label class="form-label">Jam Layanan</label>
+								<input type="hidden" id="opening-hours-value" name="opening_hours" value="<?= html_escape($field('opening_hours')); ?>">
+								<div class="library-hours-grid" id="library-hours-grid">
+									<?php foreach ($day_options as $day): ?>
+										<?php $row = $opening_schedule[$day]; ?>
+										<div class="library-hours-row">
+											<label class="form-check library-hours-day">
+												<input class="form-check-input library-hours-check" type="checkbox" value="<?= html_escape($day); ?>" <?= ! empty($row['checked']) ? 'checked' : ''; ?>>
+												<span class="form-check-label"><?= html_escape($day); ?></span>
+											</label>
+											<div class="library-hours-time">
+												<input type="time" class="form-control library-hours-open" value="<?= html_escape($row['open']); ?>" aria-label="Jam buka <?= html_escape($day); ?>">
+												<span>-</span>
+												<input type="time" class="form-control library-hours-close" value="<?= html_escape($row['close']); ?>" aria-label="Jam tutup <?= html_escape($day); ?>">
+											</div>
+										</div>
+									<?php endforeach; ?>
+								</div>
+								<div class="form-hint">Checklist hari aktif lalu isi jam buka dan tutup. Ringkasan otomatis disimpan ke data perpustakaan.</div>
+								<?php if ($is_edit && $opening_hours_raw !== ''): ?>
+									<div class="form-hint">Data saat ini: <?= html_escape($opening_hours_raw); ?></div>
+								<?php endif; ?>
+							</div>
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label class="form-label">Jam layanan</label>
-									<input type="text" class="form-control" name="opening_hours" value="<?= html_escape($field('opening_hours')); ?>" placeholder="Senin-Jumat 08.00-15.00">
-								</div>
-								<div class="col-md-3 mb-3">
 									<label class="form-label">Radius layanan (m)</label>
 									<input type="number" class="form-control" name="service_radius_meters" value="<?= html_escape($field('service_radius_meters', 100)); ?>" min="10">
 								</div>
-								<div class="col-md-3 mb-3">
+								<div class="col-md-6 mb-3">
 									<label class="form-label">Status</label>
 									<select name="status" class="form-select">
 										<?php foreach (['active' => 'Aktif', 'pending' => 'Pending', 'inactive' => 'Nonaktif'] as $value => $label): ?>
@@ -272,5 +321,40 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 		renderVillages();
 	});
 	renderVillages();
+
+	var hoursGrid = document.getElementById('library-hours-grid');
+	var openingHidden = document.getElementById('opening-hours-value');
+
+	function syncOpeningHours() {
+		if (! hoursGrid || ! openingHidden) {
+			return;
+		}
+
+		var parts = [];
+		hoursGrid.querySelectorAll('.library-hours-row').forEach(function (row) {
+			var check = row.querySelector('.library-hours-check');
+			var open = row.querySelector('.library-hours-open');
+			var close = row.querySelector('.library-hours-close');
+			if (! check || ! check.checked) {
+				return;
+			}
+
+			var start = open && open.value ? open.value : '08:00';
+			var end = close && close.value ? close.value : '15:00';
+			parts.push(check.value + ' ' + start + '-' + end);
+		});
+
+		openingHidden.value = parts.join('; ');
+	}
+
+	if (hoursGrid && openingHidden) {
+		hoursGrid.addEventListener('change', syncOpeningHours);
+		hoursGrid.addEventListener('input', syncOpeningHours);
+		var form = openingHidden.closest('form');
+		if (form) {
+			form.addEventListener('submit', syncOpeningHours);
+		}
+		syncOpeningHours();
+	}
 })();
 </script>

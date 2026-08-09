@@ -38,7 +38,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260802j'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
 </head>
 <body class="public-page">
 	<header class="public-nav">
@@ -54,6 +54,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 		<nav class="public-links">
 			<a href="<?= base_url(); ?>">Beranda</a>
 			<a href="<?= base_url('katalog'); ?>">Katalog</a>
+			<a href="<?= base_url('agenda'); ?>">Agenda</a>
 			<a href="#jejaring">Jejaring</a>
 			<?php if ($is_logged_in): ?>
 				<a href="<?= $dashboard_url; ?>">Dashboard</a>
@@ -67,11 +68,10 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 	<nav class="public-mobile-nav" aria-label="Navigasi publik">
 		<a href="<?= base_url(); ?>" class="active"><i class="ti ti-home"></i><span>Beranda</span></a>
 		<a href="<?= base_url('katalog'); ?>"><i class="ti ti-search"></i><span>Katalog</span></a>
+		<a href="<?= base_url('agenda'); ?>"><i class="ti ti-calendar-event"></i><span>Agenda</span></a>
 		<?php if ($is_logged_in): ?>
 			<a href="<?= $dashboard_url; ?>"><i class="ti ti-id"></i><span>Dashboard</span></a>
-			<a href="<?= base_url('logout'); ?>"><i class="ti ti-logout"></i><span>Logout</span></a>
 		<?php else: ?>
-			<a href="<?= base_url('membership/register'); ?>"><i class="ti ti-user-plus"></i><span>Daftar</span></a>
 			<a href="<?= base_url('login'); ?>"><i class="ti ti-login"></i><span>Masuk</span></a>
 		<?php endif; ?>
 	</nav>

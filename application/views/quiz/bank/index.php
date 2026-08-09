@@ -33,13 +33,10 @@ tr.row-selected { background: var(--tblr-primary-lt) !important; }
             </div>
             <div class="col-auto ms-auto">
                 <div class="btn-list">
-                    <a href="<?= base_url('quiz-bank/template'); ?>" class="btn btn-outline-secondary" title="Unduh template CSV">
-                        <i class="ti ti-download me-1"></i>Template CSV
-                    </a>
-                    <a href="<?= base_url('quiz-bank/import'); ?>" class="btn btn-outline-primary">
-                        <i class="ti ti-file-import me-1"></i>Import CSV
-                    </a>
                     <?php if ($can_create): ?>
+                    <a href="<?= base_url('quiz-bank/import'); ?>" class="btn btn-outline-primary">
+                        <i class="ti ti-file-import me-1"></i>Import Soal
+                    </a>
                     <a href="<?= base_url('quiz-bank/create'); ?>" class="btn btn-primary">
                         <i class="ti ti-plus me-1"></i>Tambah Soal
                     </a>
@@ -285,7 +282,8 @@ tr.row-selected { background: var(--tblr-primary-lt) !important; }
                                 <a href="<?= base_url('quiz-bank/delete/'.$q['id']); ?>"
                                    class="btn btn-sm btn-outline-danger"
                                    title="Hapus"
-                                   onclick="return confirm('Hapus soal #<?= $q['id']; ?>? Tindakan ini tidak bisa dibatalkan.')">
+                                   data-confirm="Hapus soal #<?= $q['id']; ?>? Tindakan ini tidak bisa dibatalkan."
+                                   data-confirm-title="Hapus Soal" data-confirm-variant="danger" data-confirm-ok="Hapus">
                                     <i class="ti ti-trash"></i>
                                 </a>
                                 <?php endif; ?>
@@ -388,19 +386,26 @@ tr.row-selected { background: var(--tblr-primary-lt) !important; }
 
     window.confirmBulkDelete = function () {
         if (selected.size === 0) return;
-        if (!confirm('Hapus ' + selected.size + ' soal yang dipilih? Tindakan ini tidak bisa dibatalkan.')) return;
-
-        var container = document.getElementById('bulk-ids-container');
-        container.innerHTML = '';
-        selected.forEach(function (id) {
-            var input = document.createElement('input');
-            input.type  = 'hidden';
-            input.name  = 'ids[]';
-            input.value = id;
-            container.appendChild(input);
-        });
-
-        document.getElementById('bulk-delete-form').submit();
+        var doDelete = function () {
+            var container = document.getElementById('bulk-ids-container');
+            container.innerHTML = '';
+            selected.forEach(function (id) {
+                var input = document.createElement('input');
+                input.type  = 'hidden';
+                input.name  = 'ids[]';
+                input.value = id;
+                container.appendChild(input);
+            });
+            document.getElementById('bulk-delete-form').submit();
+        };
+        if (typeof window.appConfirm === 'function') {
+            window.appConfirm({
+                message: 'Hapus ' + selected.size + ' soal yang dipilih? Tindakan ini tidak bisa dibatalkan.',
+                title: 'Hapus Soal Terpilih', variant: 'danger', ok: 'Hapus'
+            }, doDelete);
+        } else if (confirm('Hapus ' + selected.size + ' soal yang dipilih?')) {
+            doDelete();
+        }
     };
 })();
 </script>

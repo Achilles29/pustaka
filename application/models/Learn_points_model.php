@@ -123,6 +123,19 @@ class Learn_points_model extends CI_Model
         return (int) ($row['points'] ?? 0);
     }
 
+    /** Jumlah award untuk suatu aksi dalam N menit terakhir (untuk rate-limit anti-farming). */
+    public function recent_award_count($user_id, $action_code, $minutes = 5)
+    {
+        $rule = $this->get_rule_by_code($action_code);
+        if (! $rule) return 0;
+        $since = date('Y-m-d H:i:s', strtotime("-{$minutes} minutes"));
+        return (int) $this->db
+            ->where('user_id', (int) $user_id)
+            ->where('rule_id', (int) $rule['id'])
+            ->where('awarded_at >=', $since)
+            ->count_all_results('learn_member_points');
+    }
+
     public function get_user_points_log($user_id, $limit = 20)
     {
         return $this->db

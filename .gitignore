@@ -25,6 +25,9 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 /storage/debug_screenshots/
 /storage/ebooks/**/*.pdf
 /docs/_note.md
+/docs/_note*.md
+/Buku/
+/db_backup/
 
 # Tabler development dependencies/build cache
 /tabler-dev/

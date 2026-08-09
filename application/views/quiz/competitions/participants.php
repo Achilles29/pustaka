@@ -78,7 +78,7 @@ $status_colors = ['registered'=>'bg-blue','confirmed'=>'bg-success','disqualifie
 <!-- Modal Add Participant -->
 <div class="modal fade" id="modal-add-participant" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <form method="post" action="<?= base_url('quiz-competitions/add_participant/'.$session['id']); ?>">
-    <?= csrf_field(); ?>
+    <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
     <div class="modal-header"><h5 class="modal-title">Tambah Peserta</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
         <div class="row g-2">
@@ -103,7 +103,7 @@ $status_colors = ['registered'=>'bg-blue','confirmed'=>'bg-success','disqualifie
 <!-- Modal Edit Participant (populated by JS) -->
 <div class="modal fade" id="modal-edit-participant" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <form method="post" id="form-edit-participant">
-    <?= csrf_field(); ?>
+    <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
     <div class="modal-header"><h5 class="modal-title">Edit Peserta</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
         <div class="row g-2">
@@ -124,7 +124,7 @@ $status_colors = ['registered'=>'bg-blue','confirmed'=>'bg-success','disqualifie
 <!-- Modal Import -->
 <div class="modal fade" id="modal-import" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <form method="post" action="<?= base_url('quiz-competitions/import_participants/'.$session['id']); ?>" enctype="multipart/form-data">
-    <?= csrf_field(); ?>
+    <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
     <div class="modal-header"><h5 class="modal-title">Import Peserta CSV</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
         <p class="text-secondary small">Format header: <code>full_name,identity_number,identity_type,school_name,grade_class,phone,email,gender</code></p>

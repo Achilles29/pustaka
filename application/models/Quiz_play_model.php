@@ -20,7 +20,7 @@ class Quiz_play_model extends CI_Model
     {
         return $this->db
             ->select('a.*, s.title AS session_title, s.type AS session_type, s.time_limit_minutes,
-                      s.shuffle_options, s.show_result_immediately, s.allow_review, s.passing_score,
+                      s.instructions, s.shuffle_options, s.show_result_immediately, s.allow_review, s.passing_score,
                       s.fraud_detect_tab_switch, s.fraud_max_tab_switches, s.fraud_action, s.fraud_detect_time_anomaly,
                       p.full_name AS participant_name')
             ->from('quiz_attempts a')

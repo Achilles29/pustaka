@@ -17,7 +17,7 @@ $tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/d
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260802j'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">

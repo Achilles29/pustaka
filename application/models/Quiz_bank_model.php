@@ -255,6 +255,375 @@ class Quiz_bank_model extends CI_Model
         ];
     }
 
+    // ── Import multi-format: analisa (preview) lalu commit ─────────────────────
+
+    /**
+     * Parse + validasi file import menjadi daftar soal ternormalisasi untuk di-review.
+     * $format: csv|xlsx|txt. $default_subject_id/$default_grade_id dipakai untuk TXT
+     * (dan sebagai fallback bila kode mapel/jenjang di baris tidak ditemukan).
+     * @return array ['questions'=>[...], 'summary'=>['total','valid','invalid']]
+     */
+    public function analyze_import($filepath, $format, $default_subject_id = null, $default_grade_id = null)
+    {
+        if (! file_exists($filepath)) {
+            throw new RuntimeException('File tidak ditemukan.');
+        }
+        switch ($format) {
+            case 'csv':  $questions = $this->rows_to_questions($this->read_csv_rows($filepath), $default_subject_id, $default_grade_id); break;
+            case 'xlsx': $questions = $this->rows_to_questions($this->read_xlsx_rows($filepath), $default_subject_id, $default_grade_id); break;
+            case 'txt':  $questions = $this->parse_txt(file_get_contents($filepath), $default_subject_id, $default_grade_id); break;
+            default: throw new RuntimeException('Format tidak didukung.');
+        }
+        $valid = 0;
+        foreach ($questions as $q) { if ($q['status'] === 'ok') $valid++; }
+        return [
+            'questions' => $questions,
+            'summary'   => ['total' => count($questions), 'valid' => $valid, 'invalid' => count($questions) - $valid],
+        ];
+    }
+
+    /** Commit hasil analisa (hanya soal berstatus ok) ke bank soal. */
+    public function commit_import(array $questions, $user_id, $filename, $format)
+    {
+        $batch_id = $this->create_import_batch($filename, $format, 'bank', null, $user_id);
+        $imported = 0; $skipped = 0;
+
+        foreach ($questions as $q) {
+            if (($q['status'] ?? '') !== 'ok') { $skipped++; continue; }
+
+            $this->db->insert('quiz_questions', [
+                'subject_id'           => (int) $q['subject_id'],
+                'grade_level_id'       => (int) $q['grade_id'],
+                'type'                 => $q['type'],
+                'difficulty'           => $q['difficulty'],
+                'question_text'        => $q['question_text'],
+                'explanation'          => $q['explanation'] ?? '',
+                'correct_option_index' => $q['type'] === 'multiple_choice' ? (int) $q['correct_index'] : null,
+                'is_active'            => 1,
+                'import_batch_id'      => $batch_id,
+                'created_by'           => $user_id,
+            ]);
+            $q_id = (int) $this->db->insert_id();
+
+            if ($q['type'] === 'multiple_choice') {
+                foreach ($q['options'] as $idx => $opt) {
+                    $text = is_array($opt) ? ($opt['text'] ?? '') : $opt;
+                    if (trim((string) $text) === '') continue;
+                    $this->db->insert('quiz_question_options', [
+                        'question_id'  => $q_id,
+                        'option_index' => (int) $idx,
+                        'option_text'  => trim((string) $text),
+                        'option_image' => null,
+                    ]);
+                }
+            }
+            if (! empty($q['tags'])) {
+                $this->sync_tags($q_id, $q['tags']);
+            }
+            $imported++;
+        }
+
+        $this->db->update('quiz_import_batches', [
+            'total_rows' => count($questions),
+            'imported'   => $imported,
+            'skipped'    => $skipped,
+            'errors'     => 0,
+        ], ['id' => $batch_id]);
+
+        return ['batch_id' => $batch_id, 'imported' => $imported, 'skipped' => $skipped];
+    }
+
+    // ── Pembaca file ───────────────────────────────────────────────────────────
+
+    private function read_csv_rows($filepath)
+    {
+        $rows = [];
+        $handle = fopen($filepath, 'r');
+        if (! $handle) throw new RuntimeException('Gagal membuka file.');
+        $bom = fread($handle, 3);
+        if ($bom !== "\xEF\xBB\xBF") rewind($handle);
+        while (($row = fgetcsv($handle)) !== false) {
+            $rows[] = array_map(function ($v) { return trim((string) $v); }, $row);
+        }
+        fclose($handle);
+        return $rows;
+    }
+
+    /** Baca .xlsx (Office Open XML) tanpa library eksternal via ZipArchive + SimpleXML. */
+    private function read_xlsx_rows($filepath)
+    {
+        if (! class_exists('ZipArchive')) throw new RuntimeException('Ekstensi ZipArchive tidak tersedia.');
+        $zip = new ZipArchive();
+        if ($zip->open($filepath) !== true) throw new RuntimeException('Gagal membuka file Excel.');
+
+        $shared = [];
+        $ss = $zip->getFromName('xl/sharedStrings.xml');
+        if ($ss !== false) {
+            $xml = simplexml_load_string($ss);
+            if ($xml) {
+                foreach ($xml->si as $si) {
+                    if (isset($si->t)) {
+                        $shared[] = (string) $si->t;
+                    } else {
+                        $txt = '';
+                        foreach ($si->r as $r) { $txt .= (string) $r->t; }
+                        $shared[] = $txt;
+                    }
+                }
+            }
+        }
+
+        // Ambil sheet pertama dari workbook.
+        $sheetPath = 'xl/worksheets/sheet1.xml';
+        $sheetXml  = $zip->getFromName($sheetPath);
+        $zip->close();
+        if ($sheetXml === false) throw new RuntimeException('Sheet pertama tidak ditemukan di file Excel.');
+
+        $xml  = simplexml_load_string($sheetXml);
+        $rows = [];
+        foreach ($xml->sheetData->row as $row) {
+            $cells = [];
+            foreach ($row->c as $c) {
+                $ref  = (string) $c['r'];
+                $col  = $this->col_letter_to_index(preg_replace('/[0-9]+/', '', $ref));
+                $t    = (string) $c['t'];
+                if ($t === 's') {
+                    $val = $shared[(int) $c->v] ?? '';
+                } elseif ($t === 'inlineStr') {
+                    $val = (string) $c->is->t;
+                } else {
+                    $val = (string) $c->v;
+                }
+                $cells[$col] = trim((string) $val);
+            }
+            $max  = empty($cells) ? -1 : max(array_keys($cells));
+            $line = [];
+            for ($i = 0; $i <= $max; $i++) { $line[] = $cells[$i] ?? ''; }
+            $rows[] = $line;
+        }
+        return $rows;
+    }
+
+    private function col_letter_to_index($letters)
+    {
+        $n = 0;
+        foreach (str_split((string) $letters) as $ch) {
+            $n = $n * 26 + (ord(strtoupper($ch)) - 64);
+        }
+        return $n - 1;
+    }
+
+    // ── Normalisasi baris kolom (CSV/XLSX) → soal ──────────────────────────────
+
+    private function rows_to_questions(array $rows, $default_subject_id, $default_grade_id)
+    {
+        if (count($rows) < 2) return [];
+        $header = array_map(function ($h) { return strtolower(trim((string) $h)); }, array_shift($rows));
+
+        $idx = function ($name) use ($header) {
+            $p = array_search($name, $header);
+            return $p === false ? null : $p;
+        };
+        $cols = [];
+        foreach (['question_text','type','difficulty','subject_code','grade_code',
+                  'option_a','option_b','option_c','option_d','option_e','correct_answer','explanation','tags'] as $k) {
+            $cols[$k] = $idx($k);
+        }
+
+        $subjects = $this->subject_map();
+        $grades   = $this->grade_map();
+        $subNames = $this->subject_names();
+        $grdNames = $this->grade_names();
+        $letters  = ['A' => 0, 'B' => 1, 'C' => 2, 'D' => 3, 'E' => 4];
+
+        $out = [];
+        $n = 1;
+        foreach ($rows as $row) {
+            $get = function ($key) use ($row, $cols) {
+                $p = $cols[$key];
+                return $p !== null && isset($row[$p]) ? trim((string) $row[$p]) : '';
+            };
+            $q_text = $get('question_text');
+            if ($q_text === '') continue; // baris kosong dilewati diam-diam
+            $n++;
+
+            $issues = [];
+            $type = in_array($get('type'), ['multiple_choice','essay']) ? $get('type') : 'multiple_choice';
+            $diff = in_array($get('difficulty'), ['easy','medium','hard']) ? $get('difficulty') : 'medium';
+
+            // Subjek: pakai kode bila ada & valid, else default form.
+            $sub_code = strtolower($get('subject_code'));
+            $subject_id = $sub_code !== '' && isset($subjects[$sub_code]) ? $subjects[$sub_code] : ($default_subject_id ?: null);
+            if ($sub_code !== '' && ! isset($subjects[$sub_code]) && ! $default_subject_id) {
+                $issues[] = "Kode mapel '{$sub_code}' tidak dikenal.";
+            }
+            $grade_code = strtolower($get('grade_code'));
+            $grade_id = $grade_code !== '' && isset($grades[$grade_code]) ? $grades[$grade_code] : ($default_grade_id ?: null);
+            if ($grade_code !== '' && ! isset($grades[$grade_code]) && ! $default_grade_id) {
+                $issues[] = "Kode jenjang '{$grade_code}' tidak dikenal.";
+            }
+            if (! $subject_id) $issues[] = 'Mata pelajaran belum ditentukan.';
+            if (! $grade_id)   $issues[] = 'Jenjang belum ditentukan.';
+
+            $options = []; $correct_index = 0; $correct_letter = '';
+            if ($type === 'multiple_choice') {
+                foreach (['option_a','option_b','option_c','option_d','option_e'] as $oi => $k) {
+                    $t = $get($k);
+                    if ($t !== '') $options[$oi] = ['text' => $t, 'image' => null];
+                }
+                if (count($options) < 2) $issues[] = 'Minimal 2 pilihan jawaban.';
+                $correct_letter = strtoupper($get('correct_answer'));
+                $correct_index  = $letters[$correct_letter] ?? -1;
+                if (! isset($options[$correct_index])) {
+                    $issues[] = "Kunci jawaban '{$correct_letter}' tidak valid / kosong.";
+                    if ($correct_index < 0) $correct_index = 0;
+                }
+            }
+
+            $tags = array_filter(array_map('trim', explode(',', $get('tags'))));
+
+            $out[] = [
+                'row'            => $n,
+                'question_text'  => $q_text,
+                'type'           => $type,
+                'difficulty'     => $diff,
+                'subject_id'     => $subject_id,
+                'subject_label'  => $subject_id ? ($subNames[$subject_id] ?? '') : '—',
+                'grade_id'       => $grade_id,
+                'grade_label'    => $grade_id ? ($grdNames[$grade_id] ?? '') : '—',
+                'options'        => $options,
+                'correct_index'  => $correct_index,
+                'correct_letter' => $correct_letter ?: (isset($letters) ? array_search($correct_index, $letters) : ''),
+                'explanation'    => $get('explanation'),
+                'tags'           => array_values($tags),
+                'status'         => empty($issues) ? 'ok' : 'error',
+                'issues'         => $issues,
+            ];
+        }
+        return $out;
+    }
+
+    // ── Parser TXT (format naskah soal) ────────────────────────────────────────
+
+    /**
+     * Parse file TXT bergaya naskah:
+     *  - "BAGIAN ... MUDAH/SEDANG/SULIT" → set tingkat kesulitan untuk soal berikutnya
+     *  - "1. teks soal", opsi "a. ...", "b. ..." dst
+     *  - blok "KUNCI JAWABAN" berisi "1.c  2.d  ..." → kunci per nomor
+     */
+    private function parse_txt($content, $default_subject_id, $default_grade_id)
+    {
+        $letters_idx = ['A' => 0, 'B' => 1, 'C' => 2, 'D' => 3, 'E' => 4];
+        $idx_letter  = ['A', 'B', 'C', 'D', 'E'];
+        $subNames = $this->subject_names();
+        $grdNames = $this->grade_names();
+
+        $lines = preg_split('/\r\n|\r|\n/', (string) $content);
+        $questions = [];   // number => ['text','options'=>[],'difficulty']
+        $order = [];
+        $answers = [];     // number => index
+        $current = null;
+        $difficulty = 'medium';
+        $in_answer_key = false;
+
+        foreach ($lines as $line) {
+            $trim = trim($line);
+            if ($trim === '') continue;
+
+            if (preg_match('/KUNCI\s*JAWABAN/i', $trim)) { $in_answer_key = true; $current = null; continue; }
+
+            if ($in_answer_key) {
+                if (preg_match_all('/(\d+)\s*[\.\)]\s*([a-eA-E])/', $trim, $m, PREG_SET_ORDER)) {
+                    foreach ($m as $pair) {
+                        $answers[(int) $pair[1]] = $letters_idx[strtoupper($pair[2])] ?? 0;
+                    }
+                }
+                continue;
+            }
+
+            // Section header menentukan tingkat kesulitan
+            if (preg_match('/BAGIAN|SECTION|MUDAH|SEDANG|SULIT/i', $trim) && ! preg_match('/^\d+\./', $trim)) {
+                if (preg_match('/MUDAH|EASY/i', $trim))  $difficulty = 'easy';
+                elseif (preg_match('/SEDANG|MEDIUM/i', $trim)) $difficulty = 'medium';
+                elseif (preg_match('/SULIT|HARD|SUKAR/i', $trim)) $difficulty = 'hard';
+                continue;
+            }
+
+            // Opsi jawaban: "a. ..." / "a) ..."
+            if ($current !== null && preg_match('/^([a-eA-E])\s*[\.\)]\s*(.+)$/', $trim, $m)) {
+                $li = $letters_idx[strtoupper($m[1])] ?? null;
+                if ($li !== null) $questions[$current]['options'][$li] = ['text' => trim($m[2]), 'image' => null];
+                continue;
+            }
+
+            // Soal baru: "1. ..."
+            if (preg_match('/^(\d+)\s*[\.\)]\s*(.+)$/', $trim, $m)) {
+                $num = (int) $m[1];
+                $current = $num;
+                $questions[$num] = ['text' => trim($m[2]), 'options' => [], 'difficulty' => $difficulty];
+                $order[] = $num;
+                continue;
+            }
+
+            // Baris lanjutan teks soal (belum ada opsi)
+            if ($current !== null && empty($questions[$current]['options'])) {
+                $questions[$current]['text'] .= ' ' . $trim;
+            }
+        }
+
+        $out = [];
+        foreach ($order as $num) {
+            $q = $questions[$num];
+            $issues = [];
+            $options = $q['options'];
+            ksort($options);
+            if (count($options) < 2) $issues[] = 'Minimal 2 pilihan jawaban.';
+
+            $correct_index = $answers[$num] ?? -1;
+            if ($correct_index < 0)         $issues[] = "Kunci jawaban untuk soal no. {$num} tidak ditemukan.";
+            elseif (! isset($options[$correct_index])) $issues[] = "Kunci jawaban soal no. {$num} menunjuk pilihan kosong.";
+            if ($correct_index < 0) $correct_index = 0;
+
+            if (! $default_subject_id) $issues[] = 'Mata pelajaran belum dipilih.';
+            if (! $default_grade_id)   $issues[] = 'Jenjang belum dipilih.';
+
+            $out[] = [
+                'row'            => $num,
+                'question_text'  => $q['text'],
+                'type'           => 'multiple_choice',
+                'difficulty'     => $q['difficulty'],
+                'subject_id'     => $default_subject_id ?: null,
+                'subject_label'  => $default_subject_id ? ($subNames[$default_subject_id] ?? '') : '—',
+                'grade_id'       => $default_grade_id ?: null,
+                'grade_label'    => $default_grade_id ? ($grdNames[$default_grade_id] ?? '') : '—',
+                'options'        => $options,
+                'correct_index'  => $correct_index,
+                'correct_letter' => $idx_letter[$correct_index] ?? '',
+                'explanation'    => '',
+                'tags'           => [],
+                'status'         => empty($issues) ? 'ok' : 'error',
+                'issues'         => $issues,
+            ];
+        }
+        return $out;
+    }
+
+    private function subject_names()
+    {
+        $rows = $this->db->select('id, name')->get('quiz_subjects')->result_array();
+        $m = [];
+        foreach ($rows as $r) { $m[(int) $r['id']] = $r['name']; }
+        return $m;
+    }
+
+    private function grade_names()
+    {
+        $rows = $this->db->select('id, name')->get('quiz_grade_levels')->result_array();
+        $m = [];
+        foreach ($rows as $r) { $m[(int) $r['id']] = $r['name']; }
+        return $m;
+    }
+
     public function get_import_batches($limit = 20)
     {
         return $this->db
@@ -303,7 +672,7 @@ class Quiz_bank_model extends CI_Model
 
     private function sanitize_question(array $data)
     {
-        return [
+        $out = [
             'subject_id'           => (int) $data['subject_id'],
             'grade_level_id'       => (int) $data['grade_level_id'],
             'type'                 => $data['type'],
@@ -316,20 +685,44 @@ class Quiz_bank_model extends CI_Model
             'is_active'            => (int) (bool) ($data['is_active'] ?? true),
             'created_by'           => (int) ($data['created_by'] ?? 0) ?: null,
         ];
+        // Kolom gambar hanya diikutkan bila key-nya disediakan (agar update tak menimpa jadi null tanpa sengaja).
+        if (array_key_exists('question_image', $data)) {
+            $out['question_image'] = $data['question_image'] !== '' ? $data['question_image'] : null;
+        }
+        if (array_key_exists('explanation_image', $data)) {
+            $out['explanation_image'] = $data['explanation_image'] !== '' ? $data['explanation_image'] : null;
+        }
+        return $out;
     }
 
+    /**
+     * Simpan pilihan. $options bisa berupa:
+     *  - [idx => 'teks']  (kompatibel lama), atau
+     *  - [idx => ['text' => '...', 'image' => '...|null']]
+     * Menyimpan hingga 5 pilihan (A–E).
+     */
     private function save_options($question_id, array $options)
     {
-        $letters = ['A', 'B', 'C', 'D', 'E'];
-        foreach ($options as $idx => $text) {
-            if ($text === '' || $text === null) {
+        foreach ($options as $idx => $opt) {
+            $idx = (int) $idx;
+            if ($idx < 0 || $idx > 4) {
+                continue;
+            }
+            if (is_array($opt)) {
+                $text  = trim((string) ($opt['text'] ?? ''));
+                $image = ($opt['image'] ?? '') !== '' ? $opt['image'] : null;
+            } else {
+                $text  = trim((string) $opt);
+                $image = null;
+            }
+            if ($text === '' && $image === null) {
                 continue;
             }
             $this->db->insert('quiz_question_options', [
                 'question_id'  => $question_id,
                 'option_index' => $idx,
-                'option_text'  => trim((string) $text),
-                'option_image' => null,
+                'option_text'  => $text,
+                'option_image' => $image,
             ]);
         }
     }

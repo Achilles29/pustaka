@@ -2441,3 +2441,259 @@ Validasi:
 - `/reader/assets/create?book_id=14100` status 200, memuat `Pride and Prejudice`, dan opsi buku `14100` terpilih.
 - `/catalog/create` status 200 dan memuat catatan `Katalog adalah data induk buku`.
 - Push Git tidak dilakukan otomatis.
+
+## 2026-08-07 00:00 WIB
+
+Status: ERD aplikasi dan SOP sinkronisasi INLISLite produksi selesai dicatat.
+
+Yang dilakukan:
+
+- Membuat `docs/ERD.md` sebagai pegangan relasi data utama aplikasi `pustaka`.
+- Membuat `docs/INLISLITE_SYNC_SOP.md` sebagai standar sync INLISLite produksi ke `pustaka`.
+- Memperbarui `docs/ROADMAP.md`:
+  - checklist ERD aplikasi selesai,
+  - strategi sync INLISLite selesai,
+  - SOP import/sinkronisasi INLISLite selesai,
+  - sisa pekerjaan dipisahkan sebagai implementasi job CLI/scheduler, reconcile report, backup/restore, monitoring error, dan optimasi search.
+- Memperbarui `docs/HANDOVER.md` agar developer berikutnya tahu dokumen utama, keputusan sync, urutan sync, dan field lokal yang tidak boleh ditimpa.
+
+Keputusan teknis:
+
+- Pola utama sync produksi untuk pilot: dump periodik INLISLite ke staging `inlislite_v3`.
+- Alternatif setelah infrastruktur matang: read-only replica.
+- Pustaka tidak menulis balik ke database INLISLite.
+- Sync harus idempotent:
+  - import baru membuat data yang belum ada,
+  - update lama hanya menyentuh field source-owned,
+  - data yang sudah mapped tidak boleh dobel.
+- Field local-owned tidak boleh ditimpa sync, terutama:
+  - kategori isi dan klasifikasi isi,
+  - aset ebook/PDF dan hak publikasi,
+  - password dan status akun lokal,
+  - status kartu digital,
+  - pendaftaran online,
+  - request buku,
+  - perpanjangan membership,
+  - Pojok Baca, token, sesi baca, dan audit reader.
+
+Catatan:
+
+- Tidak ada perubahan kode aplikasi pada langkah ini.
+- Ada perubahan Git yang sudah ada sebelumnya di modul learn/quiz dan tidak disentuh.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-08-07 01:20 WIB
+
+Status: Event Literasi tahap operasional selesai untuk CRUD, form dinamis, pendaftaran publik, tiket digital, dan QR attendance.
+
+Yang dilakukan:
+
+- Menambahkan migration `sql/2026-08-07d_literacy_events_full_module.sql` dan menjalankannya ke database `pustaka`.
+- Menambah tabel `event_categories`, `event_form_fields`, `event_registration_answers`, dan `event_photos`.
+- Memperluas `literacy_events` dengan kategori, slug, ringkasan, poster, penyelenggara, narasumber, target peserta, mode lokasi, link online, mode pendaftaran, approval manual/otomatis, periode pendaftaran, QR attendance flag, dan sertifikat flag.
+- Memperluas `event_registrations` dengan kode pendaftaran, tipe peserta, instansi, jumlah orang, ticket token, attendance token, status pending/registered/approved/rejected/attended/cancelled, admin note, approved metadata, dan check-in metadata.
+- Mengisi 10 kategori event awal: Bedah Buku, Storytelling Anak, Literasi Digital, Pelatihan Menulis, Sejarah Lokal, Lomba Literasi, Kunjungan Sekolah, Bimbingan Perpustakaan, Webinar, dan Komunitas Baca.
+- Mengganti `Event_model` menjadi model operasional penuh untuk list/filter, CRUD, builder form, validasi jawaban dinamis, pendaftaran publik, validasi kuota, tiket, QR attendance, dan update status peserta.
+- Mengganti controller admin `Events` untuk route `/events`, `/events/create`, `/events/detail/{id}`, builder field form, status event, update peserta, dan QR check-in.
+- Menambahkan controller publik `Agenda` untuk `/agenda`, `/agenda/detail/{event_id}`, `/agenda/register/{event_id}`, dan `/agenda/ticket/{ticket_token}`.
+- Membuat view admin `events/index.php`, `events/form.php`, dan `events/detail.php`.
+- Membuat view publik `agenda/index.php`, `agenda/detail.php`, dan `agenda/ticket.php`.
+- Menambahkan link `Agenda` ke navigasi publik utama.
+- Menambahkan antrean event pending ke Kotak Masuk admin.
+- Menambahkan CSS event/tiket di `assets/css/pustaka-polish.css`.
+- Memperbarui cache-buster CSS modul utama menjadi `v=20260807d`.
+- Memperbarui `docs/ROADMAP.md`, `docs/HANDOVER.md`, dan `docs/ERD.md`.
+
+Validasi:
+
+- Migration berhasil dijalankan.
+- Kategori event: 10.
+- Form field event setelah cleanup test: 0.
+- Registrasi event setelah cleanup test: 0.
+- Lint PHP bersih untuk `Event_model`, `Events`, `Agenda`, dan semua view event/agenda baru.
+- Smoke test HTTP:
+  - `/agenda` status 200,
+  - `/events` sebagai `superadmin` status 200,
+  - `/events/create` sebagai `superadmin` status 200.
+- Smoke test alur dinamis:
+  - create event via UI,
+  - tambah field wajib `Asal Instansi`,
+  - `/agenda/detail/{id}` memuat field tersebut,
+  - submit pendaftaran publik berhasil,
+  - 1 registration tersimpan,
+  - 1 jawaban dinamis tersimpan,
+  - data smoke test dibersihkan dan `smoke_left = 0`.
+
+Sisa Event Literasi:
+
+- UI upload/dokumentasi foto event dari tabel `event_photos`.
+- Sertifikat digital.
+- Laporan event dan export.
+- Mode scan QR yang lebih nyaman untuk kamera petugas.
+
+Catatan:
+
+- Modul arena belajar/quiz dianggap pekerjaan paralel dan tidak menjadi fokus pekerjaan ini.
+- Ada perubahan Git lama pada modul arena belajar/quiz yang tidak disentuh secara fungsional oleh pekerjaan Event Literasi.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-08-08 00:30 WIB
+
+Status: revisi form Event Literasi dan Jam Layanan Perpustakaan selesai.
+
+Yang dilakukan:
+
+- Menambahkan kemampuan tambah kategori event langsung dari form `/events/create` dan `/events/edit/{id}` melalui modal `Tambah Kategori Event`.
+- Menambahkan route `POST /events/categories/store`.
+- Menambahkan method `Event_model::create_category()` dengan slug unik otomatis.
+- Mengganti input jadwal event dari `datetime-local` menjadi input tanggal dan jam terpisah:
+  - `starts_date` + `starts_time`,
+  - `ends_date` + `ends_time`,
+  - `registration_opens_date` + `registration_opens_time`,
+  - `registration_closes_date` + `registration_closes_time`.
+- Controller `Events` sekarang menyatukan tanggal dan jam sebelum dikirim ke model, sehingga error browser `Please enter valid time` tidak lagi muncul karena format lokal/locale.
+- Menambahkan peta Leaflet di bagian `Jadwal dan Lokasi` event.
+- Jika `Perpustakaan Penyelenggara` dipilih dan punya titik GIS, latitude/longitude event otomatis mengikuti titik perpustakaan tersebut.
+- Jika perpustakaan belum punya titik GIS atau event berada di lokasi berbeda, admin bisa klik/drag pin peta untuk menentukan koordinat.
+- Form `/libraries/create` dan `/libraries/edit/{id}` mengganti `Jam Layanan` dari input manual menjadi checklist hari plus jam buka/tutup.
+- Nilai checklist jam layanan otomatis diringkas ke field `opening_hours`, misalnya `Senin 08:00-15:00; Selasa 08:00-15:00`.
+- Menambahkan styling untuk peta event dan checklist jam layanan di `assets/css/pustaka-polish.css`.
+- Cache-buster admin layout dinaikkan ke `pustaka-polish.css?v=20260808a`.
+
+Validasi:
+
+- Lint PHP bersih untuk:
+  - `application/views/events/form.php`,
+  - `application/controllers/Events.php`,
+  - `application/models/Event_model.php`,
+  - `application/config/routes.php`,
+  - `application/views/libraries/form.php`.
+- HTTP smoke test login `superadmin` / `admin123` berhasil.
+- `/events/create` memuat:
+  - modal tambah kategori,
+  - peta lokasi event,
+  - input tanggal/jam terpisah,
+  - route `events/categories/store`.
+- `/libraries/create` memuat checklist `library-hours-grid`.
+- Submit kategori event uji berhasil membuat row `Smoke Kategori 20260808`.
+- Submit event uji berhasil menyimpan:
+  - `starts_at = 2026-08-10 00:00:00`,
+  - `ends_at = 2026-08-10 02:00:00`,
+  - `registration_opens_at = 2026-08-08 00:00:00`,
+  - `registration_closes_at = 2026-08-09 23:59:00`,
+  - latitude/longitude dari titik perpustakaan.
+- Data smoke test kategori dan event sudah dibersihkan.
+- Browser plugin untuk verifikasi visual tidak bisa dipakai pada sesi ini karena tool mengembalikan error metadata sandbox; validasi fungsional dilakukan lewat lint dan HTTP smoke test.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-08-08 01:20 WIB
+
+Status: integrasi Event Literasi ke admin detail, dashboard member, dan form pendaftaran member selesai.
+
+Yang dilakukan:
+
+- `/events/detail/{id}` sekarang punya panel `QR Attendance`.
+- Tabel peserta event di admin detail sekarang punya tombol:
+  - `QR` untuk membuka modal QR check-in peserta,
+  - `Tiket` untuk membuka tiket digital peserta.
+- Modal QR admin memakai URL `events/checkin/{attendance_token}` dan tetap membutuhkan akun admin dengan hak verifikasi event.
+- `/user/dashboard` sekarang menampilkan kartu `Event Literasi` berisi event yang akan datang.
+- Dashboard member menampilkan badge jumlah agenda aktif pada tombol `Agenda`.
+- Kartu event dashboard member menampilkan:
+  - tanggal/jam,
+  - lokasi,
+  - kuota/pendaftar,
+  - tombol daftar/detail,
+  - status dan tombol tiket jika member sudah terdaftar.
+- Navigasi dashboard member ditambah link `Agenda` di desktop dan mobile.
+- Form `/agenda/detail/{event_id}` sekarang lebih sadar member login:
+  - participant type dikunci sebagai `member` via hidden input,
+  - nama, nomor HP, email, dan instansi/pekerjaan diisi dari data member jika tersedia,
+  - muncul pesan bahwa data member otomatis dipakai,
+  - field tambahan event otomatis diprefill jika `field_key` atau label cocok dengan data member seperti NIK, nomor anggota, alamat, desa, kecamatan, pendidikan, pekerjaan, dan lainnya.
+- Menambahkan `Event_model::get_dashboard_events()` untuk data dashboard member beserta status pendaftaran member.
+- Cache-buster CSS halaman terkait dinaikkan ke `pustaka-polish.css?v=20260808b`.
+
+Validasi:
+
+- Lint PHP bersih untuk:
+  - `Event_model`,
+  - `User_dashboard`,
+  - `Agenda`,
+  - `user/dashboard`,
+  - `agenda/detail`,
+  - `events/detail`.
+- HTTP smoke test admin:
+  - login `superadmin` / `admin123`,
+  - `/events/detail/3` memuat `QR Attendance`,
+  - tombol/modal QR peserta muncul saat ada registrasi,
+  - link tiket peserta muncul.
+- HTTP smoke test member:
+  - login `3317101401620001` / `perpus2026`,
+  - `/user/dashboard` memuat panel event,
+  - event publik `AAAAA` tampil di dashboard,
+  - label agenda aktif tampil.
+- Smoke test auto-fill member:
+  - menambahkan field dinamis sementara `NIK` pada event,
+  - `/agenda/detail/3` memuat pesan `Data member otomatis dipakai`,
+  - nama member terisi,
+  - field dinamis `NIK` terisi `3317101401620001`,
+  - field uji dibersihkan.
+- Data registrasi smoke test QR dan field smoke test sudah dibersihkan.
+- Browser plugin masih gagal dipakai karena error metadata sandbox `sandboxCwd must use the file URI scheme`; validasi visual dilakukan lewat HTTP/HTML smoke test.
+- Push Git tidak dilakukan otomatis.
+
+## 2026-08-09 00:30 WIB
+
+Status: modul QR Event untuk pengumuman dan pendaftaran publik selesai.
+
+Yang dilakukan:
+
+- Menambahkan route admin `events/qr`.
+- Menambahkan halaman admin `application/views/events/qr.php`.
+- Menambahkan registry RBAC dan sidebar melalui `sql/2026-08-09a_event_qr_announcement_module.sql`.
+- Nama modul dipastikan menjadi `QR Event`.
+- Menu sidebar baru:
+  - parent: `Jejaring & Agenda`,
+  - menu: `QR Event`,
+  - route: `events/qr`,
+  - permission: `events.qr`.
+- Permission `events.qr` hanya untuk role `SUPERADMIN` dan `ADMIN`; role `USER` tidak punya akses admin ke modul ini.
+- QR Event mengarah ke halaman pendaftaran publik:
+  - `agenda/detail/{event_id}?from=qr-event#daftar-event`.
+- Halaman QR Event menyediakan:
+  - filter event,
+  - daftar event,
+  - status kesiapan pendaftaran,
+  - link QR yang bisa dicopy,
+  - tombol unduh QR PNG,
+  - tombol cetak,
+  - kartu pengumuman siap print dengan logo, judul event, jadwal, lokasi, kuota, mode pendaftaran, dan QR.
+- Tombol akses ditambahkan di:
+  - `/events`,
+  - `/events/detail/{id}`.
+- CSS QR Event dan mode print ditambahkan di `assets/css/pustaka-polish.css`.
+- Cache-buster admin dinaikkan menjadi `pustaka-polish.css?v=20260809b`.
+
+Validasi:
+
+- Migrasi SQL berhasil dijalankan ke database lokal `pustaka`.
+- Database:
+  - `sys_page.events.qr` berjudul `QR Event & Pendaftaran`,
+  - `sys_menu.events-qr` berjudul `QR Event`,
+  - permission hanya ada untuk `SUPERADMIN` dan `ADMIN`.
+- Tidak ada sisa istilah lama pada kode aplikasi, SQL, docs, dan CSS terkait.
+- Lint PHP bersih untuk:
+  - `Events.php`,
+  - `events/qr.php`,
+  - `events/index.php`,
+  - `events/detail.php`,
+  - `routes.php`.
+- HTTP smoke test:
+  - admin `superadmin` / `admin123` dapat membuka `/events/qr?event_id=3`,
+  - halaman memuat `QR Event`,
+  - halaman tidak memuat istilah lama,
+  - URL QR memakai `from=qr-event`,
+  - target QR `event-registration-qr` dan kartu print tampil,
+  - member `3317101401620001` / `perpus2026` mendapat HTTP 403 saat membuka `/events/qr`.
+- Push Git tidak dilakukan otomatis.

@@ -59,9 +59,13 @@ $status_colors = ['draft'=>'bg-secondary','open'=>'bg-success','ongoing'=>'bg-bl
                                     <?= form_close(); ?>
                                     <?php endif; endforeach; ?>
                                     <div class="dropdown-divider"></div>
-                                    <?php if($can_edit): ?><a href="<?= base_url('quiz-competitions/announce/'.$sess['id']); ?>" class="dropdown-item" onclick="return confirm('Umumkan kompetisi ini sebagai notifikasi ke semua member?')"><i class="ti ti-speakerphone me-1"></i>Umumkan ke Member</a><?php endif; ?>
+                                    <?php if($can_edit): ?>
+                                    <?= form_open('quiz-competitions/announce/'.$sess['id'], ['class'=>'d-inline']); ?>
+                                    <button type="submit" class="dropdown-item" data-confirm="Umumkan kompetisi ini sebagai notifikasi ke semua member?" data-confirm-title="Umumkan Kompetisi" data-confirm-ok="Ya, Umumkan"><i class="ti ti-speakerphone me-1"></i>Umumkan ke Member</button>
+                                    <?= form_close(); ?>
+                                    <?php endif; ?>
                                     <a href="<?= base_url('quiz-competitions/edit/'.$sess['id']); ?>" class="dropdown-item"><i class="ti ti-edit me-1"></i>Edit</a>
-                                    <?php if($can_delete): ?><a href="<?= base_url('quiz-competitions/delete/'.$sess['id']); ?>" class="dropdown-item text-danger" onclick="return confirm('Hapus kompetisi ini?')"><i class="ti ti-trash me-1"></i>Hapus</a><?php endif; ?>
+                                    <?php if($can_delete): ?><a href="<?= base_url('quiz-competitions/delete/'.$sess['id']); ?>" class="dropdown-item text-danger" data-confirm="Hapus kompetisi ini beserta soal & pesertanya?" data-confirm-title="Hapus Kompetisi" data-confirm-variant="danger" data-confirm-ok="Hapus"><i class="ti ti-trash me-1"></i>Hapus</a><?php endif; ?>
                                 </div>
                             </div>
                             <?php endif; ?>

@@ -17,6 +17,12 @@ $request_status_labels = [
 	'fulfilled' => 'Selesai',
 	'cancelled' => 'Dibatalkan',
 ];
+$event_registration_labels = [
+	'pending' => 'Menunggu verifikasi',
+	'registered' => 'Terdaftar',
+	'approved' => 'Disetujui',
+	'attended' => 'Sudah hadir',
+];
 $url_path = function ($path) {
 	$segments = explode('/', str_replace('\\', '/', trim((string) $path, '/')));
 	return implode('/', array_map('rawurlencode', $segments));
@@ -50,7 +56,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260802j'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260808b'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -63,6 +69,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 		<div class="btn-list">
 			<a href="<?= base_url(); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-home me-1"></i>Beranda</a>
 			<a href="<?= base_url('katalog'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-search me-1"></i>Katalog</a>
+			<a href="<?= base_url('agenda'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-calendar-event me-1"></i>Agenda</a>
 			<a href="<?= base_url('user/reading-checkin'); ?>" class="btn btn-outline-primary btn-sm"><i class="ti ti-map-pin-check me-1"></i>Pojok Baca</a>
 			<a href="<?= base_url('logout'); ?>" class="btn btn-primary btn-sm"><i class="ti ti-logout me-1"></i>Logout</a>
 		</div>
@@ -70,6 +77,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 	<nav class="member-bottom-nav" aria-label="Navigasi pemustaka">
 		<a href="<?= base_url(); ?>"><i class="ti ti-home"></i><span>Beranda</span></a>
 		<a href="<?= base_url('katalog'); ?>"><i class="ti ti-search"></i><span>Katalog</span></a>
+		<a href="<?= base_url('agenda'); ?>"><i class="ti ti-calendar-event"></i><span>Agenda</span></a>
 		<a href="<?= base_url('user/dashboard'); ?>" class="active"><i class="ti ti-id"></i><span>Dashboard</span></a>
 		<a href="<?= base_url('user/reading-checkin'); ?>"><i class="ti ti-map-pin-check"></i><span>Pojok</span></a>
 	</nav>
@@ -138,9 +146,18 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 					<h2>Halo, <?= html_escape($member_name); ?></h2>
 					<p class="text-secondary">Semua layanan pribadi dikumpulkan di sini: kartu digital, katalog, perpanjangan membership, request buku, dan histori aktivitas.</p>
 					<div class="member-action-grid">
+						<a href="<?= base_url('belajar'); ?>" class="member-action member-action-featured" style="box-shadow:0 0 0 2px #7c3aed inset; color:#5b21b6;">
+							<i class="ti ti-school"></i>
+							<span>Arena Belajar</span>
+						</a>
 						<a href="<?= base_url('katalog'); ?>" class="member-action">
 							<i class="ti ti-search"></i>
 							<span>Cari Buku</span>
+						</a>
+						<a href="<?= base_url('agenda'); ?>" class="member-action">
+							<i class="ti ti-calendar-event"></i>
+							<span>Agenda</span>
+							<?php if (! empty($upcoming_event_count)): ?><em><?= number_format((int) $upcoming_event_count, 0, ',', '.'); ?></em><?php endif; ?>
 						</a>
 						<?php if ($verify_url): ?>
 							<a href="<?= html_escape($verify_url); ?>" class="member-action">
@@ -191,6 +208,47 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 						</div>
 					<?php endif; ?>
 				</div>
+			</section>
+
+			<section class="member-events-strip">
+				<div class="member-section-head">
+					<div>
+						<div class="section-kicker">Event Literasi</div>
+						<h2><?= html_escape($event_label); ?></h2>
+					</div>
+					<a href="<?= base_url('agenda'); ?>" class="btn btn-outline-primary"><i class="ti ti-calendar-event me-1"></i>Lihat Semua</a>
+				</div>
+				<?php if (! empty($dashboard_events)): ?>
+					<div class="member-event-grid">
+						<?php foreach ($dashboard_events as $event): ?>
+							<?php
+								$registration = $event['member_registration'] ?? null;
+								$event_date = ! empty($event['starts_at']) ? date('d M Y, H:i', strtotime($event['starts_at'])) : 'Jadwal menyusul';
+								$event_url = base_url('agenda/detail/' . (int) $event['id']);
+							?>
+							<article class="member-event-card">
+								<div class="member-event-date"><i class="ti ti-clock"></i><span><?= html_escape($event_date); ?></span></div>
+								<h3><?= html_escape($event['title']); ?></h3>
+								<p><?= html_escape($event['summary'] ?: ($event['category_name'] ?: 'Agenda literasi jejaring perpustakaan Rembang.')); ?></p>
+								<div class="member-event-meta">
+									<span><i class="ti ti-map-pin"></i><?= html_escape($event['location_name'] ?: ($event['library_name'] ?: 'Rembang')); ?></span>
+									<span><i class="ti ti-users"></i><?= number_format((int) ($event['participant_total'] ?? 0), 0, ',', '.'); ?>/<?= ! empty($event['quota']) ? number_format((int) $event['quota'], 0, ',', '.') : 'tanpa batas'; ?></span>
+								</div>
+								<div class="member-event-actions">
+									<?php if ($registration): ?>
+										<span class="member-event-badge"><i class="ti ti-circle-check"></i><?= html_escape($event_registration_labels[$registration['status']] ?? $registration['status']); ?></span>
+										<a href="<?= base_url('agenda/ticket/' . rawurlencode($registration['ticket_token'])); ?>" class="btn btn-primary btn-sm">Tiket</a>
+									<?php else: ?>
+										<a href="<?= $event_url; ?>#daftar-event" class="btn btn-primary btn-sm"><i class="ti ti-ticket me-1"></i>Daftar</a>
+									<?php endif; ?>
+									<a href="<?= $event_url; ?>" class="btn btn-outline-primary btn-sm">Detail</a>
+								</div>
+							</article>
+						<?php endforeach; ?>
+					</div>
+				<?php else: ?>
+					<div class="member-mini-empty">Belum ada event literasi yang tayang. Nanti agenda baru akan muncul di sini.</div>
+				<?php endif; ?>
 			</section>
 
 			<section class="member-digital-library">

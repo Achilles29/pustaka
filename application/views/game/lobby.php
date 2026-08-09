@@ -60,7 +60,7 @@
         <h3 class="mb-3 fw-bold">Quiz &amp; Latihan</h3>
         <div class="row g-3 mb-5">
             <div class="col-12 col-md-6">
-                <a href="<?= base_url('quiz-sessions'); ?>" class="game-card">
+                <a href="<?= base_url('belajar/latihan'); ?>" class="game-card">
                     <div class="game-icon" style="background:#e0f2fe;color:#0369a1">
                         <i class="ti ti-clipboard-list"></i>
                     </div>
@@ -70,7 +70,7 @@
                 </a>
             </div>
             <div class="col-12 col-md-6">
-                <a href="<?= base_url('quiz-competitions'); ?>" class="game-card">
+                <a href="<?= base_url('quiz/login'); ?>" class="game-card">
                     <div class="game-icon" style="background:#fdf2f8;color:#9333ea">
                         <i class="ti ti-trophy"></i>
                     </div>

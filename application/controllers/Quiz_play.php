@@ -31,6 +31,19 @@ class Quiz_play extends CI_Controller
             return;
         }
 
+        // Jangka waktu pelaksanaan: di luar rentang → tidak bisa diikuti.
+        $now = date('Y-m-d H:i:s');
+        if (! empty($quiz_session['start_time']) && $now < $quiz_session['start_time']) {
+            show_error('Sesi latihan "' . html_escape($quiz_session['title']) . '" belum dibuka. Dijadwalkan mulai '
+                . date('d M Y, H:i', strtotime($quiz_session['start_time'])) . '.', 403, 'Belum Dibuka');
+            return;
+        }
+        if (! empty($quiz_session['end_time']) && $now > $quiz_session['end_time']) {
+            show_error('Sesi latihan "' . html_escape($quiz_session['title']) . '" sudah ditutup pada '
+                . date('d M Y, H:i', strtotime($quiz_session['end_time'])) . '.', 403, 'Sudah Ditutup');
+            return;
+        }
+
         // Find or create participant record for this member
         $participant = $this->db->get_where('quiz_participants', [
             'session_id' => (int) $quiz_session['id'],

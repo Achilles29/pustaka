@@ -1,6 +1,6 @@
 # Handover Developer
 
-Tanggal update: 2026-08-01
+Tanggal update: 2026-08-08
 
 ## Lokasi Project
 
@@ -89,6 +89,17 @@ Akun member hasil migrasi:
 - `/audit` Audit Log.
 
 ## File Fondasi
+
+Dokumentasi utama:
+
+- `docs/ROADMAP.md`
+- `docs/PROGRESS.md`
+- `docs/ERD.md`
+- `docs/INLISLITE_MAPPING.md`
+- `docs/INLISLITE_SYNC_SOP.md`
+- `docs/CODING_STANDARDS.md`
+- `docs/RBAC_AND_SIDEBAR_STANDARD.md`
+- `docs/POJOK_BACA_TOKEN_SOP.md`
 
 Controller:
 
@@ -324,7 +335,7 @@ git push origin main
   - field perpustakaan pengampu, mitra, koordinat, radius, kuota, satuan kuota, jam aktif, status.
 - Pojok Baca memakai tabel `reading_points`, `reading_tokens`, dan `reading_sessions`.
 - Pojok Baca form sekarang memakai Leaflet map picker dengan marker draggable untuk mengisi koordinat.
-- Fondasi Event Literasi tersedia di `/events` dengan tabel `literacy_events` dan `event_registrations`.
+- Event Literasi tahap operasional tersedia di `/events` dan publik `/agenda`.
 - Master Buku tersedia di `/catalog/masters`.
 - Master buku memakai tabel:
   - `book_content_categories`,
@@ -512,7 +523,7 @@ git push origin main
   - `blocked`.
 - Rate limit awal stream: 12 request per sesi per menit.
 - Rate limit render halaman: 80 halaman per sesi per menit.
-- Cache-buster tema terbaru `pustaka-polish.css?v=20260802j`.
+- Cache-buster tema terbaru untuk modul utama `pustaka-polish.css?v=20260807d`.
 - Manajemen ebook admin terbaru:
   - migration: `sql/2026-08-03a_digital_asset_rights_admin.sql`,
   - list: `/reader/assets`,
@@ -550,3 +561,95 @@ git push origin main
   - detail katalog `/catalog/detail/{book_id}` menampilkan panel `Ebook / Aset Digital`,
   - tombol tambah ebook dari detail katalog membuka `/reader/assets/create?book_id={book_id}`,
   - form `/catalog/create` hanya membuat data induk buku; ebook ditambahkan setelah buku tersimpan.
+- Event Literasi tahap operasional:
+  - migration: `sql/2026-08-07d_literacy_events_full_module.sql`,
+  - QR Event migration: `sql/2026-08-09a_event_qr_announcement_module.sql`,
+  - admin list: `/events`,
+  - admin QR Event: `/events/qr`,
+  - admin tambah: `/events/create`,
+  - admin edit: `/events/edit/{id}`,
+  - admin detail/control room: `/events/detail/{id}`,
+  - update status: `POST /events/status/{id}`,
+  - tambah field form: `POST /events/fields/store/{event_id}`,
+  - edit field form: `POST /events/fields/update/{event_id}/{field_id}`,
+  - aktif/nonaktif field: `POST /events/fields/toggle/{event_id}/{field_id}`,
+  - tambah kategori dari form event: `POST /events/categories/store`,
+  - update peserta/check-in manual: `POST /events/registrations/update/{event_id}/{registration_id}`,
+  - QR attendance admin: `/events/checkin/{attendance_token}`.
+- Form event terbaru tidak memakai `datetime-local`; jadwal memakai input tanggal dan jam terpisah lalu disatukan di `Events::combine_datetime_post()`.
+- Koordinat event otomatis mengikuti titik GIS `Perpustakaan Penyelenggara` jika `libraries.latitude` dan `libraries.longitude` tersedia.
+- Jika perpustakaan belum punya titik GIS atau event di tempat lain, admin bisa menentukan titik dengan drag pin peta Leaflet di form event.
+- Form perpustakaan terbaru:
+  - `/libraries/create`,
+  - `/libraries/edit/{id}`,
+  - `Jam Layanan` memakai checklist hari dan input jam buka/tutup,
+  - nilai tetap disimpan ke kolom teks `libraries.opening_hours` sebagai ringkasan operasional.
+- Event publik:
+  - daftar agenda: `/agenda`,
+  - detail dan form daftar: `/agenda/detail/{event_id}`,
+  - submit daftar: `POST /agenda/register/{event_id}`,
+  - tiket digital: `/agenda/ticket/{ticket_token}`.
+- QR attendance event:
+  - QR peserta tampil di tiket digital `/agenda/ticket/{ticket_token}`,
+  - admin juga bisa membuka QR per peserta dari `/events/detail/{event_id}`,
+  - QR mengarah ke `/events/checkin/{attendance_token}` dan butuh permission approve event.
+- QR Event untuk pengumuman publik:
+  - route admin: `/events/qr`,
+  - permission: `events.qr`,
+  - menu sidebar: `QR Event` di bawah `Jejaring & Agenda`,
+  - hanya `SUPERADMIN` dan `ADMIN`,
+  - QR mengarah ke `agenda/detail/{event_id}?from=qr-event#daftar-event`,
+  - halaman menyediakan copy link, unduh QR PNG, dan cetak kartu pengumuman.
+- Dashboard pemustaka `/user/dashboard` menampilkan kartu event literasi yang akan datang melalui `Event_model::get_dashboard_events()`.
+- Jika member sudah terdaftar pada event, kartu dashboard menampilkan status dan link tiket.
+- Form publik event sadar member login:
+  - data dasar peserta diisi dari tabel `members`,
+  - `participant_type` disimpan sebagai `member`,
+  - field dinamis dapat otomatis terisi jika key/label cocok dengan data member seperti NIK, nomor anggota, alamat, desa, kecamatan, pendidikan, atau pekerjaan.
+- Tabel event baru:
+  - `event_categories`,
+  - `event_form_fields`,
+  - `event_registration_answers`,
+  - `event_photos`.
+- `literacy_events` sekarang punya poster, kategori, ringkasan, narasumber, mode lokasi, mode pendaftaran, approval manual/otomatis, periode pendaftaran, QR attendance, dan sertifikat flag.
+- `event_registrations` sekarang punya kode pendaftaran, tipe peserta, instansi, jumlah orang, tiket digital, attendance token, status pending/registered/approved/rejected/attended/cancelled, dan admin note.
+- Form pendaftaran event bersifat dinamis per event. Field dasar tetap ada:
+  - tipe peserta,
+  - jumlah orang,
+  - nama peserta/penanggung jawab,
+  - nomor HP,
+  - email,
+  - instansi/komunitas.
+- Field tambahan dikelola admin di detail event dan jawaban peserta disimpan di `event_registration_answers`.
+- Smoke test event sudah dilakukan lalu data test dihapus:
+  - create event via UI,
+  - tambah field wajib,
+  - buka `/agenda/detail/{id}`,
+  - submit pendaftaran publik,
+  - jawaban field tersimpan,
+  - cleanup test row sukses.
+- ERD aplikasi baru tersedia di `docs/ERD.md`.
+- SOP sinkronisasi INLISLite produksi tersedia di `docs/INLISLITE_SYNC_SOP.md`.
+- Keputusan sync produksi saat ini:
+  - pola utama pilot adalah dump periodik INLISLite ke database staging `inlislite_v3`,
+  - alternatif matang adalah read-only replica,
+  - Pustaka tidak menulis balik ke database INLISLite,
+  - sync harus idempotent dan aman dijalankan berulang.
+- Urutan sync produksi yang direkomendasikan:
+  - backup `pustaka`,
+  - import dump INLISLite terbaru ke staging,
+  - sync master referensi,
+  - sync katalog,
+  - sync eksemplar,
+  - migrasi/mirror aset,
+  - sync member dan akun login,
+  - sync transaksi harian,
+  - refresh label master,
+  - validasi jumlah dan sampling.
+- Field lokal yang tidak boleh ditimpa sync INLISLite:
+  - kategori isi dan klasifikasi isi kurasi,
+  - data `digital_assets`, policy akses, dan hak publikasi,
+  - password/status akun lokal,
+  - status kartu dan alasan blokir,
+  - pendaftaran online, request buku, perpanjangan,
+  - data Pojok Baca, token, sesi baca, dan audit reader.

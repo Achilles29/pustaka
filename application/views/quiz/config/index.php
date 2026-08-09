@@ -102,7 +102,7 @@ $edu_labels = ['tk'=>'TK','sd'=>'SD','smp'=>'SMP','sma'=>'SMA','smk'=>'SMK','pt'
 <!-- Modal Add Grade -->
 <div class="modal fade" id="modal-grade-add" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <form method="post" action="<?= base_url('quiz-config/store_grade'); ?>">
-    <?= csrf_field(); ?>
+    <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
     <div class="modal-header"><h5 class="modal-title">Tambah Jenjang Kelas</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
         <div class="mb-3"><label class="form-label required">Kode</label><input type="text" name="code" class="form-control" placeholder="sd_4" required></div>
@@ -125,7 +125,7 @@ $edu_labels = ['tk'=>'TK','sd'=>'SD','smp'=>'SMP','sma'=>'SMA','smk'=>'SMK','pt'
 <!-- Modal Edit Grade (populated by JS) -->
 <div class="modal fade" id="modal-grade-edit" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <form method="post" id="form-grade-edit">
-    <?= csrf_field(); ?>
+    <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
     <div class="modal-header"><h5 class="modal-title">Edit Jenjang Kelas</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
         <div class="mb-3"><label class="form-label required">Kode</label><input type="text" name="code" id="edit-grade-code" class="form-control" required></div>
@@ -148,7 +148,7 @@ $edu_labels = ['tk'=>'TK','sd'=>'SD','smp'=>'SMP','sma'=>'SMA','smk'=>'SMK','pt'
 <!-- Modal Add Subject -->
 <div class="modal fade" id="modal-subject-add" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <form method="post" action="<?= base_url('quiz-config/store_subject'); ?>">
-    <?= csrf_field(); ?>
+    <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
     <div class="modal-header"><h5 class="modal-title">Tambah Mata Pelajaran</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
         <div class="mb-3"><label class="form-label required">Kode</label><input type="text" name="code" class="form-control" placeholder="matematika" required></div>
@@ -167,7 +167,7 @@ $edu_labels = ['tk'=>'TK','sd'=>'SD','smp'=>'SMP','sma'=>'SMA','smk'=>'SMK','pt'
 <!-- Modal Edit Subject -->
 <div class="modal fade" id="modal-subject-edit" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <form method="post" id="form-subject-edit">
-    <?= csrf_field(); ?>
+    <input type="hidden" name="<?= $this->security->get_csrf_token_name(); ?>" value="<?= $this->security->get_csrf_hash(); ?>">
     <div class="modal-header"><h5 class="modal-title">Edit Mata Pelajaran</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
         <div class="mb-3"><label class="form-label required">Kode</label><input type="text" name="code" id="edit-sub-code" class="form-control" required></div>

@@ -143,6 +143,11 @@ class MY_Controller extends CI_Controller
 				'url' => 'members/renewals',
 				'count' => $this->table_pending_count('membership_renewal_requests'),
 			],
+			[
+				'label' => 'Event',
+				'url' => 'events?status=published',
+				'count' => $this->table_pending_count('event_registrations'),
+			],
 		];
 
 		$total = 0;

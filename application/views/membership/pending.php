@@ -24,7 +24,7 @@ $status = $status_labels[$request['status']] ?? $status_labels['pending'];
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260802j'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
 </head>
 <body class="public-page public-register-page">
 	<header class="public-nav">
@@ -33,7 +33,9 @@ $status = $status_labels[$request['status']] ?? $status_labels['pending'];
 			<span class="public-brand-text">Pustaka Digital Rembang</span>
 		</a>
 		<nav class="public-links">
+			<a href="<?= base_url(); ?>">Beranda</a>
 			<a href="<?= base_url('katalog'); ?>">Katalog</a>
+			<a href="<?= base_url('agenda'); ?>">Agenda</a>
 			<a href="<?= base_url('login'); ?>" class="btn btn-primary btn-sm">Masuk</a>
 		</nav>
 	</header>

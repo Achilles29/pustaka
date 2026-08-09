@@ -76,8 +76,8 @@
 
 <!-- Exam Body -->
 <div class="exam-body">
-    <?php if($attempt['instructions']): ?>
-    <div class="alert alert-info mb-4"><i class="ti ti-info-circle me-1"></i><?= nl2br(html_escape($attempt['instructions']??'')); ?></div>
+    <?php if(!empty($attempt['instructions'])): ?>
+    <div class="alert alert-info mb-4"><i class="ti ti-info-circle me-1"></i><?= nl2br(html_escape($attempt['instructions'])); ?></div>
     <?php endif; ?>
 
     <?php $letters = ['A','B','C','D','E']; ?>
@@ -85,6 +85,9 @@
     <div class="question-card <?= !empty($saved_answers[$q['id']]['selected_option']!==null && isset($saved_answers[$q['id']])) ? 'answered' : ''; ?>" id="q-card-<?= $i; ?>">
         <div class="question-num">Soal <?= $i+1; ?> dari <?= count($questions); ?></div>
         <div class="question-text"><?= nl2br(html_escape($q['question_text'])); ?></div>
+        <?php if(!empty($q['question_image'])): ?>
+        <div class="question-image mb-2"><img src="<?= base_url($q['question_image']); ?>" alt="Gambar soal" style="max-width:100%;max-height:320px;border-radius:8px;border:1px solid #e6e6e6"></div>
+        <?php endif; ?>
 
         <?php if($q['type'] === 'multiple_choice'): ?>
         <?php $saved_opt = $saved_answers[$q['id']]['selected_option'] ?? null; ?>
@@ -96,7 +99,10 @@
             <label class="option-label">
                 <input type="radio" name="opt_<?= $q['id']; ?>" value="<?= $real_idx; ?>" <?= (string)$saved_opt === (string)$real_idx ? 'checked' : ''; ?> onchange="saveAnswer(<?= $q['id']; ?>, <?= $i; ?>, this.value, 'mc')">
                 <span class="option-letter"><?= $letters[$display_idx]; ?></span>
-                <span><?= html_escape($opt['option_text']); ?></span>
+                <span>
+                    <?php if(!empty($opt['option_text'])): ?><?= html_escape($opt['option_text']); ?><?php endif; ?>
+                    <?php if(!empty($opt['option_image'])): ?><br><img src="<?= base_url($opt['option_image']); ?>" alt="Pilihan <?= $letters[$display_idx]; ?>" style="max-width:100%;max-height:150px;border-radius:6px;border:1px solid #e6e6e6;margin-top:4px"><?php endif; ?>
+                </span>
             </label>
             <?php endforeach; ?>
         </div>

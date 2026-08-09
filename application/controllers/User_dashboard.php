@@ -23,6 +23,7 @@ class User_dashboard extends CI_Controller
 		$this->load->model('Member_model');
 		$this->load->model('Reading_point_model');
 		$this->load->model('Visit_model');
+		$this->load->model('Event_model');
 		$this->load->model('Learn_points_model');
 		$this->load->model('Learn_games_model');
 		$member = $this->Member_model->get_member_by_auth_user_id((int) ($user['id'] ?? 0));
@@ -35,6 +36,9 @@ class User_dashboard extends CI_Controller
 		}
 
 		$user_id = (int) ($user['id'] ?? 0);
+		$member_id = $member ? (int) $member['id'] : null;
+		$dashboard_events = $this->Event_model->get_dashboard_events($member_id, 4);
+		$upcoming_event_count = $this->Event_model->count_public_events(['time' => 'upcoming']);
 
 		$this->load->view('user/dashboard', [
 			'title' => 'Dashboard Pemustaka',
@@ -49,7 +53,9 @@ class User_dashboard extends CI_Controller
 			'digital_books' => $this->Catalog_model->get_member_digital_books(6),
 			'reading_token' => $member ? $this->Reading_point_model->get_member_active_token((int) $member['id']) : null,
 			'reading_tokens' => $member ? $this->Reading_point_model->get_member_tokens((int) $member['id'], 5) : [],
-			'event_label' => 'Agenda literasi segera hadir',
+			'event_label' => $upcoming_event_count > 0 ? $upcoming_event_count . ' agenda literasi aktif' : 'Belum ada agenda aktif',
+			'dashboard_events' => $dashboard_events,
+			'upcoming_event_count' => $upcoming_event_count,
 			// Belajar widgets
 			'learn_total_points' => $user_id ? $this->Learn_points_model->get_user_total_points($user_id) : 0,
 			'learn_badges'       => $user_id ? $this->Learn_points_model->get_user_badges($user_id) : [],

@@ -167,7 +167,24 @@ class Learn_rewards_model extends CI_Model
     public function redeem($user_id, $catalog_id)
     {
         $user_id = (int) $user_id;
-        $reward  = $this->get_reward($catalog_id);
+        // Serialize penukaran per-user via advisory lock MySQL agar dua request
+        // bersamaan tidak bisa double-spend poin. Lock selalu dilepas di finally.
+        $lock = 'pustaka_redeem_u_' . $user_id;
+        $got  = $this->db->query('SELECT GET_LOCK(?, 5) AS g', [$lock])->row();
+        if (! $got || (int) $got->g !== 1) {
+            return ['ok' => false, 'message' => 'Sistem sedang sibuk memproses permintaanmu. Coba lagi sebentar.'];
+        }
+        try {
+            return $this->_do_redeem($user_id, $catalog_id);
+        } finally {
+            $this->db->query('SELECT RELEASE_LOCK(?)', [$lock]);
+        }
+    }
+
+    /** Inti penukaran; dipanggil hanya di dalam advisory lock per-user (lihat redeem()). */
+    private function _do_redeem($user_id, $catalog_id)
+    {
+        $reward = $this->get_reward($catalog_id);
 
         if (! $reward || ! (int) $reward['is_active']) {
             return ['ok' => false, 'message' => 'Hadiah tidak tersedia atau sudah dinonaktifkan.'];

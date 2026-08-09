@@ -29,8 +29,8 @@ Membangun platform perpustakaan digital terpadu untuk seluruh perpustakaan di Ka
 - [x] Menyiapkan CodeIgniter 3 sebagai basis aplikasi.
 - [x] Membersihkan risiko Git dari folder source `tabler-dev`.
 - [x] Membuat standar coding dan handover developer.
-- [ ] Membuat ERD final aplikasi baru.
-- [ ] Menentukan strategi sinkronisasi INLISLite: live DB, dump periodik, atau job import.
+- [x] Membuat ERD final aplikasi baru.
+- [x] Menentukan strategi sinkronisasi INLISLite: live DB, dump periodik, atau job import.
 
 ### Fase 1 - MVP Admin dan Data Master
 
@@ -122,10 +122,10 @@ Membangun platform perpustakaan digital terpadu untuk seluruh perpustakaan di Ka
 ### Fase 6 - Event dan Engagement
 
 - [x] Schema event.
-- [ ] CRUD event untuk Perpusda dan perpustakaan terintegrasi.
+- [x] CRUD event untuk Perpusda dan perpustakaan terintegrasi.
 - [x] Fondasi tabel pendaftaran peserta.
-- [ ] UI pendaftaran peserta.
-- [ ] QR attendance/check-in.
+- [x] UI pendaftaran peserta.
+- [x] QR attendance/check-in.
 - [x] Fondasi kuota peserta.
 - [ ] Dokumentasi foto event.
 - [ ] Sertifikat digital.
@@ -135,7 +135,7 @@ Membangun platform perpustakaan digital terpadu untuk seluruh perpustakaan di Ka
 
 - [ ] CSRF aktif dan form disesuaikan.
 - [ ] Backup dan restore database.
-- [ ] SOP import/sinkronisasi INLISLite.
+- [x] SOP import/sinkronisasi INLISLite.
 - [x] Sinkronisasi transaksi harian INLISLite: kunjungan, hak pinjam, transaksi pinjam, item pinjam.
 - [ ] Monitoring error.
 - [ ] Optimasi performa search.
@@ -470,9 +470,28 @@ Output:
 - [x] Check-in Pojok Baca tahap awal dan penerbitan token/kuota harian.
 - [x] Pemakaian token Pojok Baca di Reader PDF, pengurangan kuota, dan audit sesi baca.
 - [x] Reader PDF aman dengan storage non-public, render per halaman, watermark, rate limit, dan audit.
-- [ ] CRUD event literasi lengkap, pendaftaran peserta, QR attendance, dan dokumentasi event.
+- [x] CRUD event literasi, pendaftaran peserta, form dinamis per event, dan QR attendance.
+- [ ] Dokumentasi foto event, sertifikat digital, dan laporan event.
 - [x] Laporan operasional dan export.
 - [ ] Hardening keamanan, backup/restore, dan SOP pilot.
+
+## Review Status 2026-08-07
+
+### Fondasi dokumen yang diselesaikan
+
+- ERD final-ish aplikasi baru dicatat di `docs/ERD.md`.
+- Strategi dan SOP sinkronisasi INLISLite produksi dicatat di `docs/INLISLITE_SYNC_SOP.md`.
+- Keputusan sinkronisasi produksi saat ini: gunakan dump periodik ke staging `inlislite_v3` sebagai pola utama untuk pilot, dengan opsi read-only replica setelah infrastruktur lebih matang.
+- Relasi katalog dan ebook ditegaskan: `books` adalah induk semua buku, sedangkan `digital_assets` adalah aset ebook/PDF opsional yang wajib terkait ke satu buku.
+- Field kurasi lokal seperti kategori isi, klasifikasi isi, kebijakan akses ebook, hak publikasi, status kartu, dan password lokal tidak boleh tertimpa oleh sinkronisasi INLISLite.
+
+### Masih perlu implementasi lanjutan
+
+- Job CLI/scheduler sinkronisasi ulang yang mengikuti SOP.
+- Full reconcile report: source, target, mapped, missing, duplicate, dan orphan.
+- Backup/restore database sebelum sync produksi.
+- Monitoring error batch dan alert operator.
+- Optimasi performa pencarian katalog skala produksi.
 
 ## Review Status 2026-08-03
 
@@ -501,17 +520,14 @@ Output:
 ### Selesai sebagai fondasi, masih perlu diperdalam
 
 - Sinkronisasi INLISLite masih manual/batch berbasis database lokal; belum menjadi job terjadwal dengan diff log perubahan yang rapi.
-- Event literasi sudah punya schema dan fondasi controller/view, tetapi CRUD lengkap, pendaftaran peserta, QR attendance, dokumentasi, dan laporan event belum matang.
+- Event literasi sudah punya CRUD admin, halaman publik `/agenda`, pendaftaran peserta, form dinamis per event, tiket digital, dan QR attendance. Dokumentasi foto, sertifikat digital, dan laporan event masih perlu diselesaikan.
 - Pojok Baca sudah punya check-in/token/reader, tetapi belum ada galeri/foto titik, koleksi khusus per titik, dan dashboard pemanfaatan lanjutan.
 - Deteksi anomali reader masih berupa rate limit dasar dan audit; belum ada dashboard pola scrape/multi-device.
 - Role admin lokal/sekolah/desa/swasta sudah didukung konsep scope, tetapi perlu uji skenario lengkap per role dan data wilayah/perpustakaan.
 
 ### Belum selesai
 
-- ERD final aplikasi baru.
-- Strategi sinkronisasi final INLISLite produksi: live DB, dump periodik, API/export, atau job ETL terjadwal.
 - Backup dan restore database.
-- SOP import/sinkronisasi INLISLite untuk operator.
 - CSRF aktif dan penyesuaian seluruh form.
 - Monitoring error/log aplikasi.
 - Optimasi performa pencarian katalog skala produksi.

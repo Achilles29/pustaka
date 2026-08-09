@@ -179,6 +179,8 @@ class Quiz_sessions extends MY_Controller
             'allow_review'             => $this->input->post('allow_review') ? 1 : 0,
             'max_attempts'             => $this->input->post('max_attempts', true) ?: 0,
             'passing_score'            => $this->input->post('passing_score', true) ?: 60,
+            'start_time'               => $this->input->post('start_time', true) ?: null,
+            'end_time'                 => $this->input->post('end_time', true) ?: null,
             'fraud_detect_tab_switch'  => $this->input->post('fraud_detect_tab_switch') ? 1 : 0,
             'fraud_detect_time_anomaly'=> $this->input->post('fraud_detect_time_anomaly') ? 1 : 0,
             'fraud_max_tab_switches'   => $this->input->post('fraud_max_tab_switches', true) ?: 3,

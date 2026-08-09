@@ -104,6 +104,8 @@ class Quiz_competitions extends MY_Controller
     public function announce($id)
     {
         $this->require_permission('quiz_competitions.index', 'edit');
+        // Aksi broadcast (amplifikasi tinggi) hanya via POST — cegah trigger GET/prefetch.
+        if (strtolower($this->input->method()) !== 'post') { show_404(); return; }
         $session = $this->get_competition_or_404((int) $id);
 
         $this->load->model('Learn_notifications_model');
