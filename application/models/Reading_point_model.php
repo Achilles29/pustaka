@@ -257,12 +257,28 @@ class Reading_point_model extends CI_Model
 
 	public function consume_reader_token($member_id, $latitude = null, $longitude = null, $amount = 1)
 	{
-		$token = $this->get_member_active_token((int) $member_id);
-		if (! $token) {
-			throw new RuntimeException('Token baca tidak tersedia atau kuota sudah habis. Silakan update token di perpustakaan daerah atau titik layanan.');
+		$location = $this->free_access_location($latitude, $longitude);
+		$token = null;
+		if ($location['origin'] !== 'external') {
+			$token = $this->get_member_active_token((int) $member_id);
+			return [
+				'token' => $token ?: null,
+				'origin' => $location['origin'],
+				'location_label' => $location['label'],
+				'reading_point_id' => $location['reading_point_id'] ?? null,
+				'library_id' => $location['library_id'] ?? null,
+				'quota_charged' => 0,
+				'quota_unit' => $token['quota_unit'] ?? null,
+				'latitude' => $this->decimal_or_null($latitude),
+				'longitude' => $this->decimal_or_null($longitude),
+			];
 		}
 
-		$location = $this->free_access_location($latitude, $longitude);
+		$token = $this->get_member_active_token((int) $member_id);
+		if (! $token) {
+			throw new RuntimeException('Token baca luar zona tidak tersedia atau kuota sudah habis. Silakan login/update token di perpustakaan daerah, lalu coba baca kembali.');
+		}
+
 		$charge = ($location['origin'] === 'external' && (int) $token['quota_total'] > 0) ? max(1, (int) $amount) : 0;
 
 		if ($charge > 0 && (int) $token['quota_total'] > 0) {
@@ -282,6 +298,8 @@ class Reading_point_model extends CI_Model
 			'token' => $token,
 			'origin' => $location['origin'],
 			'location_label' => $location['label'],
+			'reading_point_id' => $location['reading_point_id'] ?? null,
+			'library_id' => $location['library_id'] ?? null,
 			'quota_charged' => $charge,
 			'quota_unit' => $token['quota_unit'],
 			'latitude' => $this->decimal_or_null($latitude),
@@ -332,20 +350,30 @@ class Reading_point_model extends CI_Model
 		$lat = $this->decimal_or_null($latitude);
 		$lng = $this->decimal_or_null($longitude);
 		if ($lat === null || $lng === null) {
-			return ['origin' => 'external', 'label' => 'Luar lokasi / GPS tidak tersedia'];
+			return ['origin' => 'external', 'label' => 'Luar lokasi / GPS tidak tersedia', 'reading_point_id' => null, 'library_id' => null];
 		}
 
 		$point = $this->nearest_point_within_radius((float) $lat, (float) $lng);
 		if ($point) {
-			return ['origin' => 'reading_point', 'label' => $point['name']];
+			return [
+				'origin' => 'reading_point',
+				'label' => $point['name'],
+				'reading_point_id' => (int) $point['id'],
+				'library_id' => ! empty($point['library_id']) ? (int) $point['library_id'] : null,
+			];
 		}
 
 		$library = $this->nearest_library_within_radius((float) $lat, (float) $lng);
 		if ($library) {
-			return ['origin' => 'library', 'label' => $library['name']];
+			return [
+				'origin' => 'library',
+				'label' => $library['name'],
+				'reading_point_id' => null,
+				'library_id' => (int) $library['id'],
+			];
 		}
 
-		return ['origin' => 'external', 'label' => 'Akses luar lokasi'];
+		return ['origin' => 'external', 'label' => 'Akses luar lokasi', 'reading_point_id' => null, 'library_id' => null];
 	}
 
 	private function nearest_point_within_radius($latitude, $longitude)

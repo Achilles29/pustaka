@@ -173,6 +173,106 @@ class Catalog extends MY_Controller
 		redirect('catalog');
 	}
 
+	public function highlights()
+	{
+		$this->require_permission('catalog.highlights', 'view');
+
+		$filters = [
+			'q' => $this->input->get('q', true),
+			'target_type' => $this->input->get('target_type', true),
+			'highlight_type' => $this->input->get('highlight_type', true),
+			'status' => $this->input->get('status', true),
+		];
+		$per_page = (int) $this->input->get('per_page', true);
+		$per_page = in_array($per_page, [10, 25, 50, 100], true) ? $per_page : 25;
+		$page = max(1, (int) $this->input->get('page', true));
+		$total_rows = $this->Catalog_model->count_highlights($filters);
+		$total_pages = max(1, (int) ceil($total_rows / $per_page));
+		$page = min($page, $total_pages);
+		$offset = ($page - 1) * $per_page;
+		$edit_id = (int) $this->input->get('edit_id', true);
+
+		$this->render('catalog/highlights', [
+			'title' => 'Highlight Katalog',
+			'highlights' => $this->Catalog_model->get_highlights($filters, $per_page, $offset),
+			'edit_highlight' => $edit_id > 0 ? $this->Catalog_model->get_highlight($edit_id) : null,
+			'book_options' => $this->Catalog_model->get_highlight_book_options(700),
+			'content_categories' => $this->Catalog_model->get_content_categories(true),
+			'filters' => [
+				'q' => $filters['q'],
+				'target_type' => $filters['target_type'],
+				'highlight_type' => $filters['highlight_type'],
+				'status' => $filters['status'],
+				'per_page' => $per_page,
+				'page' => $page,
+			],
+			'pagination' => [
+				'total_rows' => $total_rows,
+				'total_pages' => $total_pages,
+				'page' => $page,
+				'per_page' => $per_page,
+				'offset' => $offset,
+			],
+			'can_create_highlight' => $this->can('catalog.highlights', 'create'),
+			'can_edit_highlight' => $this->can('catalog.highlights', 'edit'),
+			'can_delete_highlight' => $this->can('catalog.highlights', 'delete'),
+		]);
+	}
+
+	public function store_highlight()
+	{
+		$this->require_permission('catalog.highlights', 'create');
+
+		try {
+			$highlight_id = $this->Catalog_model->save_highlight($this->highlight_input(), null, (int) ($this->current_user['id'] ?? 0));
+			$this->audit_event('catalog.highlight_create', 'catalog_highlights', $highlight_id, null, $this->highlight_input());
+			$this->session->set_flashdata('success', 'Highlight katalog berhasil ditambahkan.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+
+		redirect('catalog/highlights');
+	}
+
+	public function update_highlight($id)
+	{
+		$this->require_permission('catalog.highlights', 'edit');
+
+		$before = $this->Catalog_model->get_highlight((int) $id);
+		if (! $before) {
+			show_404();
+			return;
+		}
+
+		try {
+			$this->Catalog_model->save_highlight($this->highlight_input(), (int) $id, (int) ($this->current_user['id'] ?? 0));
+			$this->audit_event('catalog.highlight_update', 'catalog_highlights', (int) $id, $before, $this->Catalog_model->get_highlight((int) $id));
+			$this->session->set_flashdata('success', 'Highlight katalog berhasil diperbarui.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+			redirect('catalog/highlights?edit_id=' . (int) $id);
+			return;
+		}
+
+		redirect('catalog/highlights');
+	}
+
+	public function delete_highlight($id)
+	{
+		$this->require_permission('catalog.highlights', 'delete');
+
+		$before = $this->Catalog_model->get_highlight((int) $id);
+		if (! $before) {
+			show_404();
+			return;
+		}
+
+		$this->Catalog_model->delete_highlight((int) $id);
+		$this->audit_event('catalog.highlight_delete', 'catalog_highlights', (int) $id, $before, null);
+		$this->session->set_flashdata('success', 'Highlight katalog berhasil dihapus.');
+		redirect('catalog/highlights');
+	}
+
 	public function store_item($book_id)
 	{
 		$this->require_permission('catalog.index', 'create');
@@ -348,6 +448,23 @@ class Catalog extends MY_Controller
 			'source_status_id' => $this->input->post('source_status_id', true),
 			'status' => $this->input->post('status', true),
 			'is_public' => $this->input->post('is_public') ? 1 : 0,
+		];
+	}
+
+	private function highlight_input()
+	{
+		return [
+			'target_type' => $this->input->post('target_type', true),
+			'book_id' => $this->input->post('book_id', true),
+			'content_category_id' => $this->input->post('content_category_id', true),
+			'highlight_type' => $this->input->post('highlight_type', true),
+			'label' => $this->input->post('label', true),
+			'title_override' => $this->input->post('title_override', true),
+			'summary' => $this->input->post('summary', true),
+			'sort_order' => $this->input->post('sort_order', true),
+			'is_active' => $this->input->post('is_active') ? 1 : 0,
+			'starts_at' => $this->input->post('starts_at', true),
+			'ends_at' => $this->input->post('ends_at', true),
 		];
 	}
 

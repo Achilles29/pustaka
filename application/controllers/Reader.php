@@ -204,6 +204,7 @@ class Reader extends MY_Controller
 				$this->load->view('reader/location_gate', [
 					'title' => 'Validasi Lokasi Baca',
 					'asset' => $asset,
+					'error_msg' => null,
 				]);
 				return;
 			}
@@ -212,8 +213,11 @@ class Reader extends MY_Controller
 			try {
 				$context = $this->Reading_point_model->consume_reader_token((int) $member['id'], $lat, $lng, 1);
 			} catch (Throwable $e) {
-				$this->session->set_flashdata('error', $e->getMessage());
-				redirect('user/reading-checkin');
+				$this->load->view('reader/location_gate', [
+					'title' => 'Validasi Lokasi Baca',
+					'asset' => $asset,
+					'error_msg' => $e->getMessage(),
+				]);
 				return;
 			}
 		}

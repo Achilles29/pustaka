@@ -49,6 +49,9 @@ $asset_url = function ($book) {
 					<a href="<?= base_url('catalog/masters'); ?>" class="btn btn-outline-primary">
 						<i class="ti ti-category me-1"></i>Master Buku
 					</a>
+					<a href="<?= base_url('catalog/highlights'); ?>" class="btn btn-outline-primary">
+						<i class="ti ti-sparkles me-1"></i>Highlight
+					</a>
 					<a href="<?= base_url('catalog/sync'); ?>" class="btn btn-primary">
 						<i class="ti ti-refresh me-1"></i>Sinkronisasi
 					</a>

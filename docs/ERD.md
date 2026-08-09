@@ -127,6 +127,7 @@ Tabel utama:
 - `book_items`: eksemplar fisik/koleksi.
 - `book_content_categories`: kategori isi versi Pustaka, misalnya fiksi, nonfiksi, karya ilmiah.
 - `book_classification_masters`: klasifikasi isi/DDC versi kurasi.
+- `catalog_highlights`: pengaturan admin untuk buku/kategori pilihan yang tampil di dashboard pemustaka.
 - `digital_assets`: file PDF/ebook dan kebijakan akses.
 - `catalog_sync_runs`: riwayat batch sinkron katalog.
 - `catalog_sync_maps`: peta ID sumber INLISLite ke ID aplikasi.
@@ -136,6 +137,8 @@ Catatan relasi:
 - `books` adalah parent semua metadata buku.
 - `book_items` merepresentasikan copy fisik dan harus terkait ke `books`.
 - `digital_assets` merepresentasikan ebook/PDF dan wajib terkait ke `books`.
+- `catalog_highlights.target_type = book` mengarah ke `books`; `target_type = category` mengarah ke `book_content_categories`.
+- Highlight aktif mempertimbangkan `is_active`, `starts_at`, `ends_at`, dan `sort_order`.
 - Kategori isi dan klasifikasi isi adalah master kurasi aplikasi, bukan master mentah INLISLite.
 - Kategori isi dan klasifikasi tidak dipaksa parent-child karena satu klasifikasi bisa relevan untuk beberapa payung pencarian.
 
@@ -196,8 +199,9 @@ Tabel utama:
 Aturan token:
 
 - Member dapat membaca dari mana saja selama token tersedia.
-- Jika membaca dari lokasi Pojok Baca atau Perpustakaan Daerah yang tervalidasi GPS, kuota tidak berkurang.
-- Jika membaca dari luar lokasi bebas, kuota berkurang.
+- Reader `location_only` mengecek GPS lebih dulu.
+- Jika membaca dari lokasi Pojok Baca atau Perpustakaan Daerah yang tervalidasi GPS, akses dibuka tanpa wajib token aktif dan kuota tidak berkurang.
+- Jika membaca dari luar lokasi bebas, token aktif wajib tersedia dan kuota berkurang.
 - Jika token habis, member perlu login/absen di Perpustakaan Daerah untuk pembaruan token.
 
 Aturan file:

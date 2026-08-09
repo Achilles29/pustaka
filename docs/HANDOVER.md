@@ -343,6 +343,12 @@ git push origin main
   - `books.content_category_id`,
   - `books.content_classification_id`.
 - Katalog admin dan publik sudah dapat memfilter kategori isi serta klasifikasi isi.
+- Highlight katalog tersedia untuk admin:
+  - URL: `/catalog/highlights`,
+  - tabel: `catalog_highlights`,
+  - target: buku atau kategori katalog,
+  - menu sidebar: `Highlight Katalog` di bawah `Koleksi & Katalog`,
+  - dipakai dashboard member untuk section `Pilihan Pustakawan` dan `Jelajahi Kategori`.
 - Form member admin dan pendaftaran publik memakai pilihan baku dari `Member_model::form_options()`.
 - Data member lama dari INLISLite sudah dinormalisasi agar kolom operasional menyimpan label, bukan ID angka. Label tetap bersumber dari `inlislite_master_references`.
 - Pendaftaran publik redirect ke `/membership/register/pending/{public_token}` dan menampilkan username NIK serta password awal `perpus2026`.
@@ -355,7 +361,12 @@ git push origin main
 - POST check-in `/user/reading-checkin/store` menerbitkan token harian di `reading_tokens` jika GPS berada dalam radius `reading_points`.
 - SOP token Pojok Baca dicatat di `docs/POJOK_BACA_TOKEN_SOP.md`.
 - Monitoring token admin tersedia di `/reading-points/tokens`.
-- Reader `location_only` sudah meminta token aktif. Akses luar lokasi mengurangi kuota, sedangkan akses dalam radius Pojok Baca/perpustakaan tidak mengurangi kuota.
+- Reader `location_only` sudah memakai alur satu klik GPS:
+  - member klik `Baca Online`,
+  - menyalakan GPS di halaman validasi,
+  - jika masuk radius Pojok Baca/perpustakaan, reader langsung terbuka tanpa mengurangi token,
+  - jika di luar zona, sistem memakai token aktif dan mengurangi kuota.
+- Reader menyimpan `reading_point_id`/`library_id` dari hasil deteksi GPS ke sesi/kunjungan jika tersedia.
 - Layanan harian menghitung akses digital dari `reading_sessions`, termasuk akses luar lokasi.
 - Catatan keamanan reader: file PDF belum boleh disajikan sebagai URL publik. Tahap berikutnya wajib membuat storage non-public, renderer per halaman/token, watermark dinamis, rate limit, dan audit akses penuh.
 - Visual refresh global sudah diterapkan di `assets/css/pustaka.css`:
@@ -647,6 +658,7 @@ git push origin main
   - validasi jumlah dan sampling.
 - Field lokal yang tidak boleh ditimpa sync INLISLite:
   - kategori isi dan klasifikasi isi kurasi,
+  - highlight katalog dashboard member,
   - data `digital_assets`, policy akses, dan hak publikasi,
   - password/status akun lokal,
   - status kartu dan alasan blokir,

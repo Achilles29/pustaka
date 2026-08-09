@@ -2951,3 +2951,101 @@ Validasi:
 - `/user/dashboard`, `/user/account`, dan `/user/reading-checkin` status `200`.
 - Halaman `/user/account` memuat form ganti username dan form ganti password.
 - Test negatif update username dengan password salah tidak mengubah username.
+
+## 2026-08-10 01:45 WIB
+
+Status: dashboard pemustaka dipoles, highlight katalog admin dibuat, dan alur GPS reader disederhanakan.
+
+Yang dilakukan:
+
+- Menambahkan modul admin `/catalog/highlights`.
+- Menambahkan tabel `catalog_highlights` untuk mengatur:
+  - highlight buku,
+  - highlight kategori katalog,
+  - label/jenis highlight,
+  - judul tampilan opsional,
+  - ringkasan,
+  - urutan,
+  - periode tayang,
+  - status aktif/nonaktif.
+- Menambahkan registry RBAC dan sidebar:
+  - page code `catalog.highlights`,
+  - menu `Highlight Katalog` di bawah `Koleksi & Katalog`,
+  - permission penuh untuk `SUPERADMIN` dan `ADMIN`.
+- Menambahkan tombol `Highlight` dari `/catalog`.
+- Merombak `/user/dashboard`:
+  - section `Pilihan Pustakawan untuk kamu`,
+  - card buku/katalog pilihan,
+  - panel `Jelajahi Kategori`,
+  - fallback kategori populer dari katalog jika admin belum mengatur highlight kategori,
+  - pesan token baca luar zona yang lebih jelas.
+- Menyederhanakan reader `location_only`:
+  - member cukup klik `Baca Online`, lalu nyalakan GPS,
+  - sistem otomatis mendeteksi apakah lokasi ada di radius Pojok Baca/perpustakaan,
+  - akses dalam zona resmi tidak wajib token aktif dan tidak mengurangi kuota,
+  - akses luar zona wajib token aktif dan mengurangi kuota,
+  - pesan token habis ditampilkan langsung di halaman validasi reader.
+- Menambahkan `reading_point_id`/`library_id` dari hasil deteksi GPS ke konteks sesi baca dan kunjungan digital.
+- Memperbarui nav reader member agar konsisten dengan halaman member lain.
+- Menaikkan cache-buster polish CSS ke `20260810b`.
+- Menambahkan polish CSS untuk:
+  - dashboard member,
+  - card highlight buku,
+  - panel kategori,
+  - validasi GPS reader.
+- Menambahkan patch SQL server:
+  - `sql/2026-08-10a_catalog_highlights_reader_gps.sql`.
+- Memperbarui dokumentasi:
+  - `docs/ERD.md`,
+  - `docs/POJOK_BACA_TOKEN_SOP.md`,
+  - `docs/HANDOVER.md`.
+
+Validasi:
+
+- SQL patch berhasil dijalankan lokal.
+- SQL patch dijalankan ulang dan tetap idempotent:
+  - `catalog.highlights` page: `1`,
+  - `catalog.highlights` menu: `1`,
+  - permission role: `2`.
+- Lint PHP bersih untuk:
+  - `Catalog.php`,
+  - `Reader.php`,
+  - `User_dashboard.php`,
+  - `Catalog_model.php`,
+  - `Reading_point_model.php`,
+  - `Reader_model.php`,
+  - `Visit_model.php`,
+  - `catalog/highlights.php`,
+  - `user/dashboard.php`,
+  - `reader/location_gate.php`,
+  - `reader/member_read.php`,
+  - `layouts/tabler.php`,
+  - `routes.php`.
+- HTTP smoke test:
+  - login `superadmin` lokal berhasil membuka `/catalog/highlights`,
+  - `/catalog/highlights` status `200` dan memuat `Daftar Highlight`,
+  - create/delete highlight test berhasil dan data test bersih lagi,
+  - login member contoh berhasil,
+  - `/user/dashboard` status `200` dan memuat `Pilihan Pustakawan`, `Jelajahi Kategori`, serta `Token luar zona`,
+  - `/reader/read/4` tanpa GPS menampilkan gate `Nyalakan GPS untuk mulai baca`,
+  - `/reader/read/4?lat=-6.7513701&lng=111.4334398` terbuka sebagai reader aman dari Pojok Baca test.
+- Validasi sesi baca zona Pojok Baca:
+  - `access_origin = reading_point`,
+  - `access_location_label = LOKASI TES`,
+  - `quota_charged = 0`,
+  - `reading_point_id = 6`,
+  - `reading_token_id = NULL`.
+- Validasi kunjungan digital zona Pojok Baca:
+  - `visit_origin = reading_point`,
+  - `location_label = LOKASI TES`,
+  - `reading_point_id = 6`.
+- Validasi sesi baca radius perpustakaan:
+  - `access_origin = library`,
+  - `access_location_label = PERPSUTAKAAN UMUM DAERAH`,
+  - `quota_charged = 0`,
+  - `reading_point_id = NULL`,
+  - `library_id` kunjungan = `2`.
+- Validasi akses luar zona tanpa token:
+  - reader tetap status `200`,
+  - pesan `Token baca luar zona tidak tersedia atau kuota sudah habis` tampil di halaman validasi.
+- Browser plugin untuk screenshot visual belum bisa dipakai di sesi ini karena koneksi browser lokal gagal dengan error internal `sandboxCwd must use the file URI scheme`; validasi visual dilakukan melalui HTML smoke test.

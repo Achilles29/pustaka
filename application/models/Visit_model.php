@@ -51,7 +51,10 @@ class Visit_model extends CI_Model
 			'visit_channel' => 'digital_access',
 			'visit_origin' => $origin,
 			'member_id' => (int) $member['id'],
-			'reading_point_id' => ! empty($context['token']['reading_point_id']) ? (int) $context['token']['reading_point_id'] : null,
+			'library_id' => ! empty($context['library_id']) ? (int) $context['library_id'] : null,
+			'reading_point_id' => ! empty($context['reading_point_id'])
+				? (int) $context['reading_point_id']
+				: ((($context['origin'] ?? 'external') === 'external' && ! empty($context['token']['reading_point_id'])) ? (int) $context['token']['reading_point_id'] : null),
 			'reading_session_id' => (int) $session_id,
 			'auth_user_id' => ! empty($member['auth_user_id']) ? (int) $member['auth_user_id'] : null,
 			'source_member_no' => $member['member_no'] ?? null,

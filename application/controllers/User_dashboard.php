@@ -39,6 +39,11 @@ class User_dashboard extends CI_Controller
 		$member_id = $member ? (int) $member['id'] : null;
 		$dashboard_events = $this->Event_model->get_dashboard_events($member_id, 4);
 		$upcoming_event_count = $this->Event_model->count_public_events(['time' => 'upcoming']);
+		$highlight_books = $this->Catalog_model->get_active_book_highlights(8);
+		$highlight_categories = $this->Catalog_model->get_active_category_highlights(6);
+		if (empty($highlight_categories)) {
+			$highlight_categories = $this->Catalog_model->get_top_content_categories(6);
+		}
 
 		$this->load->view('user/dashboard', [
 			'title' => 'Dashboard Pemustaka',
@@ -51,6 +56,8 @@ class User_dashboard extends CI_Controller
 			'renewal_requests' => $member ? $this->Member_model->get_member_renewal_requests((int) $member['id'], 5) : [],
 			'book_requests' => $member ? $this->Catalog_model->get_member_book_requests((int) $member['id'], 5) : [],
 			'digital_books' => $this->Catalog_model->get_member_digital_books(6),
+			'highlight_books' => $highlight_books,
+			'highlight_categories' => $highlight_categories,
 			'reading_token' => $member ? $this->Reading_point_model->get_member_active_token((int) $member['id']) : null,
 			'reading_tokens' => $member ? $this->Reading_point_model->get_member_tokens((int) $member['id'], 5) : [],
 			'event_label' => $upcoming_event_count > 0 ? $upcoming_event_count . ' agenda literasi aktif' : 'Belum ada agenda aktif',

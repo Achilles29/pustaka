@@ -232,6 +232,170 @@ class Catalog_model extends CI_Model
 			->result_array();
 	}
 
+	public function count_highlights(array $filters = [])
+	{
+		if (! $this->db->table_exists('catalog_highlights')) {
+			return 0;
+		}
+
+		$this->apply_highlight_filters($filters);
+		return (int) $this->db->count_all_results();
+	}
+
+	public function get_highlights(array $filters = [], $limit = 25, $offset = 0)
+	{
+		if (! $this->db->table_exists('catalog_highlights')) {
+			return [];
+		}
+
+		$this->apply_highlight_filters($filters);
+
+		return $this->db
+			->select('ch.*, b.title AS book_title, b.statement_responsibility, b.publish_year, b.status AS book_status, cc.name AS category_name, target_cc.name AS target_category_name')
+			->join('books b', 'b.id = ch.book_id', 'left')
+			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
+			->join('book_content_categories target_cc', 'target_cc.id = ch.content_category_id', 'left')
+			->order_by('ch.is_active', 'DESC')
+			->order_by('ch.sort_order', 'ASC')
+			->order_by('ch.id', 'DESC')
+			->limit(max(1, min(100, (int) $limit)), max(0, (int) $offset))
+			->get()
+			->result_array();
+	}
+
+	public function get_highlight($id)
+	{
+		if (! $this->db->table_exists('catalog_highlights')) {
+			return null;
+		}
+
+		return $this->db
+			->from('catalog_highlights')
+			->where('id', (int) $id)
+			->limit(1)
+			->get()
+			->row_array();
+	}
+
+	public function save_highlight(array $data, $id = null, $user_id = null)
+	{
+		if (! $this->db->table_exists('catalog_highlights')) {
+			throw new RuntimeException('Tabel highlight katalog belum tersedia. Jalankan patch SQL terbaru.');
+		}
+
+		$payload = $this->highlight_payload($data);
+		if ($id) {
+			$payload['updated_by'] = $user_id ? (int) $user_id : null;
+			$this->db->where('id', (int) $id)->update('catalog_highlights', $payload);
+			return (int) $id;
+		}
+
+		$payload['created_by'] = $user_id ? (int) $user_id : null;
+		$payload['updated_by'] = $user_id ? (int) $user_id : null;
+		$this->db->insert('catalog_highlights', $payload);
+		return (int) $this->db->insert_id();
+	}
+
+	public function delete_highlight($id)
+	{
+		if (! $this->db->table_exists('catalog_highlights')) {
+			return false;
+		}
+
+		return $this->db->where('id', (int) $id)->delete('catalog_highlights');
+	}
+
+	public function get_active_book_highlights($limit = 8)
+	{
+		if (! $this->db->table_exists('catalog_highlights')) {
+			return [];
+		}
+
+		return $this->db
+			->select("ch.*, b.title, b.statement_responsibility, b.cover_local_path, b.cover_source_path, b.publish_year, b.call_number, cc.name AS content_category_name, cm.name AS content_classification_name, MIN(da.id) AS first_digital_asset_id, MIN(da.access_policy) AS digital_access_policy", false)
+			->from('catalog_highlights ch')
+			->join('books b', 'b.id = ch.book_id')
+			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
+			->join('book_classification_masters cm', 'cm.id = b.content_classification_id', 'left')
+			->join('digital_assets da', "da.book_id = b.id AND da.status = 'active' AND da.access_policy IN ('online_only','download_allowed','location_only','member_only')", 'left')
+			->where('ch.target_type', 'book')
+			->where('ch.is_active', 1)
+			->where('b.status', 'published')
+			->where('b.deleted_at IS NULL', null, false)
+			->where('(ch.starts_at IS NULL OR ch.starts_at <= NOW())', null, false)
+			->where('(ch.ends_at IS NULL OR ch.ends_at >= NOW())', null, false)
+			->group_by('ch.id')
+			->order_by('ch.sort_order', 'ASC')
+			->order_by('ch.id', 'DESC')
+			->limit(max(1, min(16, (int) $limit)))
+			->get()
+			->result_array();
+	}
+
+	public function get_active_category_highlights($limit = 6)
+	{
+		if (! $this->db->table_exists('catalog_highlights')) {
+			return [];
+		}
+
+		return $this->db
+			->select("ch.*, cc.name AS category_name, cc.code AS category_code, cc.description AS category_description, COUNT(DISTINCT b.id) AS book_count, COUNT(DISTINCT da.id) AS digital_count", false)
+			->from('catalog_highlights ch')
+			->join('book_content_categories cc', 'cc.id = ch.content_category_id')
+			->join('books b', "b.content_category_id = cc.id AND b.status = 'published' AND b.deleted_at IS NULL", 'left')
+			->join('digital_assets da', "da.book_id = b.id AND da.status = 'active'", 'left')
+			->where('ch.target_type', 'category')
+			->where('ch.is_active', 1)
+			->where('cc.is_active', 1)
+			->where('(ch.starts_at IS NULL OR ch.starts_at <= NOW())', null, false)
+			->where('(ch.ends_at IS NULL OR ch.ends_at >= NOW())', null, false)
+			->group_by('ch.id')
+			->order_by('ch.sort_order', 'ASC')
+			->order_by('ch.id', 'DESC')
+			->limit(max(1, min(12, (int) $limit)))
+			->get()
+			->result_array();
+	}
+
+	public function get_top_content_categories($limit = 6)
+	{
+		if (! $this->db->table_exists('book_content_categories')) {
+			return [];
+		}
+
+		return $this->db
+			->select("NULL AS id, 'category' AS target_type, cc.id AS content_category_id, cc.name AS category_name, cc.code AS category_code, cc.description AS category_description, cc.name AS title_override, NULL AS label, COUNT(DISTINCT b.id) AS book_count, COUNT(DISTINCT da.id) AS digital_count", false)
+			->from('book_content_categories cc')
+			->join('books b', "b.content_category_id = cc.id AND b.status = 'published' AND b.deleted_at IS NULL", 'left')
+			->join('digital_assets da', "da.book_id = b.id AND da.status = 'active'", 'left')
+			->where('cc.is_active', 1)
+			->group_by('cc.id')
+			->having('book_count >', 0)
+			->order_by('book_count', 'DESC')
+			->order_by('cc.sort_order', 'ASC')
+			->limit(max(1, min(12, (int) $limit)))
+			->get()
+			->result_array();
+	}
+
+	public function get_highlight_book_options($limit = 500)
+	{
+		if (! $this->db->table_exists('books')) {
+			return [];
+		}
+
+		return $this->db
+			->select('b.id, b.title, b.statement_responsibility, b.publish_year, cc.name AS content_category_name')
+			->from('books b')
+			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
+			->where('b.deleted_at IS NULL', null, false)
+			->where_in('b.status', ['published', 'draft'])
+			->order_by('b.title', 'ASC')
+			->limit(max(50, min(1000, (int) $limit)))
+			->get()
+			->result_array();
+	}
+
 	public function public_filter_options(array $filters = [])
 	{
 		$option_query = function ($field, $limit = 40) {
@@ -1509,5 +1673,93 @@ class Catalog_model extends CI_Model
 	{
 		$value = trim((string) $value);
 		return $value === '' ? null : $value;
+	}
+
+	private function apply_highlight_filters(array $filters = [])
+	{
+		$this->db->from('catalog_highlights ch');
+
+		$q = trim((string) ($filters['q'] ?? ''));
+		if ($q !== '') {
+			$this->db
+				->join('books b_filter', 'b_filter.id = ch.book_id', 'left')
+				->join('book_content_categories cc_filter', 'cc_filter.id = ch.content_category_id', 'left')
+				->group_start()
+					->like('ch.label', $q)
+					->or_like('ch.title_override', $q)
+					->or_like('ch.summary', $q)
+					->or_like('b_filter.title', $q)
+					->or_like('b_filter.statement_responsibility', $q)
+					->or_like('cc_filter.name', $q)
+				->group_end();
+		}
+
+		$target = trim((string) ($filters['target_type'] ?? ''));
+		if (in_array($target, ['book', 'category'], true)) {
+			$this->db->where('ch.target_type', $target);
+		}
+
+		$type = trim((string) ($filters['highlight_type'] ?? ''));
+		if (in_array($type, ['featured', 'new_arrival', 'digital', 'local', 'recommendation'], true)) {
+			$this->db->where('ch.highlight_type', $type);
+		}
+
+		$status = trim((string) ($filters['status'] ?? ''));
+		if ($status === 'active') {
+			$this->db->where('ch.is_active', 1);
+		} elseif ($status === 'inactive') {
+			$this->db->where('ch.is_active', 0);
+		}
+	}
+
+	private function highlight_payload(array $data)
+	{
+		$target_type = in_array(($data['target_type'] ?? 'book'), ['book', 'category'], true) ? $data['target_type'] : 'book';
+		$highlight_type = in_array(($data['highlight_type'] ?? 'featured'), ['featured', 'new_arrival', 'digital', 'local', 'recommendation'], true)
+			? $data['highlight_type']
+			: 'featured';
+		$book_id = (int) ($data['book_id'] ?? 0);
+		$content_category_id = (int) ($data['content_category_id'] ?? 0);
+
+		if ($target_type === 'book' && $book_id <= 0) {
+			throw new RuntimeException('Pilih buku yang akan di-highlight.');
+		}
+
+		if ($target_type === 'category' && $content_category_id <= 0) {
+			throw new RuntimeException('Pilih kategori katalog yang akan di-highlight.');
+		}
+
+		return [
+			'target_type' => $target_type,
+			'book_id' => $target_type === 'book' ? $book_id : null,
+			'content_category_id' => $target_type === 'category' ? $content_category_id : null,
+			'highlight_type' => $highlight_type,
+			'label' => $this->clip($data['label'] ?? null, 120),
+			'title_override' => $this->clip($data['title_override'] ?? null, 180),
+			'summary' => $this->clip($data['summary'] ?? null, 255),
+			'sort_order' => max(0, min(9999, (int) ($data['sort_order'] ?? 100))),
+			'is_active' => ! empty($data['is_active']) ? 1 : 0,
+			'starts_at' => $this->datetime_or_null($data['starts_at'] ?? null),
+			'ends_at' => $this->datetime_or_null($data['ends_at'] ?? null),
+		];
+	}
+
+	private function datetime_or_null($value)
+	{
+		$value = trim(str_replace('T', ' ', (string) $value));
+		if ($value === '') {
+			return null;
+		}
+
+		if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $value)) {
+			$value .= ':00';
+		}
+
+		$time = strtotime($value);
+		if ($time === false) {
+			return null;
+		}
+
+		return date('Y-m-d H:i:s', $time);
 	}
 }

@@ -23,6 +23,36 @@ $event_registration_labels = [
 	'approved' => 'Disetujui',
 	'attended' => 'Sudah hadir',
 ];
+$highlight_type_labels = [
+	'featured' => 'Pilihan Pustakawan',
+	'new_arrival' => 'Baru Datang',
+	'digital' => 'Buku Digital',
+	'local' => 'Rembang/Lokal',
+	'recommendation' => 'Rekomendasi',
+];
+$highlight_books = $highlight_books ?? [];
+$highlight_categories = $highlight_categories ?? [];
+$dashboard_highlight_books = $highlight_books;
+if (empty($dashboard_highlight_books) && ! empty($digital_books)) {
+	foreach (array_slice($digital_books, 0, 4) as $asset) {
+		$dashboard_highlight_books[] = [
+			'id' => null,
+			'book_id' => $asset['book_id'] ?? null,
+			'title' => $asset['title'] ?? 'Buku Digital',
+			'title_override' => null,
+			'statement_responsibility' => $asset['statement_responsibility'] ?? null,
+			'cover_local_path' => $asset['cover_local_path'] ?? null,
+			'cover_source_path' => $asset['cover_source_path'] ?? null,
+			'content_category_name' => $asset['content_category_name'] ?? null,
+			'content_classification_name' => null,
+			'highlight_type' => 'digital',
+			'label' => 'Siap dibaca online',
+			'summary' => 'Koleksi digital aktif yang bisa langsung dibuka dari dashboard pemustaka.',
+			'first_digital_asset_id' => $asset['id'] ?? null,
+			'digital_access_policy' => $asset['access_policy'] ?? null,
+		];
+	}
+}
 $url_path = function ($path) {
 	$segments = explode('/', str_replace('\\', '/', trim((string) $path, '/')));
 	return implode('/', array_map('rawurlencode', $segments));
@@ -56,7 +86,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810a'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810b'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -199,8 +229,12 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 						</div>
 						<div class="member-status-card">
 							<i class="ti ti-ticket"></i>
-							<div><span>Token baca</span><strong><?= ! empty($reading_token) ? 'Aktif' : 'Belum'; ?></strong></div>
+							<div><span>Token luar zona</span><strong><?= ! empty($reading_token) ? 'Aktif' : 'Belum'; ?></strong></div>
 						</div>
+					</div>
+					<div class="member-alert-soft member-alert-gps">
+						<i class="ti ti-current-location"></i>
+						<span>Baca online cukup klik buku lalu nyalakan GPS. Jika berada di Pojok Baca atau perpustakaan terdaftar, kuota tidak berkurang; di luar zona, sistem memakai token baca.</span>
 					</div>
 					<?php if ($card_status === 'blocked'): ?>
 						<div class="member-alert-soft">
@@ -213,6 +247,75 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 							<span>Pengajuan terakhir <?= html_escape($latest_renewal['request_code']); ?>: <?= html_escape($request_status_labels[$latest_renewal['status']] ?? $latest_renewal['status']); ?>.</span>
 						</div>
 					<?php endif; ?>
+				</div>
+			</section>
+
+			<section class="member-curated-section">
+				<div class="member-section-head">
+					<div>
+						<div class="section-kicker">Pilihan Katalog</div>
+						<h2>Pilihan Pustakawan untuk kamu</h2>
+					</div>
+					<a href="<?= base_url('katalog'); ?>" class="btn btn-outline-primary"><i class="ti ti-search me-1"></i>Jelajahi Katalog</a>
+				</div>
+				<div class="member-curated-layout">
+					<div class="member-curated-books">
+						<?php if (empty($dashboard_highlight_books)): ?>
+							<div class="member-mini-empty">Belum ada highlight katalog. Admin dapat mengaturnya dari menu Highlight Katalog.</div>
+						<?php endif; ?>
+						<?php foreach ($dashboard_highlight_books as $book): ?>
+							<?php
+								if (! empty($book['cover_local_path'])) {
+									$highlight_cover = base_url($url_path($book['cover_local_path']));
+								} elseif (! empty($book['cover_source_path'])) {
+									$highlight_cover = base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
+								} else {
+									$highlight_cover = '';
+								}
+								$book_title = $book['title_override'] ?: ($book['title'] ?? 'Katalog Pilihan');
+								$read_url = ! empty($book['first_digital_asset_id'])
+									? base_url('reader/read/' . (int) $book['first_digital_asset_id'])
+									: base_url('katalog/detail/' . (int) ($book['book_id'] ?? 0));
+							?>
+							<article class="member-curated-card">
+								<a class="member-curated-cover" href="<?= $read_url; ?>">
+									<?php if ($highlight_cover): ?>
+										<img src="<?= html_escape($highlight_cover); ?>" alt="Cover <?= html_escape($book_title); ?>" loading="lazy">
+									<?php else: ?>
+										<i class="ti ti-book-2"></i>
+									<?php endif; ?>
+								</a>
+								<div class="member-curated-copy">
+									<span><?= html_escape($book['label'] ?: ($highlight_type_labels[$book['highlight_type'] ?? 'featured'] ?? 'Highlight')); ?></span>
+									<h3><?= html_escape($book_title); ?></h3>
+									<p><?= html_escape($book['summary'] ?: ($book['statement_responsibility'] ?: 'Koleksi pilihan untuk dibaca hari ini.')); ?></p>
+									<div class="member-curated-meta">
+										<?php if (! empty($book['content_category_name'])): ?><em><?= html_escape($book['content_category_name']); ?></em><?php endif; ?>
+										<?php if (! empty($book['content_classification_name'])): ?><em><?= html_escape($book['content_classification_name']); ?></em><?php endif; ?>
+									</div>
+									<a href="<?= $read_url; ?>" class="btn btn-primary btn-sm">
+										<i class="ti <?= ! empty($book['first_digital_asset_id']) ? 'ti-book-reader' : 'ti-eye'; ?> me-1"></i><?= ! empty($book['first_digital_asset_id']) ? 'Baca Online' : 'Lihat Detail'; ?>
+									</a>
+								</div>
+							</article>
+						<?php endforeach; ?>
+					</div>
+					<aside class="member-category-panel">
+						<div class="section-kicker">Jelajahi Kategori</div>
+						<h3>Mulai dari minat baca</h3>
+						<div class="member-category-list">
+							<?php if (empty($highlight_categories)): ?>
+								<div class="member-mini-empty">Kategori katalog belum tersedia.</div>
+							<?php endif; ?>
+							<?php foreach ($highlight_categories as $category): ?>
+								<a href="<?= base_url('katalog?' . http_build_query(['content_category_id' => (int) $category['content_category_id']])); ?>" class="member-category-chip">
+									<span><?= html_escape($category['title_override'] ?: ($category['category_name'] ?? 'Kategori')); ?></span>
+									<strong><?= number_format((int) ($category['book_count'] ?? 0), 0, ',', '.'); ?> buku</strong>
+									<?php if (! empty($category['digital_count'])): ?><em><?= number_format((int) $category['digital_count'], 0, ',', '.'); ?> digital</em><?php endif; ?>
+								</a>
+							<?php endforeach; ?>
+						</div>
+					</aside>
 				</div>
 			</section>
 

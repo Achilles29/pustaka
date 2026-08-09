@@ -186,7 +186,9 @@ class Reader_model extends CI_Model
 			'member_id' => (int) $member['id'],
 			'book_id' => (int) $asset['book_id'],
 			'digital_asset_id' => (int) $asset['id'],
-			'reading_point_id' => ! empty($context['token']['reading_point_id']) ? (int) $context['token']['reading_point_id'] : null,
+			'reading_point_id' => ! empty($context['reading_point_id'])
+				? (int) $context['reading_point_id']
+				: ((($context['origin'] ?? 'external') === 'external' && ! empty($context['token']['reading_point_id'])) ? (int) $context['token']['reading_point_id'] : null),
 			'reading_token_id' => ! empty($context['token']['id']) ? (int) $context['token']['id'] : null,
 			'secure_token' => $this->db->field_exists('secure_token', 'reading_sessions') ? $secure_token : null,
 			'ip_address' => $this->input->ip_address(),
