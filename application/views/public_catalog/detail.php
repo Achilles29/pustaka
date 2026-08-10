@@ -33,7 +33,7 @@ if (! empty($book['cover_local_path'])) {
 } elseif (! empty($book['cover_source_path'])) {
 	$cover_url = base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
 } else {
-	$cover_url = '';
+	$cover_url = base_url('assets/img/book-cover-default.webp');
 }
 $auth_user = (array) $this->session->userdata('auth_user');
 $role_codes = array_map(function ($role) {
@@ -137,9 +137,9 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 								</div>
 								<div class="public-digital-actions">
 									<?php foreach ($digital_assets as $asset): ?>
-										<a href="<?= base_url('reader/read/' . (int) $asset['id']); ?>" class="btn <?= $asset['access_policy'] === 'download_allowed' ? 'btn-primary' : 'btn-outline-primary'; ?>">
+										<a href="<?= base_url('reader/read/' . (int) $asset['id']); ?>" class="btn <?= ($asset['pdf_delivery'] ?? '') === 'download_allowed' ? 'btn-primary' : 'btn-outline-primary'; ?>">
 											<i class="ti ti-book-reader me-1"></i>Baca Online
-											<span><?= html_escape($policy_labels[$asset['access_policy']] ?? $asset['access_policy']); ?></span>
+											<span><?= ($asset['pdf_delivery'] ?? 'render_locked') === 'download_allowed' ? 'Download diizinkan' : 'Render aman'; ?></span>
 										</a>
 									<?php endforeach; ?>
 								</div>

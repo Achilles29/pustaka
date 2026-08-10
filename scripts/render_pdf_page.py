@@ -45,26 +45,24 @@ def render(pdf_path, output_path, page_number, watermark, zoom):
         base = Image.open(BytesIO(pix.tobytes("png"))).convert("RGBA")
 
     overlay = Image.new("RGBA", base.size, (255, 255, 255, 0))
-    tile_width = max(520, base.width // 2)
-    tile_height = max(150, base.height // 6)
+    tile_width = min(base.width, max(420, int(base.width * 0.72)))
+    tile_height = max(90, int(base.height * 0.10))
     tile = Image.new("RGBA", (tile_width, tile_height), (255, 255, 255, 0))
     draw_tile = ImageDraw.Draw(tile)
-    font = load_font(max(22, int(base.width / 34)))
-    text = (watermark or "Pustaka Digital Rembang").strip()[:180]
+    font = load_font(max(16, int(base.width / 78)))
+    text = (watermark or "Pustaka Digital Rembang").strip()[:96]
     bbox = draw_tile.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
     draw_tile.text(
         ((tile_width - text_width) / 2, (tile_height - text_height) / 2),
         text,
-        fill=(7, 38, 91, 56),
+        fill=(7, 38, 91, 30),
         font=font,
     )
     rotated = tile.rotate(-28, expand=True)
 
-    for y in range(-rotated.height, base.height + rotated.height, max(150, rotated.height)):
-        for x in range(-rotated.width, base.width + rotated.width, max(320, int(rotated.width * 0.82))):
-            overlay.alpha_composite(rotated, (x, y))
+    overlay.alpha_composite(rotated, ((base.width - rotated.width) // 2, (base.height - rotated.height) // 2))
 
     merged = Image.alpha_composite(base, overlay).convert("RGB")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)

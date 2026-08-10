@@ -1,5 +1,5 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
-$unit_labels = ['minutes' => 'menit', 'pages' => 'halaman', 'books' => 'buku'];
+$unit_labels = ['minutes' => 'menit (legacy)', 'pages' => 'halaman (legacy)', 'books' => 'sesi baca'];
 ?>
 
 <div class="container-xl">

@@ -14,7 +14,7 @@ $cover_url = function ($book) use ($url_path) {
 	if (! empty($book['cover_source_path'])) {
 		return base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
 	}
-	return '';
+	return base_url('assets/img/book-cover-default.webp');
 };
 $query_base = $_GET;
 unset($query_base['page']);
@@ -41,7 +41,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810f'); ?>">
 </head>
 <body class="public-page public-catalog-page">
 	<header class="public-nav">
@@ -117,6 +117,15 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 							</select>
 						</div>
 						<div class="col-md-6 col-lg-2">
+							<label class="form-label">Jenis Koleksi</label>
+							<select class="form-select form-select-lg" name="collection_type">
+								<option value="">Semua</option>
+								<?php foreach (($filter_options['collection_types'] ?? []) as $type): ?>
+									<option value="<?= html_escape($type['name']); ?>" <?= ($filters['collection_type'] ?? '') === $type['name'] ? 'selected' : ''; ?>><?= html_escape($type['name']); ?> (<?= number_format((int) $type['total'], 0, ',', '.'); ?>)</option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+						<div class="col-md-6 col-lg-2">
 							<label class="form-label">Kategori Sumber</label>
 							<select class="form-select form-select-lg" name="category">
 								<option value="">Semua</option>
@@ -162,9 +171,10 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 							</select>
 						</div>
 						<div class="col-md-6 col-lg-2">
-							<label class="form-label">Ketersediaan</label>
+							<label class="form-label">Ketersediaan / Akses</label>
 							<select class="form-select form-select-lg" name="availability">
 								<option value="">Semua</option>
+								<option value="digital" <?= ($filters['availability'] ?? '') === 'digital' ? 'selected' : ''; ?>>Buku digital</option>
 								<option value="with_items" <?= ($filters['availability'] ?? '') === 'with_items' ? 'selected' : ''; ?>>Ada eksemplar</option>
 								<option value="available" <?= ($filters['availability'] ?? '') === 'available' ? 'selected' : ''; ?>>Tersedia</option>
 							</select>
@@ -218,6 +228,9 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 								<div class="public-book-status">
 									<?php if (! empty($book['content_category_name']) || ! empty($book['content_classification_name'])): ?>
 										<span class="badge bg-blue-lt"><?= html_escape($book['content_category_name'] ?: $book['content_classification_name']); ?></span>
+									<?php endif; ?>
+									<?php if (! empty($book['collection_types'])): ?>
+										<span class="badge bg-purple-lt"><i class="ti ti-category me-1"></i><?= html_escape($book['collection_types']); ?></span>
 									<?php endif; ?>
 									<span class="badge <?= (int) $book['available_count'] > 0 ? 'bg-green-lt' : 'bg-secondary-lt'; ?>">
 										<?= (int) $book['available_count'] > 0 ? number_format((int) $book['available_count'], 0, ',', '.') . ' tersedia' : 'Cek ketersediaan'; ?>

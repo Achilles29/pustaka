@@ -25,6 +25,15 @@ $classification_modal = function ($row = null) {
 		'row' => $row ?: ['code' => '', 'name' => '', 'description' => '', 'sort_order' => 0, 'is_active' => 1],
 	];
 };
+$collection_type_modal = function ($row = null) {
+	$is_edit = ! empty($row);
+	return [
+		'id' => $is_edit ? 'collection-type-modal-' . (int) $row['id'] : 'collection-type-modal-new',
+		'title' => $is_edit ? 'Edit Jenis Koleksi' : 'Tambah Jenis Koleksi',
+		'action' => $is_edit ? base_url('catalog/masters/collection-types/update/' . (int) $row['id']) : base_url('catalog/masters/collection-types/store'),
+		'row' => $row ?: ['code' => '', 'name' => '', 'description' => '', 'sort_order' => 0, 'is_active' => 1],
+	];
+};
 $render_modal = function ($config, $code_hint) {
 	$row = $config['row'];
 	?>
@@ -78,7 +87,7 @@ $render_modal = function ($config, $code_hint) {
 		<div class="row g-2 align-items-center">
 			<div class="col">
 				<div class="page-pretitle">Katalog</div>
-				<h1 class="page-title">Master Buku</h1>
+				<h1 class="page-title">Master Katalog</h1>
 			</div>
 			<div class="col-auto ms-auto">
 				<a href="<?= base_url('catalog'); ?>" class="btn btn-outline-secondary"><i class="ti ti-arrow-left me-1"></i>Katalog</a>
@@ -92,7 +101,7 @@ $render_modal = function ($config, $code_hint) {
 		<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?= html_escape($this->session->flashdata('success')); ?></div><?php endif; ?>
 		<?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?= html_escape($this->session->flashdata('error')); ?></div><?php endif; ?>
 
-		<div class="card admin-card data-workspace">
+		<div class="card admin-card data-workspace catalog-masters-workspace">
 			<div class="card-header workspace-header">
 				<div>
 					<h2 class="card-title">Taksonomi Pencarian</h2>
@@ -101,6 +110,7 @@ $render_modal = function ($config, $code_hint) {
 				<ul class="nav nav-tabs card-header-tabs workspace-tabs" role="tablist">
 					<li class="nav-item" role="presentation"><a href="#tab-categories" class="nav-link <?= $active_tab === 'categories' ? 'active' : ''; ?>" data-bs-toggle="tab" role="tab"><i class="ti ti-category me-1"></i>Kategori</a></li>
 					<li class="nav-item" role="presentation"><a href="#tab-classifications" class="nav-link <?= $active_tab === 'classifications' ? 'active' : ''; ?>" data-bs-toggle="tab" role="tab"><i class="ti ti-tags me-1"></i>Klasifikasi</a></li>
+					<li class="nav-item" role="presentation"><a href="#tab-collection-types" class="nav-link <?= $active_tab === 'collection_types' ? 'active' : ''; ?>" data-bs-toggle="tab" role="tab"><i class="ti ti-box-seam me-1"></i>Jenis Koleksi</a></li>
 				</ul>
 			</div>
 
@@ -170,6 +180,42 @@ $render_modal = function ($config, $code_hint) {
 						</table>
 					</div>
 				</div>
+
+				<div class="tab-pane <?= $active_tab === 'collection_types' ? 'active show' : ''; ?>" id="tab-collection-types" role="tabpanel">
+					<div class="card-body workspace-filter d-flex justify-content-between align-items-center">
+						<div>
+							<div class="fw-semibold">Jenis Koleksi</div>
+							<div class="text-secondary small">Buku, ebook, CD, DVD, majalah, audio, peta, dan jenis lain yang dipakai oleh eksemplar katalog.</div>
+						</div>
+						<?php if ($can_create): ?>
+							<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#collection-type-modal-new"><i class="ti ti-plus me-1"></i>Tambah</button>
+						<?php endif; ?>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-vcenter card-table">
+							<thead><tr><th>Kode</th><th>Nama</th><th>Deskripsi</th><th>Urutan</th><th>Status</th><th class="w-1">Aksi</th></tr></thead>
+							<tbody>
+								<?php foreach ($collection_types as $row): ?>
+									<tr>
+										<td><code><?= html_escape($row['code']); ?></code></td>
+										<td class="fw-semibold"><?= html_escape($row['name']); ?></td>
+										<td class="text-secondary"><?= html_escape($row['description'] ?: '-'); ?></td>
+										<td><?= (int) $row['sort_order']; ?></td>
+										<td><?= $status_badge($row); ?></td>
+										<td><div class="btn-list flex-nowrap">
+											<?php if ($can_edit): ?><button type="button" class="btn btn-sm btn-action btn-action-primary" data-bs-toggle="modal" data-bs-target="#collection-type-modal-<?= (int) $row['id']; ?>"><i class="ti ti-edit"></i><span>Edit</span></button><?php endif; ?>
+											<?php if ($can_delete): ?>
+												<?= form_open('catalog/masters/collection-types/delete/' . (int) $row['id'], ['class' => 'd-inline', 'onsubmit' => "return confirm('Hapus jenis koleksi ini? Data yang masih dipakai tidak dapat dihapus.');"]); ?>
+													<button type="submit" class="btn btn-sm btn-outline-danger"><i class="ti ti-trash"></i><span>Hapus</span></button>
+												<?= form_close(); ?>
+											<?php endif; ?>
+										</div></td>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -179,6 +225,7 @@ $render_modal = function ($config, $code_hint) {
 if ($can_create) {
 	$render_modal($category_modal(), 'fiksi');
 	$render_modal($classification_modal(), '800');
+	$render_modal($collection_type_modal(), 'ebook');
 }
 if ($can_edit) {
 	foreach ($categories as $row) {
@@ -186,6 +233,9 @@ if ($can_edit) {
 	}
 	foreach ($classifications as $row) {
 		$render_modal($classification_modal($row), '800');
+	}
+	foreach ($collection_types as $row) {
+		$render_modal($collection_type_modal($row), 'ebook');
 	}
 }
 ?>

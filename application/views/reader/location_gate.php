@@ -18,7 +18,7 @@ $error_msg = trim((string) ($error_msg ?? ''));
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810b'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810k'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">

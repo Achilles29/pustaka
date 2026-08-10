@@ -13,7 +13,7 @@ $status_badges = [
 	'expired' => 'bg-secondary-lt',
 	'revoked' => 'bg-red-lt',
 ];
-$unit_labels = ['minutes' => 'menit', 'pages' => 'halaman', 'books' => 'buku'];
+$unit_labels = ['minutes' => 'menit (legacy)', 'pages' => 'halaman (legacy)', 'books' => 'sesi baca'];
 $query_base = $_GET;
 unset($query_base['page']);
 $page_url = function ($page) use ($query_base) {
@@ -47,6 +47,38 @@ $page_url = function ($page) use ($query_base) {
 			</div>
 			<a href="<?= base_url('reader/assets'); ?>" class="btn btn-outline-primary"><i class="ti ti-file-lock me-1"></i>Reader</a>
 		</div>
+
+		<?php if (! empty($pending_requests)): ?>
+			<div class="card admin-card data-workspace mb-3">
+				<div class="card-header"><h2 class="card-title">Permohonan Token Menunggu Keputusan</h2></div>
+				<div class="table-responsive">
+					<table class="table table-vcenter card-table">
+						<thead><tr><th>Member</th><th>Permohonan</th><th>Catatan</th><th>Keputusan</th></tr></thead>
+						<tbody>
+							<?php foreach ($pending_requests as $request): ?>
+								<tr>
+									<td><div class="fw-semibold"><?= html_escape($request['full_name']); ?></div><div class="text-secondary small"><?= html_escape($request['member_no'] ?: '-'); ?></div></td>
+									<td><strong><?= number_format((int) $request['requested_quota'], 0, ',', '.'); ?> sesi buku</strong><div class="text-secondary small"><?= html_escape($request['requested_at']); ?></div></td>
+									<td class="text-secondary small"><?= html_escape($request['request_note'] ?: '-'); ?></td>
+									<td>
+										<div class="btn-list flex-nowrap">
+											<?= form_open('reading-points/tokens/approve-request/' . (int) $request['id'], ['class' => 'd-inline']); ?>
+												<input type="hidden" name="review_note" value="Disetujui melalui monitoring token">
+												<button class="btn btn-sm btn-primary" onclick="return confirm('Setujui dan terbitkan token 3 sesi selama 7 hari?')"><i class="ti ti-check me-1"></i>Setujui</button>
+											<?= form_close(); ?>
+											<?= form_open('reading-points/tokens/reject-request/' . (int) $request['id'], ['class' => 'd-inline']); ?>
+												<input type="hidden" name="review_note" value="Ditolak melalui monitoring token">
+												<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Tolak permohonan ini?')"><i class="ti ti-x me-1"></i>Tolak</button>
+											<?= form_close(); ?>
+										</div>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		<?php endif; ?>
 
 		<div class="card admin-card data-workspace">
 			<div class="card-body workspace-filter">

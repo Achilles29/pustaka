@@ -15,7 +15,8 @@ class Reader extends MY_Controller
 		$filters = [
 			'q' => $this->input->get('q', true),
 			'status' => $this->input->get('status', true),
-			'access_policy' => $this->input->get('access_policy', true),
+			'reader_audience' => $this->input->get('reader_audience', true),
+			'pdf_delivery' => $this->input->get('pdf_delivery', true),
 			'rights_basis' => $this->input->get('rights_basis', true),
 		];
 		$per_page = (int) $this->input->get('per_page', true);
@@ -34,7 +35,8 @@ class Reader extends MY_Controller
 			'filters' => [
 				'q' => $filters['q'],
 				'status' => $filters['status'],
-				'access_policy' => $filters['access_policy'],
+				'reader_audience' => $filters['reader_audience'],
+				'pdf_delivery' => $filters['pdf_delivery'],
 				'rights_basis' => $filters['rights_basis'],
 				'per_page' => $per_page,
 				'page' => $page,
@@ -184,8 +186,12 @@ class Reader extends MY_Controller
 			return;
 		}
 
-		if ($asset['access_policy'] === 'internal') {
+		if ($this->asset_is_internal($asset)) {
 			show_error('Aset ini hanya untuk internal petugas.', 403, 'Akses Ditolak');
+			return;
+		}
+		if (($member['status'] ?? '') !== 'active') {
+			show_error('Hanya member aktif yang dapat membaca koleksi digital.', 403, 'Akses Ditolak');
 			return;
 		}
 
@@ -196,7 +202,10 @@ class Reader extends MY_Controller
 			'quota_unit' => null,
 		];
 
-		if ($asset['access_policy'] === 'location_only') {
+		if ($this->Reader_model->has_recent_active_session((int) $asset['id'], (int) $member['id'])) {
+			// Refresh atau buka ulang dalam sesi yang sama tidak boleh mengurangi token kedua kali.
+			$context['location_label'] = 'Sesi baca aktif';
+		} else {
 			$lat = $this->input->get_post('lat', true);
 			$lng = $this->input->get_post('lng', true);
 			$external = (int) $this->input->get_post('external', true) === 1;
@@ -277,7 +286,7 @@ class Reader extends MY_Controller
 		} else {
 			$this->load->model('Member_model');
 			$member = $this->Member_model->get_member_by_auth_user_id((int) ($this->current_user['id'] ?? 0));
-			if (! $member || $asset['access_policy'] === 'internal') {
+			if (! $member || ($member['status'] ?? '') !== 'active' || $this->asset_is_internal($asset)) {
 				show_error('Akses file ditolak.', 403, 'Akses Ditolak');
 				return;
 			}
@@ -483,15 +492,22 @@ class Reader extends MY_Controller
 	private function can_stream_raw_pdf(array $asset)
 	{
 		return (int) ($asset['is_downloadable'] ?? 0) === 1
-			&& ($asset['access_policy'] ?? '') === 'download_allowed';
+			&& (($asset['pdf_delivery'] ?? '') === 'download_allowed'
+				|| (($asset['pdf_delivery'] ?? '') === '' && ($asset['access_policy'] ?? '') === 'download_allowed'));
+	}
+
+	private function asset_is_internal(array $asset)
+	{
+		return (($asset['reader_audience'] ?? '') === 'internal')
+			|| (($asset['reader_audience'] ?? '') === '' && ($asset['access_policy'] ?? '') === 'internal');
 	}
 
 	private function asset_input()
 	{
 		return [
 			'book_id' => $this->input->post('book_id', true),
-			'access_policy' => $this->input->post('access_policy', true),
-			'is_downloadable' => $this->input->post('is_downloadable', true),
+			'reader_audience' => $this->input->post('reader_audience', true),
+			'pdf_delivery' => $this->input->post('pdf_delivery', true),
 			'status' => $this->input->post('status', true),
 			'rights_basis' => $this->input->post('rights_basis', true),
 			'rights_holder' => $this->input->post('rights_holder', true),
@@ -566,7 +582,7 @@ class Reader extends MY_Controller
 			return null;
 		}
 
-		if ($asset['access_policy'] === 'internal' || $this->can_stream_raw_pdf($asset)) {
+		if ($this->asset_is_internal($asset) || $this->can_stream_raw_pdf($asset)) {
 			show_error('Endpoint halaman aman hanya untuk aset non-downloadable.', 403, 'Akses Ditolak');
 			return null;
 		}
@@ -698,9 +714,21 @@ class Reader extends MY_Controller
 		if (! is_file($script)) {
 			return ['ok' => false, 'json' => null, 'stderr' => 'renderer_script_missing'];
 		}
+		if (! function_exists('proc_open')) {
+			log_message('error', 'PDF renderer unavailable: proc_open is disabled for PHP-FPM.');
+			return ['ok' => false, 'json' => null, 'stderr' => 'proc_open_unavailable'];
+		}
 
-		$python = getenv('PUSTAKA_PYTHON') ?: 'python';
-		$command = escapeshellcmd($python) . ' ' . escapeshellarg($script);
+		$python = getenv('PUSTAKA_PYTHON');
+		if (! $python) {
+			$python = is_executable('/usr/bin/python3') ? '/usr/bin/python3' : '/usr/bin/python';
+		}
+		if (! is_executable($python)) {
+			log_message('error', 'PDF renderer unavailable: Python executable was not found.');
+			return ['ok' => false, 'json' => null, 'stderr' => 'python_executable_missing'];
+		}
+
+		$command = escapeshellarg($python) . ' ' . escapeshellarg($script);
 		foreach ($args as $arg) {
 			$command .= ' ' . escapeshellarg($arg);
 		}
@@ -711,6 +739,7 @@ class Reader extends MY_Controller
 		];
 		$process = proc_open($command, $descriptors, $pipes, FCPATH);
 		if (! is_resource($process)) {
+			log_message('error', 'PDF renderer failed: proc_open did not create a process.');
 			return ['ok' => false, 'json' => null, 'stderr' => 'proc_open_failed'];
 		}
 
@@ -720,9 +749,13 @@ class Reader extends MY_Controller
 		fclose($pipes[2]);
 		$exit_code = proc_close($process);
 		$json = json_decode(trim($stdout), true);
+		$ok = $exit_code === 0 && is_array($json) && ! empty($json['ok']);
+		if (! $ok) {
+			log_message('error', 'PDF renderer failed (exit ' . $exit_code . '): ' . trim($stderr ?: $stdout));
+		}
 
 		return [
-			'ok' => $exit_code === 0 && is_array($json) && ! empty($json['ok']),
+			'ok' => $ok,
 			'json' => is_array($json) ? $json : null,
 			'stderr' => $stderr,
 		];
@@ -731,23 +764,20 @@ class Reader extends MY_Controller
 	private function reader_watermark(array $member, array $session, $page_number)
 	{
 		return trim(implode(' | ', [
-			'Pustaka Digital Rembang',
-			(string) ($member['full_name'] ?? 'Member'),
+			'PDR',
+			mb_substr((string) ($member['full_name'] ?? 'Member'), 0, 36),
 			(string) ($member['member_no'] ?? '-'),
 			'Sesi ' . (int) ($session['id'] ?? 0),
 			'Hal ' . max(1, (int) $page_number),
-			date('Y-m-d H:i:s'),
 		]));
 	}
 
 	private function admin_watermark(array $user, $page_number)
 	{
 		return trim(implode(' | ', [
-			'Pustaka Digital Rembang',
-			'Preview Admin',
+			'PDR Preview',
 			(string) ($user['full_name'] ?? $user['username'] ?? 'Admin'),
 			'Hal ' . max(1, (int) $page_number),
-			date('Y-m-d H:i:s'),
 		]));
 	}
 

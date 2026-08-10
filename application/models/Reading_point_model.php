@@ -197,6 +197,123 @@ class Reading_point_model extends CI_Model
 			->result_array();
 	}
 
+	public function get_member_pending_token_request($member_id)
+	{
+		if (! $this->db->table_exists('reading_token_requests')) {
+			return null;
+		}
+		return $this->db->from('reading_token_requests')
+			->where('member_id', (int) $member_id)
+			->where('status', 'pending')
+			->order_by('id', 'DESC')
+			->limit(1)
+			->get()->row_array();
+	}
+
+	public function create_member_token_request($member_id, $note = null)
+	{
+		if (! $this->db->table_exists('reading_token_requests')) {
+			throw new RuntimeException('Modul permohonan token belum diaktifkan.');
+		}
+		$member = $this->db->select('id, status')->from('members')->where('id', (int) $member_id)->limit(1)->get()->row_array();
+		if (! $member || ($member['status'] ?? '') !== 'active') {
+			throw new RuntimeException('Permohonan token hanya tersedia untuk member aktif.');
+		}
+		if ($this->get_member_pending_token_request((int) $member_id)) {
+			throw new RuntimeException('Anda masih memiliki permohonan token yang menunggu keputusan petugas.');
+		}
+		if ($this->get_member_active_token((int) $member_id)) {
+			throw new RuntimeException('Token aktif masih tersedia. Gunakan token tersebut terlebih dahulu.');
+		}
+
+		$this->db->insert('reading_token_requests', [
+			'member_id' => (int) $member_id,
+			'requested_quota' => 3,
+			'quota_unit' => 'books',
+			'request_note' => $this->blank_to_null(substr(trim((string) $note), 0, 500)),
+			'status' => 'pending',
+		]);
+		return (int) $this->db->insert_id();
+	}
+
+	public function get_pending_token_requests($limit = 20)
+	{
+		if (! $this->db->table_exists('reading_token_requests')) {
+			return [];
+		}
+		return $this->db
+			->select('r.*, m.full_name, m.member_no, m.status AS member_status')
+			->from('reading_token_requests r')
+			->join('members m', 'm.id = r.member_id', 'left')
+			->where('r.status', 'pending')
+			->order_by('r.requested_at', 'ASC')
+			->limit(max(1, min(100, (int) $limit)))
+			->get()->result_array();
+	}
+
+	public function approve_token_request($request_id, $reviewer_id = null, $review_note = null)
+	{
+		if (! $this->db->table_exists('reading_token_requests')) {
+			throw new RuntimeException('Modul permohonan token belum diaktifkan.');
+		}
+		$this->db->trans_begin();
+		try {
+			$request = $this->db->query('SELECT * FROM reading_token_requests WHERE id = ? FOR UPDATE', [(int) $request_id])->row_array();
+			if (! $request || $request['status'] !== 'pending') {
+				throw new RuntimeException('Permohonan token tidak lagi menunggu keputusan.');
+			}
+			$member = $this->db->select('id, status')->from('members')->where('id', (int) $request['member_id'])->limit(1)->get()->row_array();
+			if (! $member || ($member['status'] ?? '') !== 'active') {
+				throw new RuntimeException('Member tidak aktif; permohonan tidak dapat disetujui.');
+			}
+
+			$this->db->insert('reading_tokens', [
+				'member_id' => (int) $request['member_id'],
+				'reading_point_id' => null,
+				'token' => 'REQ-' . $this->new_token(),
+				'quota_total' => max(1, (int) $request['requested_quota']),
+				'quota_used' => 0,
+				'quota_unit' => 'books',
+				'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
+				'status' => 'active',
+				'issued_by' => (int) $reviewer_id ?: null,
+			]);
+			$token_id = (int) $this->db->insert_id();
+			$this->db->where('id', (int) $request_id)->update('reading_token_requests', [
+				'status' => 'approved',
+				'reviewed_at' => date('Y-m-d H:i:s'),
+				'reviewed_by' => (int) $reviewer_id ?: null,
+				'review_note' => $this->blank_to_null(substr(trim((string) $review_note), 0, 500)),
+				'reading_token_id' => $token_id,
+			]);
+			if ($this->db->trans_status() === false) {
+				throw new RuntimeException('Gagal menerbitkan token.');
+			}
+			$this->db->trans_commit();
+			return $token_id;
+		} catch (Throwable $e) {
+			$this->db->trans_rollback();
+			throw $e;
+		}
+	}
+
+	public function reject_token_request($request_id, $reviewer_id = null, $review_note = null)
+	{
+		if (! $this->db->table_exists('reading_token_requests')) {
+			throw new RuntimeException('Modul permohonan token belum diaktifkan.');
+		}
+		$updated = $this->db->where('id', (int) $request_id)->where('status', 'pending')->update('reading_token_requests', [
+			'status' => 'rejected',
+			'reviewed_at' => date('Y-m-d H:i:s'),
+			'reviewed_by' => (int) $reviewer_id ?: null,
+			'review_note' => $this->blank_to_null(substr(trim((string) $review_note), 0, 500)),
+		]);
+		if (! $updated || $this->db->affected_rows() < 1) {
+			throw new RuntimeException('Permohonan token tidak lagi menunggu keputusan.');
+		}
+		return true;
+	}
+
 	public function issue_member_checkin_token($member_id, $latitude, $longitude)
 	{
 		$lat = $this->decimal_or_null($latitude);
@@ -205,16 +322,19 @@ class Reading_point_model extends CI_Model
 			throw new RuntimeException('Lokasi GPS belum terbaca.');
 		}
 
-		$point = $this->nearest_point_within_radius((float) $lat, (float) $lng);
-		if (! $point) {
-			throw new RuntimeException('Lokasi Anda belum berada dalam radius Pojok Baca aktif.');
+		$location = $this->free_access_location($lat, $lng);
+		if (($location['origin'] ?? 'external') === 'external') {
+			throw new RuntimeException('Lokasi Anda belum berada dalam radius Pojok Baca atau perpustakaan terdaftar.');
 		}
+		$point = ! empty($location['reading_point_id']) ? $this->get_point((int) $location['reading_point_id']) : null;
+		$quota_total = $point ? (int) $point['daily_quota'] : 5;
+		$point_label = $point['name'] ?? ($location['label'] ?? 'Perpustakaan terdaftar');
 
 		$existing = $this->get_member_active_token((int) $member_id);
-		if ($existing && (int) ($existing['reading_point_id'] ?? 0) === (int) $point['id']) {
+		if ($existing) {
 			return [
 				'token' => $existing,
-				'point' => $point,
+				'point' => $point ?: ['name' => $point_label, 'library_id' => $location['library_id'] ?? null],
 				'is_new' => false,
 			];
 		}
@@ -222,25 +342,25 @@ class Reading_point_model extends CI_Model
 		$expires_at = date('Y-m-d 23:59:59');
 		$payload = [
 			'member_id' => (int) $member_id,
-			'reading_point_id' => (int) $point['id'],
+			'reading_point_id' => $point ? (int) $point['id'] : null,
 			'token' => $this->new_token(),
-			'quota_total' => (int) $point['daily_quota'],
+			'quota_total' => max(0, $quota_total),
 			'quota_used' => 0,
-			'quota_unit' => $point['quota_unit'],
+			'quota_unit' => 'books',
 			'expires_at' => $expires_at,
 			'status' => 'active',
 		];
 
 		$this->db->insert('reading_tokens', $payload);
 		$payload['id'] = (int) $this->db->insert_id();
-		$payload['point_name'] = $point['name'];
+		$payload['point_name'] = $point_label;
 		$member = $this->db
 			->from('members')
 			->where('id', (int) $member_id)
 			->limit(1)
 			->get()
 			->row_array();
-		if ($member) {
+		if ($member && $point) {
 			$this->load->model('Visit_model');
 			$this->Visit_model->record_reading_point_checkin($payload, $point, $member, [
 				'latitude' => $lat,
@@ -250,7 +370,7 @@ class Reading_point_model extends CI_Model
 
 		return [
 			'token' => $payload,
-			'point' => $point,
+			'point' => $point ?: ['name' => $point_label, 'library_id' => $location['library_id'] ?? null],
 			'is_new' => true,
 		];
 	}
@@ -480,7 +600,7 @@ class Reading_point_model extends CI_Model
 		}
 
 		$status = in_array(($data['status'] ?? ''), ['draft', 'active', 'inactive'], true) ? $data['status'] : 'draft';
-		$quota_unit = in_array(($data['quota_unit'] ?? ''), ['minutes', 'pages', 'books'], true) ? $data['quota_unit'] : 'minutes';
+		$quota_unit = in_array(($data['quota_unit'] ?? ''), ['minutes', 'pages', 'books'], true) ? $data['quota_unit'] : 'books';
 
 		return [
 			'library_id' => ! empty($data['library_id']) ? (int) $data['library_id'] : null,

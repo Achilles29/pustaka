@@ -138,6 +138,7 @@ class Reading_points extends MY_Controller
 				'per_page' => $per_page,
 				'offset' => $offset,
 			],
+			'pending_requests' => $this->Reading_point_model->get_pending_token_requests(20),
 		]);
 	}
 
@@ -156,6 +157,32 @@ class Reading_points extends MY_Controller
 			'reason' => $this->input->post('reason', true),
 		]);
 		$this->session->set_flashdata('success', 'Token baca berhasil dicabut.');
+		redirect('reading-points/tokens');
+	}
+
+	public function approve_token_request($id)
+	{
+		$this->require_permission('reading_tokens.index', 'approve');
+		try {
+			$token_id = $this->Reading_point_model->approve_token_request((int) $id, (int) ($this->current_user['id'] ?? 0), $this->input->post('review_note', true));
+			$this->audit_event('reading_tokens.request_approve', 'reading_token_requests', (int) $id, null, ['reading_token_id' => $token_id]);
+			$this->session->set_flashdata('success', 'Permohonan disetujui dan token baca diterbitkan.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('reading-points/tokens');
+	}
+
+	public function reject_token_request($id)
+	{
+		$this->require_permission('reading_tokens.index', 'approve');
+		try {
+			$this->Reading_point_model->reject_token_request((int) $id, (int) ($this->current_user['id'] ?? 0), $this->input->post('review_note', true));
+			$this->audit_event('reading_tokens.request_reject', 'reading_token_requests', (int) $id, null, []);
+			$this->session->set_flashdata('success', 'Permohonan token ditolak.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
 		redirect('reading-points/tokens');
 	}
 

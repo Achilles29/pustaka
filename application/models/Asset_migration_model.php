@@ -67,7 +67,7 @@ class Asset_migration_model extends CI_Model
 	{
 		$asset_type = in_array($asset_type, ['all', 'cover', 'member_photo', 'digital_file'], true) ? $asset_type : 'cover';
 		$mode = in_array($mode, ['copy_missing', 'refresh_existing', 'dry_run'], true) ? $mode : 'copy_missing';
-		$limit = max(1, min(5000, (int) $limit));
+		$limit = max(1, min(50000, (int) $limit));
 
 		$this->ensure_target_dirs();
 
@@ -132,11 +132,11 @@ class Asset_migration_model extends CI_Model
 		$stats = ['source' => 0, 'copied' => 0, 'skipped' => 0, 'missing' => 0, 'failed' => 0];
 		$condition = $mode === 'refresh_existing'
 			? "b.cover_path IS NOT NULL AND b.cover_path <> ''"
-			: "b.cover_path IS NOT NULL AND b.cover_path <> '' AND b.cover_migration_status IN ('pending','failed')";
+			: "b.cover_path IS NOT NULL AND b.cover_path <> '' AND b.cover_migration_status IN ('pending','missing','failed')";
 
 		$rows = $this->db
 			->query(
-				"SELECT b.id, b.source_id, b.cover_path
+					"SELECT b.id, b.source_id, b.cover_path, b.cover_source_path, b.cover_local_path
 				FROM books b
 				WHERE " . $condition . "
 				ORDER BY b.id ASC
@@ -160,7 +160,7 @@ class Asset_migration_model extends CI_Model
 		$stats = ['source' => 0, 'copied' => 0, 'skipped' => 0, 'missing' => 0, 'failed' => 0];
 		$condition = $mode === 'refresh_existing'
 			? "photo_path IS NOT NULL AND photo_path <> ''"
-			: "photo_path IS NOT NULL AND photo_path <> '' AND photo_migration_status IN ('pending','failed')";
+			: "photo_path IS NOT NULL AND photo_path <> '' AND photo_migration_status IN ('pending','missing','failed')";
 
 		$rows = $this->db
 			->from('members')
@@ -222,19 +222,34 @@ class Asset_migration_model extends CI_Model
 	private function copy_cover(array $row, $overwrite = false)
 	{
 		$filename = $this->safe_basename($row['cover_path'] ?? '');
-		$worksheet = trim((string) ($row['worksheet_name'] ?? ''));
-		$worksheet = $worksheet !== '' ? $worksheet : 'Monograf';
-		$source = $this->source_root('sampul_koleksi' . DIRECTORY_SEPARATOR . 'original' . DIRECTORY_SEPARATOR . $worksheet . DIRECTORY_SEPARATOR . $filename);
+		$worksheet = 'Monograf';
+		$original_root = $this->source_root('sampul_koleksi' . DIRECTORY_SEPARATOR . 'original');
+		$source = $this->resolve_source_reference($row['cover_source_path'] ?? '');
 
-		if (! is_file($source)) {
-			$found = $this->find_file_in_direct_subdirs($this->source_root('sampul_koleksi' . DIRECTORY_SEPARATOR . 'original'), $filename);
+		if (! $source) {
+			$direct = $original_root . DIRECTORY_SEPARATOR . $filename;
+			$found = is_file($direct) ? $direct : $this->find_file_in_direct_subdirs($original_root, $filename);
 			if ($found) {
 				$source = $found;
-				$worksheet = basename(dirname($found));
+				$parent = basename(dirname($found));
+				$worksheet = $parent === 'original' ? 'umum' : $parent;
 			}
 		}
+		if (! $source && preg_match('/(\.(?:jpe?g|png|gif))\1$/i', $filename)) {
+			$normalized = preg_replace('/(\.(?:jpe?g|png|gif))\1$/i', '$1', $filename);
+			$direct = $original_root . DIRECTORY_SEPARATOR . $normalized;
+			$found = is_file($direct) ? $direct : $this->find_file_in_direct_subdirs($original_root, $normalized);
+			if ($found) {
+				$source = $found;
+				$filename = $normalized;
+				$parent = basename(dirname($found));
+				$worksheet = $parent === 'original' ? 'umum' : $parent;
+			}
+		}
+		$source = $source ?: $original_root . DIRECTORY_SEPARATOR . $worksheet . DIRECTORY_SEPARATOR . $filename;
 
-		$target = 'assets/uploads/inlislite/covers/' . $this->slug($worksheet) . '/' . $this->source_prefix($row['source_id'] ?? $row['id']) . '_' . $this->sanitize_filename($filename);
+		$target = $this->valid_existing_target($row['cover_local_path'] ?? '')
+			?: 'assets/uploads/inlislite/covers/' . $this->slug($worksheet) . '/' . $this->source_prefix($row['source_id'] ?? $row['id']) . '_' . $this->sanitize_filename($filename);
 		$result = $this->copy_file($source, $target, $overwrite);
 		$result['source_path'] = $this->source_relative_path($source);
 
@@ -244,13 +259,15 @@ class Asset_migration_model extends CI_Model
 	private function copy_member_photo(array $row, $overwrite = false)
 	{
 		$filename = $this->safe_basename($row['photo_path'] ?? '');
-		$source = $this->source_root('foto_anggota' . DIRECTORY_SEPARATOR . $filename);
+		$source = $this->resolve_source_reference($row['photo_source_path'] ?? '');
+		$source = $source ?: $this->source_root('foto_anggota' . DIRECTORY_SEPARATOR . $filename);
 
 		if (! is_file($source)) {
 			$source = $this->find_member_photo_fallback((string) ($row['source_id'] ?? ''), $filename) ?: $source;
 		}
 
-		$target = 'assets/uploads/inlislite/member_photos/' . $this->source_prefix($row['source_id'] ?? $row['id']) . '_' . $this->sanitize_filename($filename);
+		$target = $this->valid_existing_target($row['photo_local_path'] ?? '')
+			?: 'assets/uploads/inlislite/member_photos/' . $this->source_prefix($row['source_id'] ?? $row['id']) . '_' . $this->sanitize_filename($filename);
 		$result = $this->copy_file($source, $target, $overwrite);
 		$result['source_path'] = $this->source_relative_path($source);
 
@@ -301,6 +318,7 @@ class Asset_migration_model extends CI_Model
 				'error_message' => 'Gagal menyalin file.',
 			];
 		}
+		@chmod($target_abs, 0664);
 
 		return [
 			'status' => 'copied',
@@ -317,7 +335,7 @@ class Asset_migration_model extends CI_Model
 		$this->db
 			->where('id', (int) $book_id)
 			->update('books', [
-				'cover_source_path' => $result['source_path'],
+				'cover_source_path' => $status === 'copied' ? $result['source_path'] : null,
 				'cover_local_path' => $status === 'copied' ? $result['local_path'] : null,
 				'cover_migration_status' => $status,
 				'cover_migrated_at' => date('Y-m-d H:i:s'),
@@ -330,7 +348,7 @@ class Asset_migration_model extends CI_Model
 		$this->db
 			->where('id', (int) $member_id)
 			->update('members', [
-				'photo_source_path' => $result['source_path'],
+				'photo_source_path' => $status === 'copied' ? $result['source_path'] : null,
 				'photo_local_path' => $status === 'copied' ? $result['local_path'] : null,
 				'photo_migration_status' => $status,
 				'photo_migrated_at' => date('Y-m-d H:i:s'),
@@ -448,12 +466,12 @@ class Asset_migration_model extends CI_Model
 			if ($type === 'cover') {
 				$condition = $mode === 'refresh_existing'
 					? "cover_path IS NOT NULL AND cover_path <> ''"
-					: "cover_path IS NOT NULL AND cover_path <> '' AND cover_migration_status IN ('pending','failed')";
+					: "cover_path IS NOT NULL AND cover_path <> '' AND cover_migration_status IN ('pending','missing','failed')";
 				$total += (int) $this->db->from('books')->where($condition, null, false)->count_all_results();
 			} elseif ($type === 'member_photo') {
 				$condition = $mode === 'refresh_existing'
 					? "photo_path IS NOT NULL AND photo_path <> ''"
-					: "photo_path IS NOT NULL AND photo_path <> '' AND photo_migration_status IN ('pending','failed')";
+					: "photo_path IS NOT NULL AND photo_path <> '' AND photo_migration_status IN ('pending','missing','failed')";
 				$total += (int) $this->db->from('members')->where($condition, null, false)->count_all_results();
 			} else {
 				$total += $this->count_unmigrated_digital_files($mode);
@@ -623,6 +641,41 @@ class Asset_migration_model extends CI_Model
 		}
 
 		return null;
+	}
+
+	private function resolve_source_reference($reference)
+	{
+		$reference = str_replace('\\', '/', trim((string) $reference));
+		if ($reference === '') {
+			return null;
+		}
+
+		$root = rtrim(str_replace('\\', '/', $this->source_root()), '/');
+		if (strpos($reference, $root . '/') === 0) {
+			$candidate = $reference;
+		} else {
+			$reference = ltrim($reference, '/');
+			if (strpos($reference, 'uploaded_files/') === 0) {
+				$reference = substr($reference, strlen('uploaded_files/'));
+			}
+			if ($reference === '' || in_array('..', explode('/', $reference), true)) {
+				return null;
+			}
+			$candidate = $root . '/' . $reference;
+		}
+
+		$real = realpath($candidate);
+		return $real && strpos(str_replace('\\', '/', $real), $root . '/') === 0 && is_file($real) ? $real : null;
+	}
+
+	private function valid_existing_target($target)
+	{
+		$target = str_replace('\\', '/', ltrim(trim((string) $target), '/'));
+		if (strpos($target, 'assets/uploads/inlislite/') !== 0 || in_array('..', explode('/', $target), true)) {
+			return null;
+		}
+
+		return $target;
 	}
 
 	private function safe_basename($filename)

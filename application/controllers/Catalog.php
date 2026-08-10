@@ -18,6 +18,13 @@ class Catalog extends MY_Controller
 			'status' => $this->input->get('status', true),
 			'content_category_id' => $this->input->get('content_category_id', true),
 			'content_classification_id' => $this->input->get('content_classification_id', true),
+			'source_system' => $this->input->get('source_system', true),
+			'collection_type' => $this->input->get('collection_type', true),
+			'category' => $this->input->get('category', true),
+			'media' => $this->input->get('media', true),
+			'rule' => $this->input->get('rule', true),
+			'location_library' => $this->input->get('location_library', true),
+			'availability' => $this->input->get('availability', true),
 			'publish_year' => $this->input->get('publish_year', true),
 		];
 		$per_page = (int) $this->input->get('per_page', true);
@@ -45,12 +52,20 @@ class Catalog extends MY_Controller
 				'status' => $filters['status'],
 				'content_category_id' => $filters['content_category_id'],
 				'content_classification_id' => $filters['content_classification_id'],
+				'source_system' => $filters['source_system'],
+				'collection_type' => $filters['collection_type'],
+				'category' => $filters['category'],
+				'media' => $filters['media'],
+				'rule' => $filters['rule'],
+				'location_library' => $filters['location_library'],
+				'availability' => $filters['availability'],
 				'publish_year' => $filters['publish_year'],
 				'per_page' => $per_page,
 				'page' => $page,
 			],
 			'content_categories' => $this->Catalog_model->get_content_categories(true),
 			'classification_masters' => $this->Catalog_model->get_classification_masters(true),
+			'filter_options' => $this->Catalog_model->admin_filter_options($this->current_library_scope_id()),
 			'pagination' => [
 				'total_rows' => $total_rows,
 				'total_pages' => $total_pages,
@@ -78,6 +93,7 @@ class Catalog extends MY_Controller
 			'subjects' => $this->Catalog_model->get_book_subjects((int) $id),
 			'items' => $this->Catalog_model->get_book_items((int) $id, 50, $this->current_library_scope_id()),
 			'digital_assets' => $this->Catalog_model->get_book_digital_assets((int) $id),
+			'collection_types' => $this->Catalog_model->get_collection_types(true),
 			'reference_options' => $this->book_item_reference_options(),
 			'can_create_item' => $this->can('catalog.index', 'create'),
 			'can_edit_item' => $this->can('catalog.index', 'edit'),
@@ -97,6 +113,7 @@ class Catalog extends MY_Controller
 			'subjects' => [],
 			'content_categories' => $this->Catalog_model->get_content_categories(true),
 			'classification_masters' => $this->Catalog_model->get_classification_masters(true),
+			'collection_types' => $this->Catalog_model->get_collection_types(true),
 		]);
 	}
 
@@ -133,6 +150,7 @@ class Catalog extends MY_Controller
 			'subjects' => $this->Catalog_model->get_book_subjects((int) $id),
 			'content_categories' => $this->Catalog_model->get_content_categories(true),
 			'classification_masters' => $this->Catalog_model->get_classification_masters(true),
+			'collection_types' => $this->Catalog_model->get_collection_types(true),
 		]);
 	}
 
@@ -191,12 +209,15 @@ class Catalog extends MY_Controller
 		$page = min($page, $total_pages);
 		$offset = ($page - 1) * $per_page;
 		$edit_id = (int) $this->input->get('edit_id', true);
+		$edit_highlight = $edit_id > 0 ? $this->Catalog_model->get_highlight($edit_id) : null;
 
 		$this->render('catalog/highlights', [
 			'title' => 'Highlight Katalog',
 			'highlights' => $this->Catalog_model->get_highlights($filters, $per_page, $offset),
-			'edit_highlight' => $edit_id > 0 ? $this->Catalog_model->get_highlight($edit_id) : null,
-			'book_options' => $this->Catalog_model->get_highlight_book_options(700),
+			'edit_highlight' => $edit_highlight,
+			'selected_book' => $edit_highlight
+				? $this->Catalog_model->get_highlight_book((int) ($edit_highlight['book_id'] ?? 0))
+				: null,
 			'content_categories' => $this->Catalog_model->get_content_categories(true),
 			'filters' => [
 				'q' => $filters['q'],
@@ -217,6 +238,22 @@ class Catalog extends MY_Controller
 			'can_edit_highlight' => $this->can('catalog.highlights', 'edit'),
 			'can_delete_highlight' => $this->can('catalog.highlights', 'delete'),
 		]);
+	}
+
+	public function highlight_book_search()
+	{
+		$this->require_permission('catalog.highlights', 'view');
+
+		$kind = (string) $this->input->get('kind', true);
+		$books = $this->Catalog_model->search_highlight_books(
+			$this->input->get('q', true),
+			in_array($kind, ['digital', 'non_digital'], true) ? $kind : 'all',
+			12
+		);
+
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode(['items' => $books], JSON_UNESCAPED_UNICODE));
 	}
 
 	public function store_highlight()
@@ -423,6 +460,7 @@ class Catalog extends MY_Controller
 			'classification' => $this->input->post('classification', true),
 			'content_category_id' => $this->input->post('content_category_id', true),
 			'content_classification_id' => $this->input->post('content_classification_id', true),
+			'collection_type' => $this->input->post('collection_type', true),
 			'call_number' => $this->input->post('call_number', true),
 			'language' => $this->input->post('language', true),
 			'physical_description' => $this->input->post('physical_description', true),
@@ -439,6 +477,7 @@ class Catalog extends MY_Controller
 			'item_code' => $this->input->post('item_code', true),
 			'inventory_number' => $this->input->post('inventory_number', true),
 			'call_number' => $this->input->post('call_number', true),
+			'collection_type' => $this->input->post('collection_type', true),
 			'source_location_library_id' => $this->input->post('source_location_library_id', true),
 			'source_location_id' => $this->input->post('source_location_id', true),
 			'source_rule_id' => $this->input->post('source_rule_id', true),

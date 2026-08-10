@@ -15,7 +15,7 @@ $cover_url = function ($book) use ($url_path) {
 	if (! empty($book['cover_source_path'])) {
 		return base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
 	}
-	return '';
+	return base_url('assets/img/book-cover-default.webp');
 };
 $auth_user = (array) $this->session->userdata('auth_user');
 $role_codes = array_map(function ($role) {

@@ -43,14 +43,14 @@
     </div>
     <div class="col-md-4 mb-3">
         <label class="form-label required">Kuota Token</label>
-        <input type="number" class="form-control" name="quota_amount" value="30" min="1" required>
+		<input type="number" class="form-control" name="quota_amount" value="5" min="1" required>
     </div>
     <div class="col-md-4 mb-3">
         <label class="form-label required">Satuan Kuota</label>
         <select class="form-select" name="quota_unit">
-            <option value="minutes">Menit</option>
-            <option value="pages">Halaman</option>
-            <option value="books">Buku</option>
+			<option value="books">Sesi baca</option>
+			<option value="minutes">Menit (legacy)</option>
+			<option value="pages">Halaman (legacy)</option>
         </select>
     </div>
 </div>

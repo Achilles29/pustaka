@@ -1,13 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-$policy_labels = [
-	'online_only' => 'Online saja',
-	'download_allowed' => 'Boleh download',
-	'location_only' => 'Kunci GPS',
-	'member_only' => 'Member saja',
-	'internal' => 'Internal',
-];
+$delivery_labels = ['render_locked' => 'PDF render aman', 'download_allowed' => 'PDF dapat diunduh'];
 $page_info_url = (string) ($page_info_url ?? '');
 $page_url_base = (string) ($page_url_base ?? '');
 ?>
@@ -37,7 +31,7 @@ $page_url_base = (string) ($page_url_base ?? '');
 					<p><?= html_escape($asset['statement_responsibility'] ?: 'Penanggung jawab belum tercatat'); ?></p>
 				</div>
 				<div class="secure-reader-badges">
-					<span class="badge bg-blue-lt"><?= html_escape($policy_labels[$asset['access_policy']] ?? $asset['access_policy']); ?></span>
+					<span class="badge bg-blue-lt"><?= html_escape($delivery_labels[$asset['pdf_delivery'] ?? 'render_locked'] ?? 'PDF render aman'); ?></span>
 					<span class="badge <?= (int) $asset['is_downloadable'] === 1 ? 'bg-green-lt' : 'bg-red-lt'; ?>"><?= (int) $asset['is_downloadable'] === 1 ? 'Download boleh' : 'Download dikunci'; ?></span>
 				</div>
 			</div>

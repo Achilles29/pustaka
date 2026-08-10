@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS `reading_token_requests` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `member_id` bigint(20) unsigned NOT NULL,
+  `requested_quota` int(10) unsigned NOT NULL DEFAULT 3,
+  `quota_unit` enum('minutes','pages','books') NOT NULL DEFAULT 'books',
+  `request_note` varchar(500) DEFAULT NULL,
+  `status` enum('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
+  `requested_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `reviewed_at` datetime DEFAULT NULL,
+  `reviewed_by` bigint(20) unsigned DEFAULT NULL,
+  `review_note` varchar(500) DEFAULT NULL,
+  `reading_token_id` bigint(20) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_token_request_member` (`member_id`, `status`, `requested_at`),
+  KEY `idx_token_request_status` (`status`, `requested_at`),
+  KEY `idx_token_request_reviewer` (`reviewed_by`),
+  KEY `idx_token_request_token` (`reading_token_id`),
+  CONSTRAINT `fk_token_request_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_token_request_reviewer` FOREIGN KEY (`reviewed_by`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_token_request_token` FOREIGN KEY (`reading_token_id`) REFERENCES `reading_tokens` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

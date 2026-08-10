@@ -1,5 +1,5 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
-$unit_labels = ['minutes' => 'menit', 'pages' => 'halaman', 'books' => 'buku'];
+$unit_labels = ['minutes' => 'menit (legacy)', 'pages' => 'halaman (legacy)', 'books' => 'sesi baca'];
 $status_map  = ['active'=>'bg-success-lt text-success','used'=>'bg-blue-lt text-blue','expired'=>'bg-secondary-lt text-secondary','revoked'=>'bg-red-lt text-red'];
 $page_url = function($p) { return base_url('learn-rewards/redemptions?page=' . $p); };
 ?>

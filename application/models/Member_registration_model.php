@@ -3,7 +3,13 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Member_registration_model extends CI_Model
 {
-	const REMBANG_NIK_PREFIX = '3317';
+	const MAX_UPLOAD_BYTES = 2097152;
+
+	public function __construct()
+	{
+		parent::__construct();
+		$this->load->model('Region_model');
+	}
 
 	public function stats()
 	{
@@ -76,8 +82,18 @@ class Member_registration_model extends CI_Model
 			throw new RuntimeException('NIK/nomor identitas wajib diisi dengan benar.');
 		}
 
-		$is_rembang = strpos($identity_number, self::REMBANG_NIK_PREFIX) === 0;
-		$paths = $this->upload_required_files($files, $is_rembang);
+		$identity_document_type = (string) ($data['identity_document_type'] ?? '');
+		if (! in_array($identity_document_type, ['ktp', 'kk'], true)) {
+			throw new RuntimeException('Pilih salah satu dokumen identitas: KTP atau Kartu Keluarga.');
+		}
+		$identity_domicile = (string) ($data['identity_domicile'] ?? '');
+		if (! in_array($identity_domicile, ['rembang', 'outside_rembang'], true)) {
+			throw new RuntimeException('Pilih status domisili pada dokumen identitas.');
+		}
+
+		$is_rembang = $identity_domicile === 'rembang';
+		$location = $this->resolve_location($data, $is_rembang);
+		$paths = $this->upload_required_files($files, $identity_document_type, $is_rembang);
 
 		$payload = [
 			'registration_code' => $this->next_registration_code(),
@@ -88,15 +104,15 @@ class Member_registration_model extends CI_Model
 			'birth_date' => $this->blank_to_null($data['birth_date'] ?? null),
 			'gender' => $this->blank_to_null($data['gender'] ?? null),
 			'address' => $this->blank_to_null($data['address'] ?? null),
-			'district' => $this->blank_to_null($data['district'] ?? null),
-			'village' => $this->blank_to_null($data['village'] ?? null),
+			'district' => $location['district'],
+			'village' => $location['village'],
 			'phone' => $this->clip($data['phone'] ?? null, 80),
 			'email' => $this->clip($data['email'] ?? null, 180),
 			'member_type' => $this->clip($data['member_type'] ?? 'Umum', 80),
 			'education' => $this->blank_to_null($data['education'] ?? null),
 			'occupation' => $this->blank_to_null($data['occupation'] ?? null),
 			'is_rembang_resident' => $is_rembang ? 1 : 0,
-			'residency_note' => $this->blank_to_null($data['residency_note'] ?? null),
+			'residency_note' => $is_rembang ? null : $this->blank_to_null($data['residency_note'] ?? null),
 			'photo_path' => $paths['photo'],
 			'ktp_path' => $paths['ktp'],
 			'kk_path' => $paths['kk'],
@@ -109,6 +125,35 @@ class Member_registration_model extends CI_Model
 			'id' => (int) $this->db->insert_id(),
 			'code' => $payload['registration_code'],
 			'token' => $payload['public_token'],
+		];
+	}
+
+	private function resolve_location(array $data, $is_rembang)
+	{
+		if (! $is_rembang) {
+			$district = $this->blank_to_null($data['district'] ?? null);
+			$village = $this->blank_to_null($data['village'] ?? null);
+			if ($district === null || $village === null) {
+				throw new RuntimeException('Kecamatan/kota dan desa/kelurahan wajib diisi untuk domisili luar Rembang.');
+			}
+
+			return [
+				'district' => $this->clip($district, 120),
+				'village' => $this->clip($village, 120),
+			];
+		}
+
+		$district_id = (int) ($data['district_id'] ?? 0);
+		$village_id = (int) ($data['village_id'] ?? 0);
+		$district = $district_id > 0 ? $this->Region_model->get_district($district_id) : null;
+		$village = $village_id > 0 ? $this->Region_model->get_village($village_id) : null;
+		if (! $district || ! $village || (int) $district['is_active'] !== 1 || (int) $village['is_active'] !== 1 || (int) $village['district_id'] !== $district_id) {
+			throw new RuntimeException('Pilih kecamatan dan desa/kelurahan Rembang yang valid.');
+		}
+
+		return [
+			'district' => $this->clip($district['name'], 120),
+			'village' => $this->clip($village['name'], 120),
 		];
 	}
 
@@ -147,36 +192,41 @@ class Member_registration_model extends CI_Model
 		return $member_id;
 	}
 
-	private function upload_required_files(array $files, $is_rembang)
+	private function upload_required_files(array $files, $identity_document_type, $is_rembang)
 	{
 		$paths = [
-			'photo' => $this->store_file($files, 'photo_file', true),
-			'ktp' => $this->store_file($files, 'ktp_file', true),
-			'kk' => $this->store_file($files, 'kk_file', true),
-			'support_letter' => $this->store_file($files, 'support_letter_file', ! $is_rembang),
+			'photo' => $this->store_file($files, 'photo_file', true, 'foto diri', ['jpg', 'jpeg', 'png']),
+			'ktp' => $identity_document_type === 'ktp' ? $this->store_file($files, 'ktp_file', true, 'KTP') : null,
+			'kk' => $identity_document_type === 'kk' ? $this->store_file($files, 'kk_file', true, 'Kartu Keluarga') : null,
+			// Surat pendukung hanya relevan untuk identitas luar Rembang dan tetap opsional.
+			'support_letter' => $is_rembang ? null : $this->store_file($files, 'support_letter_file', false, 'surat keterangan luar Rembang'),
 		];
 
 		return $paths;
 	}
 
-	private function store_file(array $files, $field, $required)
+	private function store_file(array $files, $field, $required, $label = '', array $allowed_extensions = ['jpg', 'jpeg', 'png', 'pdf'])
 	{
+		$label = $label ?: str_replace('_file', '', $field);
 		if (empty($files[$field]['name'])) {
 			if ($required) {
-				throw new RuntimeException('Berkas ' . str_replace('_file', '', $field) . ' wajib diunggah.');
+				throw new RuntimeException('Berkas ' . $label . ' wajib diunggah.');
 			}
 			return null;
 		}
 		if (! empty($files[$field]['error']) && (int) $files[$field]['error'] !== UPLOAD_ERR_OK) {
-			throw new RuntimeException('Upload berkas gagal: ' . $field);
+			throw new RuntimeException('Upload berkas ' . $label . ' gagal. Ukuran maksimum setiap berkas adalah 2 MB.');
+		}
+		if (empty($files[$field]['tmp_name']) || ! is_uploaded_file($files[$field]['tmp_name'])) {
+			throw new RuntimeException('Berkas ' . $label . ' tidak valid.');
 		}
 
 		$extension = strtolower(pathinfo($files[$field]['name'], PATHINFO_EXTENSION));
-		if (! in_array($extension, ['jpg', 'jpeg', 'png', 'pdf'], true)) {
-			throw new RuntimeException('Berkas hanya boleh JPG, PNG, atau PDF.');
+		if (! in_array($extension, $allowed_extensions, true)) {
+			throw new RuntimeException('Format berkas ' . $label . ' tidak sesuai.');
 		}
-		if ((int) $files[$field]['size'] > 4 * 1024 * 1024) {
-			throw new RuntimeException('Ukuran berkas maksimal 4 MB.');
+		if ((int) $files[$field]['size'] > self::MAX_UPLOAD_BYTES) {
+			throw new RuntimeException('Ukuran setiap berkas maksimal 2 MB.');
 		}
 
 		$relative_dir = 'assets/uploads/member_registrations/' . date('Y/m');

@@ -31,15 +31,22 @@ $asset_url = function ($book) {
 		return base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
 	}
 
-	return '';
+	return base_url('assets/img/book-cover-default.webp');
 };
+$filter_options = $filter_options ?? ['sources' => [], 'collection_types' => [], 'categories' => [], 'medias' => [], 'rules' => [], 'locations' => []];
+$source_labels = [
+	'inlislite_v3' => 'INLISLite',
+	'buku_kemendikdasmen_2026' => 'Buku Digital Kemendikdasmen',
+	'sample_free_pdf' => 'Sampel PDF Bebas',
+	'manual' => 'Input Manual',
+];
 ?>
 <div class="page-header d-print-none">
 	<div class="container-xl">
 		<div class="row g-2 align-items-center">
 			<div class="col">
 				<div class="page-pretitle">Fase 2</div>
-				<h1 class="page-title">Katalog Buku</h1>
+				<h1 class="page-title">Katalog Koleksi</h1>
 			</div>
 			<div class="col-auto ms-auto">
 				<div class="btn-list">
@@ -47,7 +54,7 @@ $asset_url = function ($book) {
 						<i class="ti ti-plus me-1"></i>Tambah
 					</a>
 					<a href="<?= base_url('catalog/masters'); ?>" class="btn btn-outline-primary">
-						<i class="ti ti-category me-1"></i>Master Buku
+						<i class="ti ti-category me-1"></i>Master Katalog
 					</a>
 					<a href="<?= base_url('catalog/highlights'); ?>" class="btn btn-outline-primary">
 						<i class="ti ti-sparkles me-1"></i>Highlight
@@ -123,6 +130,69 @@ $asset_url = function ($book) {
 									<?php endforeach; ?>
 								</select>
 							</div>
+							<div class="col-md-3">
+								<label class="form-label">Sumber Data</label>
+								<select class="form-select" name="source_system">
+									<option value="">Semua</option>
+									<?php foreach ($filter_options['sources'] as $source): ?>
+										<option value="<?= html_escape($source['name']); ?>" <?= ($filters['source_system'] ?? '') === $source['name'] ? 'selected' : ''; ?>><?= html_escape($source_labels[$source['name']] ?? $source['name']); ?> (<?= number_format((int) $source['total'], 0, ',', '.'); ?>)</option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<label class="form-label">Jenis Koleksi</label>
+								<select class="form-select" name="collection_type">
+									<option value="">Semua</option>
+									<?php foreach (($filter_options['collection_types'] ?? []) as $type): ?>
+										<option value="<?= html_escape($type['name']); ?>" <?= ($filters['collection_type'] ?? '') === $type['name'] ? 'selected' : ''; ?>><?= html_escape($type['name']); ?> (<?= number_format((int) $type['total'], 0, ',', '.'); ?>)</option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<label class="form-label">Kategori Sumber</label>
+								<select class="form-select" name="category">
+									<option value="">Semua</option>
+									<?php foreach ($filter_options['categories'] as $category): ?>
+										<option value="<?= html_escape($category['name']); ?>" <?= ($filters['category'] ?? '') === $category['name'] ? 'selected' : ''; ?>><?= html_escape($category['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<label class="form-label">Media</label>
+								<select class="form-select" name="media">
+									<option value="">Semua</option>
+									<?php foreach ($filter_options['medias'] as $media): ?>
+										<option value="<?= html_escape($media['name']); ?>" <?= ($filters['media'] ?? '') === $media['name'] ? 'selected' : ''; ?>><?= html_escape($media['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<label class="form-label">Aturan</label>
+								<select class="form-select" name="rule">
+									<option value="">Semua</option>
+									<?php foreach ($filter_options['rules'] as $rule): ?>
+										<option value="<?= html_escape($rule['name']); ?>" <?= ($filters['rule'] ?? '') === $rule['name'] ? 'selected' : ''; ?>><?= html_escape($rule['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="col-md-3">
+								<label class="form-label">Lokasi Perpustakaan</label>
+								<select class="form-select" name="location_library">
+									<option value="">Semua</option>
+									<?php foreach ($filter_options['locations'] as $location): ?>
+										<option value="<?= html_escape($location['name']); ?>" <?= ($filters['location_library'] ?? '') === $location['name'] ? 'selected' : ''; ?>><?= html_escape($location['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+							<div class="col-md-2">
+								<label class="form-label">Akses</label>
+								<select class="form-select" name="availability">
+									<option value="">Semua</option>
+									<option value="digital" <?= ($filters['availability'] ?? '') === 'digital' ? 'selected' : ''; ?>>Buku digital</option>
+									<option value="with_items" <?= ($filters['availability'] ?? '') === 'with_items' ? 'selected' : ''; ?>>Ada eksemplar</option>
+									<option value="available" <?= ($filters['availability'] ?? '') === 'available' ? 'selected' : ''; ?>>Tersedia dipinjam</option>
+								</select>
+							</div>
 							<div class="col-md-2">
 								<label class="form-label">Tahun</label>
 								<input type="text" class="form-control" name="publish_year" value="<?= html_escape($filters['publish_year'] ?? ''); ?>" placeholder="2004">
@@ -187,7 +257,8 @@ $asset_url = function ($book) {
 										<td>
 											<div><?= html_escape($book['classification'] ?: '-'); ?></div>
 											<div class="text-secondary small"><?= html_escape($book['content_classification_name'] ?: ($book['call_number'] ?: '-')); ?></div>
-											<div class="small text-blue"><?= html_escape($book['content_category_name'] ?: 'Belum dipetakan'); ?></div>
+									<div class="small text-blue"><?= html_escape($book['content_category_name'] ?: 'Belum dipetakan'); ?></div>
+									<?php if (! empty($book['collection_types'])): ?><div class="small text-secondary">Jenis: <?= html_escape($book['collection_types']); ?></div><?php endif; ?>
 										</td>
 										<td><span class="badge bg-blue-lt"><?= number_format((int) $book['item_count'], 0, ',', '.'); ?></span></td>
 										<td><span class="badge bg-blue-lt"><?= html_escape($status_labels[$book['status']] ?? ucfirst($book['status'])); ?></span></td>

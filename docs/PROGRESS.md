@@ -1,5 +1,37 @@
 # Progress Proyek
 
+## 2026-08-10
+
+Status: impor koleksi buku ajar digital dari direktori server selesai.
+
+Yang sudah dilakukan:
+
+- Menginventaris `/www/wwwroot/Buku`: 613 PDF dengan total 10.339.560.203 byte.
+- Memvalidasi signature semua sumber; tidak ada file non-PDF atau rusak pada pemeriksaan impor.
+- Menyalin seluruh PDF ke storage nonpublik aplikasi: `storage/ebooks/kemendikdasmen-2026`.
+- Menambahkan 613 bibliografi berstatus `published` dan 613 `digital_assets` berstatus `active` dengan sumber `buku_kemendikdasmen_2026`.
+- Menetapkan akses `online_only` dan `is_downloadable = 0` pada seluruh aset, sehingga pembacaan hanya melalui Reader aman, bukan URL PDF langsung.
+- Mengisi kategori kurasi: 520 `Non Fiksi` dan 93 `Anak dan Remaja`.
+- Mengisi klasifikasi DDC berdasarkan pokok judul: 000 (26), 200 (168), 300 (112), 400 (54), 500 (62), 600 (102), 700 (79), dan 900 (10).
+- Membuat importer idempoten `tools/import_buku_digital.php`; script dapat dijalankan ulang tanpa membuat duplikat karena memakai SHA-1 path relatif sebagai identitas sumber.
+
+Validasi:
+
+- Database dan storage sama-sama berisi 613 berkas/aset; seluruh ukuran file cocok dan semua signature tetap `%PDF`.
+- Katalog produksi `https://pustaka.rembangkab.go.id/katalog` menampilkan hasil impor dan tombol `Baca Online`.
+- Akses langsung ke path `storage/ebooks/...` ditolak server dengan HTTP 403.
+
+Catatan hak publikasi:
+
+- Metadata hak semua aset ditandai `unknown` dan diberi catatan verifikasi admin, karena folder sumber tidak menyertakan bukti lisensi per judul. Status ini perlu diperbarui setelah dokumen atau kebijakan publikasinya tersedia.
+
+Penyempurnaan tampilan sesudah impor:
+
+- Rak `Buku Digital` pada dashboard pemustaka sekarang mengurutkan aset terbaru lebih dahulu, sehingga koleksi impor muncul sebelum sampel lama.
+- Filter admin `/catalog` dilengkapi sumber data, kategori sumber, media, aturan, lokasi perpustakaan, dan akses buku digital.
+- Filter katalog publik mendukung `Buku digital` dan tautan dashboard mengarah ke filter tersebut.
+- Cover fallback bersama tersedia di `assets/img/book-cover-default.webp`; dipakai otomatis oleh katalog publik, detail, dashboard, landing, dan katalog admin untuk data tanpa cover individual.
+
 ## 2026-07-28 21:23 WIB
 
 Status: inisiasi proyek.
@@ -3049,3 +3081,117 @@ Validasi:
   - reader tetap status `200`,
   - pesan `Token baca luar zona tidak tersedia atau kuota sudah habis` tampil di halaman validasi.
 - Browser plugin untuk screenshot visual belum bisa dipakai di sesi ini karena koneksi browser lokal gagal dengan error internal `sandboxCwd must use the file URI scheme`; validasi visual dilakukan melalui HTML smoke test.
+
+## 2026-08-10 02:20 WIB
+
+Status: kurasi highlight, rak katalog dashboard, dan Arena Belajar dirapikan.
+
+Yang dilakukan:
+
+- Mengganti pemilih buku di `/catalog/highlights` dari daftar statis menjadi pencarian AJAX dengan debounce dan preview cover/metadata.
+- Menambahkan filter eksplisit `Semua`, `Digital`, dan `Non-digital` pada pemilih tersebut, serta badge jenis koleksi pada daftar highlight admin.
+- Menambahkan rak katalog di `/user/dashboard` untuk seluruh katalog dan koleksi digital, masing-masing berisi:
+  - Jelajah Acak,
+  - Sering Dibaca (gabungan transaksi pinjam fisik dan sesi baca digital),
+  - Koleksi Terbaru.
+- Mengubah jumlah pada dashboard menjadi `Seluruh katalog` dan `Buku digital` agar sesuai dengan dua jenis rak.
+- Merapikan kartu highlight agar satu pilihan tidak meninggalkan kolom kosong lebar.
+- Merombak halaman `/belajar` menjadi Arena Belajar yang responsif: hero, akses raport/notifikasi, kartu quiz, penukaran poin, aktivitas mandiri, battle, dan mini game.
+- Menambahkan CSS responsif untuk pemilih highlight, rak buku, dan Arena Belajar; cache-buster CSS dinaikkan ke `20260810c`.
+
+Validasi:
+
+- Lint PHP bersih untuk `Catalog.php`, `User_dashboard.php`, `Catalog_model.php`, `catalog/highlights.php`, `user/dashboard.php`, `game/lobby.php`, dan `routes.php`.
+- `git diff --check` bersih.
+
+## 2026-08-10 02:35 WIB
+
+Status: metadata pemilih highlight disederhanakan dan koleksi impor dikenali oleh filter katalog digital.
+
+- Preview hasil pencarian buku di `/catalog/highlights` kini hanya menampilkan judul, penulis/penerbit, kategori, tahun, dan status digital; tanpa gambar cover.
+- Importer `tools/import_buku_digital.php` kini membuat eksemplar katalog digital publik bagi setiap PDF impor, dengan metadata `Ebook`, `PDF`, dan aturan `Baca digital`.
+- Importer dijalankan ulang secara idempoten untuk 613 PDF:
+  - 613 buku dan aset diperbarui,
+  - 613 eksemplar katalog digital dibuat,
+  - tidak ada file yang disalin ulang atau gagal.
+- Cache-buster CSS halaman admin dinaikkan ke `20260810d`.
+
+## 2026-08-10 02:55 WIB
+
+Status: katalog dipertegas sebagai satu pintu seluruh jenis koleksi.
+
+- Menambahkan atribut dan filter `Jenis Koleksi` pada katalog admin dan katalog publik.
+- Jenis koleksi dapat diisi saat menambah/mengubah eksemplar, dengan pilihan awal Buku, Ebook, CD, DVD, Majalah, Audio, dan Peta (tetap menerima jenis lain).
+- Kartu hasil katalog kini menampilkan jenis koleksi; filter `Ebook` memuat 623 judul dan seluruhnya memiliki pintu `Baca Online` dari katalog.
+- Halaman Reader diubah menjadi `Aset PDF & Reader Aman`: fungsinya mengelola berkas dan kebijakan akses yang selalu ditautkan ke judul katalog, bukan daftar katalog terpisah.
+- Rak katalog pada dashboard tidak lagi memakai gambar cover; thumbnail diganti ikon jenis koleksi agar ukurannya tetap rapat dan konsisten. Cache-buster dashboard dinaikkan ke `20260810g`.
+
+Validasi:
+
+- HTTP `/katalog?collection_type=Ebook` berhasil (`200`) dan mengembalikan 623 judul.
+- Lint PHP dan `git diff --check` bersih.
+
+## 2026-08-10 03:20 WIB
+
+Status: jenis koleksi dipindahkan ke alur utama katalog dan buku ajar diberi kelompok khusus.
+
+- Form `/catalog/create` dan `/catalog/edit` sekarang memiliki pilihan `Jenis Koleksi`: Buku, Ebook, CD, DVD, Majalah, Audio, Peta, atau Lainnya.
+- Saat katalog manual disimpan, sistem otomatis membuat/memperbarui eksemplar utama dengan jenis yang dipilih. Detail eksemplar tetap dapat memuat lebih dari satu jenis untuk satu judul.
+- Menambahkan patch SQL `sql/2026-08-10b_textbook_catalog_grouping.sql` dan menjalankannya:
+  - Kategori Isi: `Buku Pelajaran`,
+  - Klasifikasi Isi: `Buku Pelajaran dan Pembelajaran`,
+  - Jenis Koleksi: `Ebook`,
+  - Media: `PDF`,
+  - Aturan: `Baca digital`.
+- Seluruh 613 buku hasil impor dipetakan ke kelompok tersebut. Nomor klasifikasi mata pelajaran asal tetap tersimpan pada kolom bibliografi, sehingga tidak hilang.
+- Importer diselaraskan agar impor ulang mempertahankan kelompok Buku Pelajaran.
+- Rak katalog dashboard kembali memakai cover dengan ukuran tetap kecil (`2.45rem × 3.1rem`); cache-buster CSS dinaikkan ke `20260810h`.
+
+Validasi:
+
+- `/katalog?content_category_id=12` status `200` dan menghasilkan 613 judul Buku Pelajaran.
+- Data item impor: `Ebook | Buku Pelajaran | PDF | Baca digital | 613`.
+
+## 2026-08-10 03:45 WIB
+
+Status: master jenis koleksi dapat dikelola admin, dan kode taksonomi ditampilkan pada form katalog.
+
+- Menambahkan master CRUD `Jenis Koleksi` pada `/catalog/masters` bersama master Kategori dan Klasifikasi.
+- Menambahkan patch SQL `sql/2026-08-10c_collection_type_master.sql`, dijalankan dengan jenis awal: Buku, Ebook, CD, DVD, Majalah, Audio, Peta, dan Lainnya.
+- Jenis koleksi dapat ditambah, diubah, dinonaktifkan, atau dihapus jika belum dipakai oleh eksemplar.
+- Form katalog kini memuat pilihan dari master tersebut, bukan daftar tetap di kode.
+- Label kategori dan klasifikasi pada form sekarang selalu menampilkan `kode — nama`; dua kelompok lokal tampil sebagai `ilmiah — Karya Ilmiah Lokal` dan `buku-pelajaran — Buku Pelajaran dan Pembelajaran`.
+- Audit policy Reader: saat ini enum policy mencampur lingkup akses, pembatasan lokasi/token, dan metode pengiriman PDF. Catatan ini belum diubah agar tidak mengubah hak akses koleksi yang sudah aktif tanpa keputusan kebijakan.
+- Menambahkan tautan `Kelola jenis` langsung di samping pilihan Jenis Koleksi pada form katalog menuju `/catalog/masters?tab=collection_types`, serta memperjelas tombol menu menjadi `Master Katalog`.
+
+## 2026-08-10 12:40 WIB
+
+Status: tampilan Master Katalog dan zona waktu PHP diperbaiki.
+
+- Header `/catalog/masters` kini menempatkan judul/deskripsi dan tab pada baris terpisah; tab dapat digulir horizontal pada layar kecil tanpa teks atau tab terakhir terpotong.
+- Cache-buster CSS admin dinaikkan ke `20260810i`.
+- Jam sistem server telah benar pada `Asia/Jakarta` (WIB), tetapi PHP sebelumnya memakai `PRC` (UTC+8), sehingga waktu aplikasi lebih cepat satu jam.
+- Mengubah `date.timezone` pada PHP 8.1 CLI dan PHP-FPM menjadi `Asia/Jakarta`, kemudian merestart PHP-FPM.
+- Validasi akhir: waktu PHP dan waktu sistem sama-sama WIB.
+## 2026-08-10 — Reader, token, dan Arena Belajar
+
+- Policy aset PDF dipisahkan menjadi `reader_audience` (Member aktif/Internal) dan `pdf_delivery` (Render terkunci/Download diizinkan). Migrasi: `sql/2026-08-10d_reader_access_delivery_split.sql`.
+- Semua aset member mengikuti aturan lokasi yang sama: GIS perpustakaan dan Pojok Baca gratis; luar zona membutuhkan token. Refresh sebuah sesi aktif tidak memotong token kedua kali selama tiga jam.
+- SOP token baca dan angka awal operasional dicatat di `docs/SOP_TOKEN_BACA.md`; unit paket aktif telah dinormalisasi ke sesi baca.
+- Halaman `/belajar` diperbarui dengan tata kartu dan cache stylesheet baru (`20260810j`).
+- Jalur request token tersedia di halaman Pojok Baca; petugas menyetujui atau menolak dari Monitoring Token. Persetujuan menerbitkan 3 sesi selama 7 hari.
+- Paket Arena dan titik baca aktif dinormalisasi menjadi satuan sesi baca: 5 sesi (14 hari) atau 10 sesi (30 hari) dari Arena, serta 5 sesi untuk check-in harian.
+
+## 2026-08-10 — Koleksi Project Gutenberg
+
+- Menambahkan 20 klasik domain publik dari Project Gutenberg melalui mirror resmi, lalu merendernya menjadi PDF lokal pada `storage/ebooks/project-gutenberg`.
+- Seluruh judul disimpan sebagai katalog `Ebook | PDF | Baca digital`, memiliki aset member aktif, dan dapat diunduh karena ditandai domain publik.
+- Importer idempoten tersedia di `tools/import_project_gutenberg.php`; sumber katalog selalu memakai landing page Gutenberg, bukan tautan berkas langsung.
+- Validasi akhir: 20 buku, 20 aset aktif, 20 eksemplar publik, dan seluruh signature PDF valid.
+
+## 2026-08-10 — Cover dan proteksi Reader
+
+- Seluruh 633 buku yang diimpor hari ini memakai cover fallback resmi `assets/img/book-cover-default.webp` secara eksplisit, sehingga kartu katalog selalu memiliki cover meski belum tersedia sampul individual.
+- Aset buku pelajaran dan Project Gutenberg dikunci menjadi `Member aktif | Render terkunci`; tidak ada lagi PDF utuh yang dapat diunduh.
+- Watermark render halaman Reader diperkecil, dibuat lebih transparan, dan hanya diletakkan satu kali di tengah halaman. Cache halaman lama dibersihkan agar perubahan langsung dipakai.
+- Setelah itu, seluruh 20 judul Project Gutenberg dilengkapi cover individual resmi dari mirror Gutenberg pada `assets/uploads/project-gutenberg/covers`; importer cover dapat dijalankan ulang melalui `tools/fetch_project_gutenberg_covers.php`.

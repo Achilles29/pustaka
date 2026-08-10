@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 $tabler_css = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css';
 $tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css';
-$unit_labels = ['minutes' => 'menit', 'pages' => 'halaman', 'books' => 'buku'];
+$unit_labels = ['minutes' => 'menit (legacy)', 'pages' => 'halaman (legacy)', 'books' => 'sesi baca'];
 $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedaluwarsa', 'revoked' => 'Dicabut'];
 ?>
 <!doctype html>
@@ -19,7 +19,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810a'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810k'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -54,7 +54,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 				<div class="reading-checkin-panel">
 					<div class="section-kicker">Pojok Baca Digital</div>
 					<h1>Check-in lokasi baca</h1>
-					<p>Aktifkan GPS saat berada di radius titik Pojok Baca. Token harian dipakai untuk membuka koleksi yang dikunci lokasi dan kuota.</p>
+					<p>Aktifkan GPS saat berada di titik Pojok Baca. Semua member aktif membaca online; Pojok Baca dan perpustakaan terdaftar membuat sesi baca gratis, sedangkan akses luar zona memakai token.</p>
 
 					<?php if ($active_token): ?>
 						<div class="reading-token-card">
@@ -85,14 +85,27 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 						</button>
 						<div class="reading-gps-state" id="reading-gps-state">GPS belum dibaca.</div>
 					<?= form_close(); ?>
+
+					<div class="mt-4 pt-3 border-top">
+						<div class="section-kicker">Token luar zona</div>
+						<?php if (! empty($token_request)): ?>
+							<p class="mb-0 text-secondary small">Permohonan <?= number_format((int) $token_request['requested_quota'], 0, ',', '.'); ?> sesi baca sudah dikirim pada <?= html_escape($token_request['requested_at']); ?> dan sedang diperiksa petugas.</p>
+						<?php else: ?>
+							<p class="mb-2 text-secondary small">Tidak dapat datang ke lokasi? Ajukan token 3 sesi baca. Petugas akan memeriksa permohonan sebelum token diterbitkan.</p>
+							<?= form_open('user/token-request/store'); ?>
+								<textarea class="form-control form-control-sm mb-2" name="request_note" rows="2" maxlength="500" placeholder="Alasan singkat permohonan (opsional)"></textarea>
+								<button class="btn btn-outline-primary btn-sm" type="submit"><i class="ti ti-ticket me-1"></i>Ajukan Token</button>
+							<?= form_close(); ?>
+						<?php endif; ?>
+					</div>
 				</div>
 
 				<div class="reading-checkin-side">
 					<div class="member-panel">
 						<div class="member-panel-head">
 							<div>
-								<div class="section-kicker">Titik Aktif</div>
-								<h3>Radius Layanan</h3>
+						<div class="section-kicker">Zona Gratis</div>
+						<h3>Pojok Baca &amp; Perpustakaan</h3>
 							</div>
 							<i class="ti ti-map-pin-star"></i>
 						</div>

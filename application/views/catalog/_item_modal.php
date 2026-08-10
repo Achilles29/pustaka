@@ -54,6 +54,13 @@ $status_options = [
 							<input type="text" class="form-control" name="call_number" value="<?= html_escape($field('call_number', $book['call_number'] ?? '')); ?>" placeholder="Klasifikasi rak">
 						</div>
 						<div class="col-md-4">
+							<label class="form-label">Jenis Koleksi</label>
+							<input type="text" class="form-control" name="collection_type" value="<?= html_escape($field('collection_type')); ?>" list="collection-type-options-<?= html_escape($modal_id); ?>" placeholder="Pilih atau isi jenis lain">
+							<datalist id="collection-type-options-<?= html_escape($modal_id); ?>">
+								<?php foreach (($collection_types ?? []) as $type): ?><option value="<?= html_escape($type['name']); ?>"><?php endforeach; ?>
+							</datalist>
+						</div>
+						<div class="col-md-4">
 							<label class="form-label">Status Aplikasi</label>
 							<select class="form-select" name="status">
 								<?php foreach ($status_options as $value => $label): ?>

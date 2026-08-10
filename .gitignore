@@ -23,11 +23,15 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 !/assets/uploads/.gitkeep
 /storage/cache/
 /storage/debug_screenshots/
-/storage/ebooks/**/*.pdf
+# Ebook, hasil render reader, dan unggahan adalah data runtime. Berkas ini
+# disiapkan melalui proses impor/backup tersendiri, bukan melalui Git.
+/storage/ebooks/
 /docs/_note.md
 /docs/_note*.md
 /Buku/
 /db_backup/
+/scripts/__pycache__/
+*.py[cod]
 
 # Tabler development dependencies/build cache
 /tabler-dev/

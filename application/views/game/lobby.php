@@ -9,150 +9,154 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-    <link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260802j'); ?>">
-    <style>
-        body { font-family:'Plus Jakarta Sans',sans-serif; background:#f4f6fb; }
-        .lobby-hero { background:linear-gradient(135deg,#1a56a7 0%,#7c3aed 100%); color:#fff; padding:60px 0 80px; text-align:center; position:relative; overflow:hidden; }
-        .lobby-hero::after { content:''; position:absolute; inset:-40px; background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
-        .lobby-hero h1 { font-size:2.8rem; font-weight:900; position:relative; z-index:1; }
-        .lobby-hero p  { font-size:1.15rem; opacity:.85; position:relative; z-index:1; }
-        .game-cards   { max-width:1000px; margin:0 auto; padding:0 16px; }
-        .game-card    { background:#fff; border-radius:20px; padding:28px; box-shadow:0 4px 20px rgba(0,0,0,.07); cursor:pointer; transition:transform .15s,box-shadow .15s; text-decoration:none; color:inherit; display:block; }
-        .game-card:hover { transform:translateY(-4px); box-shadow:0 12px 32px rgba(0,0,0,.12); }
-        .game-icon    { width:72px; height:72px; border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:2rem; margin-bottom:16px; }
-        .game-tag     { display:inline-block; padding:4px 10px; border-radius:999px; font-size:.78rem; font-weight:600; }
-        .back-btn     { position:fixed; top:16px; left:16px; z-index:10; }
-    </style>
+    <link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810j'); ?>">
 </head>
-<body>
-    <a href="<?= base_url('user/dashboard'); ?>" class="btn btn-sm btn-white back-btn">
-        <i class="ti ti-arrow-left me-1"></i>Dashboard
-    </a>
-    <?php if ($user): ?>
-    <div class="position-fixed d-flex gap-2" style="top:16px;right:16px;z-index:10">
-        <a href="<?= base_url('belajar/raport'); ?>" class="btn btn-sm btn-white" title="Raport belajarku">
-            <i class="ti ti-report"></i>
+<body class="learning-arena-page">
+    <header class="learning-arena-topbar">
+        <a href="<?= base_url($user ? 'user/dashboard' : ''); ?>" class="learning-arena-brand">
+            <span class="learning-arena-brand-icon"><i class="ti ti-books"></i></span>
+            <span>Pustaka Rembang</span>
         </a>
-        <a href="<?= base_url('belajar/notifikasi'); ?>" class="btn btn-sm btn-white">
-            <i class="ti ti-bell"></i>
-            <?php if (! empty($unread_notif)): ?>
-            <span class="badge bg-red text-white ms-1"><?= (int)$unread_notif > 99 ? '99+' : (int)$unread_notif; ?></span>
-            <?php endif; ?>
-        </a>
-    </div>
-    <?php endif; ?>
-
-    <div class="lobby-hero">
-        <div class="container">
-            <div style="font-size:3.5rem;margin-bottom:16px">🎮</div>
-            <h1>Arena Belajar</h1>
-            <p>Belajar sambil bermain, raih poin dan lencana!</p>
-            <?php if (!$user): ?>
-            <a href="<?= base_url('login'); ?>" class="btn btn-white mt-3">
-                <i class="ti ti-login me-1"></i>Login untuk kumpulkan poin
+        <nav class="learning-arena-nav" aria-label="Navigasi belajar">
+            <?php if ($user): ?>
+            <a href="<?= base_url('belajar/raport'); ?>" class="learning-arena-nav-link">
+                <i class="ti ti-chart-bar"></i><span>Raport</span>
+            </a>
+            <a href="<?= base_url('belajar/notifikasi'); ?>" class="learning-arena-nav-link position-relative">
+                <i class="ti ti-bell"></i><span>Notifikasi</span>
+                <?php if (! empty($unread_notif)): ?>
+                <b class="learning-arena-notification"><?= (int) $unread_notif > 99 ? '99+' : (int) $unread_notif; ?></b>
+                <?php endif; ?>
             </a>
             <?php endif; ?>
-        </div>
-    </div>
+            <a href="<?= base_url($user ? 'user/dashboard' : ''); ?>" class="btn btn-sm btn-outline-primary">
+                <i class="ti ti-arrow-left me-1"></i><span class="d-none d-sm-inline">Kembali</span>
+            </a>
+        </nav>
+    </header>
 
-    <div class="game-cards py-5">
-        <!-- Quiz Section -->
-        <h3 class="mb-3 fw-bold">Quiz &amp; Latihan</h3>
-        <div class="row g-3 mb-5">
-            <div class="col-12 col-md-6">
-                <a href="<?= base_url('belajar/latihan'); ?>" class="game-card">
-                    <div class="game-icon" style="background:#e0f2fe;color:#0369a1">
-                        <i class="ti ti-clipboard-list"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1">Latihan Soal</h4>
-                    <p class="text-secondary mb-3">Latihan soal dari bank soal. Kerjakan kapan saja, langsung dapat pembahasan.</p>
-                    <span class="game-tag" style="background:#e0f2fe;color:#0369a1"><i class="ti ti-coin me-1"></i>+10 poin / sesi</span>
+    <main class="learning-arena-shell">
+        <section class="learning-arena-hero">
+            <div class="learning-arena-hero-copy">
+                <span class="learning-arena-kicker"><i class="ti ti-sparkles"></i> Ruang belajar interaktif</span>
+                <h1>Belajar, bermain,<br>dan terus bertumbuh.</h1>
+                <p>Pilih aktivitas yang kamu sukai, kumpulkan poin, lalu tukarkan dengan manfaat membaca.</p>
+                <?php if (! $user): ?>
+                <a href="<?= base_url('login'); ?>" class="btn btn-light learning-arena-login">
+                    <i class="ti ti-login me-1"></i>Login untuk mengumpulkan poin
+                </a>
+                <?php else: ?>
+                <a href="#aktivitas-belajar" class="btn btn-light learning-arena-login">
+                    Mulai belajar <i class="ti ti-arrow-down ms-1"></i>
+                </a>
+                <?php endif; ?>
+            </div>
+            <div class="learning-arena-hero-visual" aria-hidden="true">
+                <span class="learning-orbit learning-orbit-one"><i class="ti ti-bulb"></i></span>
+                <span class="learning-orbit learning-orbit-two"><i class="ti ti-trophy"></i></span>
+                <span class="learning-orbit learning-orbit-three"><i class="ti ti-book-2"></i></span>
+                <div class="learning-arena-mascot">🎮</div>
+            </div>
+        </section>
+
+        <?php if ($user): ?>
+        <section class="learning-arena-welcome">
+            <div>
+                <span class="learning-arena-eyebrow">BELAJAR HARI INI</span>
+                <h2>Halo, <?= html_escape($user['full_name'] ?? ($user['username'] ?? 'Pemain')); ?>!</h2>
+                <p>Setiap latihan kecil adalah kemajuan untuk dirayakan.</p>
+            </div>
+            <div class="learning-arena-quick-links">
+                <a href="<?= base_url('belajar/raport'); ?>"><i class="ti ti-file-analytics"></i> Lihat perkembangan</a>
+                <a href="<?= base_url('belajar/tukar'); ?>"><i class="ti ti-gift"></i> Tukar poin</a>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <section id="aktivitas-belajar" class="learning-arena-section">
+            <div class="learning-arena-section-heading">
+                <div>
+                    <span class="learning-arena-eyebrow">PILIH CARA BELAJAR</span>
+                    <h2>Quiz &amp; latihan</h2>
+                </div>
+                <p>Uji pemahamanmu sendiri atau ikut kompetisi.</p>
+            </div>
+            <div class="learning-arena-feature-grid">
+                <a href="<?= base_url('belajar/latihan'); ?>" class="learning-arena-feature-card is-blue">
+                    <span class="learning-arena-feature-icon"><i class="ti ti-clipboard-list"></i></span>
+                    <span class="learning-arena-feature-arrow"><i class="ti ti-arrow-up-right"></i></span>
+                    <h3>Latihan Soal</h3>
+                    <p>Kerjakan soal dari bank latihan kapan saja dan lihat pembahasannya.</p>
+                    <small><i class="ti ti-coin"></i> +10 poin per sesi</small>
+                </a>
+                <a href="<?= base_url('quiz/login'); ?>" class="learning-arena-feature-card is-purple">
+                    <span class="learning-arena-feature-icon"><i class="ti ti-trophy"></i></span>
+                    <span class="learning-arena-feature-arrow"><i class="ti ti-arrow-up-right"></i></span>
+                    <h3>Kompetisi</h3>
+                    <p>Ikuti tantangan resmi dan ukur kemampuanmu bersama peserta lain.</p>
+                    <small><i class="ti ti-award"></i> Hadiah poin spesial</small>
                 </a>
             </div>
-            <div class="col-12 col-md-6">
-                <a href="<?= base_url('quiz/login'); ?>" class="game-card">
-                    <div class="game-icon" style="background:#fdf2f8;color:#9333ea">
-                        <i class="ti ti-trophy"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1">Kompetisi</h4>
-                    <p class="text-secondary mb-3">Ikuti kompetisi resmi dengan soal yang telah ditentukan. Adu kemampuan!</p>
-                    <span class="game-tag" style="background:#fdf2f8;color:#9333ea"><i class="ti ti-trophy me-1"></i>Hadiah poin spesial</span>
-                </a>
-            </div>
-        </div>
+        </section>
 
-        <!-- Tukar Poin banner -->
-        <a href="<?= base_url('belajar/tukar'); ?>" class="game-card mb-5 d-flex align-items-center gap-3" style="background:linear-gradient(135deg,#0ea5e9 0%,#6366f1 100%);color:#fff">
-            <div class="game-icon mb-0" style="background:rgba(255,255,255,.2);color:#fff"><i class="ti ti-gift"></i></div>
-            <div class="flex-fill">
-                <h4 class="fw-bold mb-1">Tukar Poin jadi Token Baca</h4>
-                <p class="mb-0" style="opacity:.9">Sudah kumpulkan banyak poin? Tukarkan dengan akses baca koleksi digital!</p>
-            </div>
-            <i class="ti ti-arrow-right fs-1"></i>
+        <a href="<?= base_url('belajar/tukar'); ?>" class="learning-arena-reward">
+            <span class="learning-arena-reward-icon"><i class="ti ti-gift"></i></span>
+            <span class="flex-fill">
+                <b>Poinmu bisa jadi Token Baca</b>
+                <small>Tukarkan poin untuk mendapatkan manfaat di koleksi digital.</small>
+            </span>
+            <i class="ti ti-chevron-right"></i>
         </a>
 
-        <!-- Belajar Mandiri -->
-        <h3 class="mb-3 fw-bold">Belajar Mandiri</h3>
-        <div class="row g-3 mb-5">
-            <div class="col-12 col-md-6">
-                <a href="<?= base_url('belajar/flashcard'); ?>" class="game-card">
-                    <div class="game-icon" style="background:#f5f3ff;color:#7c3aed">
-                        <i class="ti ti-cards"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1">Flashcard</h4>
-                    <p class="text-secondary mb-3">Kartu bolak-balik istilah &amp; definisi. Balik, ingat, tandai yang sudah hafal!</p>
-                    <span class="game-tag" style="background:#f5f3ff;color:#7c3aed"><i class="ti ti-coin me-1"></i>+5 poin / sesi</span>
+        <section class="learning-arena-section">
+            <div class="learning-arena-section-heading">
+                <div>
+                    <span class="learning-arena-eyebrow">BELAJAR MANDIRI</span>
+                    <h2>Asah kemampuanmu</h2>
+                </div>
+                <p>Aktivitas singkat yang bisa kamu ulangi setiap hari.</p>
+            </div>
+            <div class="learning-arena-activity-grid">
+                <a href="<?= base_url('belajar/flashcard'); ?>" class="learning-arena-activity-card">
+                    <span class="learning-arena-activity-icon is-violet"><i class="ti ti-cards"></i></span>
+                    <span><h3>Flashcard</h3><p>Balik kartu, ingat istilah, dan tandai yang sudah dikuasai.</p></span>
+                    <b>+5 <i class="ti ti-coin"></i></b>
+                </a>
+                <a href="<?= base_url('belajar/cerita'); ?>" class="learning-arena-activity-card">
+                    <span class="learning-arena-activity-icon is-teal"><i class="ti ti-book"></i></span>
+                    <span><h3>Story Quiz</h3><p>Baca cerita pendek lalu uji pemahaman bacaanmu.</p></span>
+                    <b>+10 <i class="ti ti-coin"></i></b>
+                </a>
+                <a href="<?= base_url('belajar/battle'); ?>" class="learning-arena-activity-card">
+                    <span class="learning-arena-activity-icon is-rose"><i class="ti ti-swords"></i></span>
+                    <span><h3>Mode Battle</h3><p>Tantang teman dan adu cepat menjawab pertanyaan.</p></span>
+                    <b>+20 <i class="ti ti-trophy"></i></b>
                 </a>
             </div>
-            <div class="col-12 col-md-6">
-                <a href="<?= base_url('belajar/cerita'); ?>" class="game-card">
-                    <div class="game-icon" style="background:#ecfeff;color:#0891b2">
-                        <i class="ti ti-book"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1">Story Quiz</h4>
-                    <p class="text-secondary mb-3">Baca cerita pendek, lalu jawab pertanyaan pemahaman. Uji seberapa teliti kamu membaca!</p>
-                    <span class="game-tag" style="background:#ecfeff;color:#0891b2"><i class="ti ti-coin me-1"></i>+10 poin / bacaan</span>
-                </a>
-            </div>
-        </div>
+        </section>
 
-        <!-- Adu Cepat -->
-        <h3 class="mb-3 fw-bold">Adu Cepat</h3>
-        <div class="row g-3 mb-5">
-            <div class="col-12 col-md-6">
-                <a href="<?= base_url('belajar/battle'); ?>" class="game-card">
-                    <div class="game-icon" style="background:#fce7f3;color:#e11d48">
-                        <i class="ti ti-swords"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1">Mode Battle</h4>
-                    <p class="text-secondary mb-3">Tantang temanmu adu cepat menjawab soal yang sama. Siapa paling banyak benar, dia menang!</p>
-                    <span class="game-tag" style="background:#fce7f3;color:#e11d48"><i class="ti ti-trophy me-1"></i>+20 poin jika menang</span>
-                </a>
+        <?php if (! empty($game_types)): ?>
+        <section class="learning-arena-section learning-arena-mini-games">
+            <div class="learning-arena-section-heading">
+                <div>
+                    <span class="learning-arena-eyebrow">SELANGI BELAJAR</span>
+                    <h2>Mini game</h2>
+                </div>
+                <p>Belajar dengan cara yang lebih santai dan menyenangkan.</p>
             </div>
-        </div>
-
-        <!-- Game Section -->
-        <?php if (!empty($game_types)): ?>
-        <h3 class="mb-3 fw-bold">Mini Game</h3>
-        <div class="row g-3">
-            <?php foreach ($game_types as $gt): ?>
-            <div class="col-12 col-sm-6 col-md-4">
-                <a href="<?= base_url('belajar/pilih/' . $gt['code']); ?>" class="game-card">
-                    <div class="game-icon" style="background:<?= html_escape($gt['color']); ?>1a;color:<?= html_escape($gt['color']); ?>">
-                        <i class="<?= html_escape($gt['icon']); ?>"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1"><?= html_escape($gt['name']); ?></h4>
-                    <p class="text-secondary mb-3" style="font-size:.9rem"><?= html_escape(mb_substr($gt['description'], 0, 90)); ?></p>
-                    <span class="game-tag" style="background:<?= html_escape($gt['color']); ?>1a;color:<?= html_escape($gt['color']); ?>">
-                        <i class="ti ti-coin me-1"></i>+5 poin / sesi
-                    </span>
+            <div class="learning-arena-mini-grid">
+                <?php foreach ($game_types as $gt): ?>
+                <a href="<?= base_url('belajar/pilih/' . $gt['code']); ?>" class="learning-arena-mini-card" style="--game-color:<?= html_escape($gt['color']); ?>">
+                    <span class="learning-arena-mini-icon"><i class="<?= html_escape($gt['icon']); ?>"></i></span>
+                    <h3><?= html_escape($gt['name']); ?></h3>
+                    <p><?= html_escape(mb_substr($gt['description'], 0, 90)); ?></p>
+                    <small><i class="ti ti-coin"></i> +5 poin per sesi</small>
                 </a>
+                <?php endforeach; ?>
             </div>
-            <?php endforeach; ?>
-        </div>
+        </section>
         <?php endif; ?>
-    </div>
-
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
 </body>
 </html>

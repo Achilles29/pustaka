@@ -3,13 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 $tabler_css = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css';
 $tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css';
-$policy_labels = [
-	'online_only' => 'Online saja',
-	'download_allowed' => 'Boleh download',
-	'location_only' => 'Kunci GPS',
-	'member_only' => 'Member saja',
-	'internal' => 'Internal',
-];
+$delivery_labels = ['render_locked' => 'PDF render aman', 'download_allowed' => 'PDF dapat diunduh'];
 $origin_labels = [
 	'external' => 'Akses luar lokasi',
 	'reading_point' => 'Di Pojok Baca',
@@ -23,7 +17,7 @@ $can_stream_pdf = ! empty($can_stream_pdf);
 $page_info_url = (string) ($page_info_url ?? '');
 $page_url_base = (string) ($page_url_base ?? '');
 $page_query = (string) ($page_query ?? '');
-$watermark = trim(($member['full_name'] ?? 'Member') . ' | ' . ($member['member_no'] ?? '-') . ' | ' . date('Y-m-d H:i'));
+$watermark = trim('PDR | ' . mb_substr((string) ($member['full_name'] ?? 'Member'), 0, 30) . ' | ' . ($member['member_no'] ?? '-'));
 ?>
 <!doctype html>
 <html lang="id">
@@ -38,7 +32,7 @@ $watermark = trim(($member['full_name'] ?? 'Member') . ' | ' . ($member['member_
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810b'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810l'); ?>">
 </head>
 <body class="user-page secure-reader-page" oncontextmenu="return false">
 	<header class="user-topbar user-topbar-app">
@@ -74,7 +68,7 @@ $watermark = trim(($member['full_name'] ?? 'Member') . ' | ' . ($member['member_
 						<p><?= html_escape($asset['statement_responsibility'] ?: 'Penanggung jawab belum tercatat'); ?></p>
 					</div>
 					<div class="secure-reader-badges">
-						<span class="badge bg-blue-lt"><?= html_escape($policy_labels[$asset['access_policy']] ?? $asset['access_policy']); ?></span>
+						<span class="badge bg-blue-lt"><?= html_escape($delivery_labels[$asset['pdf_delivery'] ?? 'render_locked'] ?? 'PDF render aman'); ?></span>
 						<span class="badge <?= ($reader_context['quota_charged'] ?? 0) > 0 ? 'bg-yellow-lt' : 'bg-green-lt'; ?>">
 							<?= ($reader_context['quota_charged'] ?? 0) > 0 ? 'Kuota -' . (int) $reader_context['quota_charged'] : 'Kuota tidak berkurang'; ?>
 						</span>

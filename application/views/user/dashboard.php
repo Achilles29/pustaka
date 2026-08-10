@@ -32,6 +32,7 @@ $highlight_type_labels = [
 ];
 $highlight_books = $highlight_books ?? [];
 $highlight_categories = $highlight_categories ?? [];
+$book_shelves = $book_shelves ?? ['catalog' => [], 'digital' => []];
 $dashboard_highlight_books = $highlight_books;
 if (empty($dashboard_highlight_books) && ! empty($digital_books)) {
 	foreach (array_slice($digital_books, 0, 4) as $asset) {
@@ -49,13 +50,22 @@ if (empty($dashboard_highlight_books) && ! empty($digital_books)) {
 			'label' => 'Siap dibaca online',
 			'summary' => 'Koleksi digital aktif yang bisa langsung dibuka dari dashboard pemustaka.',
 			'first_digital_asset_id' => $asset['id'] ?? null,
-			'digital_access_policy' => $asset['access_policy'] ?? null,
+			'digital_access_policy' => $asset['pdf_delivery'] ?? null,
 		];
 	}
 }
 $url_path = function ($path) {
 	$segments = explode('/', str_replace('\\', '/', trim((string) $path, '/')));
 	return implode('/', array_map('rawurlencode', $segments));
+};
+$dashboard_cover_url = function ($book) use ($url_path) {
+	if (! empty($book['cover_local_path'])) {
+		return base_url($url_path($book['cover_local_path']));
+	}
+	if (! empty($book['cover_source_path'])) {
+		return base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
+	}
+	return base_url('assets/img/book-cover-default.webp');
 };
 if (! empty($member['photo_local_path'])) {
 	$photo_url = base_url($url_path($member['photo_local_path']));
@@ -86,7 +96,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810b'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810h'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -217,7 +227,11 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 					<div class="member-status-stack">
 						<div class="member-status-card">
 							<i class="ti ti-books"></i>
-							<div><span>Katalog publik</span><strong><?= number_format($catalog_count, 0, ',', '.'); ?></strong></div>
+							<div><span>Seluruh katalog</span><strong><?= number_format($catalog_total_count ?? $catalog_count, 0, ',', '.'); ?></strong></div>
+						</div>
+						<div class="member-status-card">
+							<i class="ti ti-file-type-pdf"></i>
+							<div><span>Buku digital</span><strong><?= number_format($catalog_digital_count ?? 0, 0, ',', '.'); ?></strong></div>
 						</div>
 						<div class="member-status-card">
 							<i class="ti ti-receipt-2"></i>
@@ -270,7 +284,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 								} elseif (! empty($book['cover_source_path'])) {
 									$highlight_cover = base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
 								} else {
-									$highlight_cover = '';
+									$highlight_cover = base_url('assets/img/book-cover-default.webp');
 								}
 								$book_title = $book['title_override'] ?: ($book['title'] ?? 'Katalog Pilihan');
 								$read_url = ! empty($book['first_digital_asset_id'])
@@ -319,6 +333,63 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 				</div>
 			</section>
 
+			<?php
+				$shelf_labels = [
+					'random' => ['title' => 'Jelajah Acak', 'subtitle' => 'Pilihan berbeda setiap kali membuka dashboard.', 'icon' => 'ti ti-sparkles'],
+					'popular' => ['title' => 'Sering Dibaca', 'subtitle' => 'Berdasarkan riwayat pinjam dan sesi baca.', 'icon' => 'ti ti-flame'],
+					'newest' => ['title' => 'Koleksi Terbaru', 'subtitle' => 'Buku yang paling baru masuk katalog.', 'icon' => 'ti ti-clock-plus'],
+				];
+				$shelf_groups = [
+					'catalog' => ['kicker' => 'Katalog untukmu', 'title' => 'Temukan bacaan berikutnya', 'url' => base_url('katalog'), 'button' => 'Jelajahi Katalog', 'digital' => false],
+					'digital' => ['kicker' => 'Rak Digital', 'title' => 'Baca online sesuai minatmu', 'url' => base_url('katalog?availability=digital'), 'button' => 'Lihat Buku Digital', 'digital' => true],
+				];
+			?>
+			<?php foreach ($shelf_groups as $group_key => $group): ?>
+				<section class="member-book-shelves<?= $group['digital'] ? ' is-digital' : ''; ?>">
+					<div class="member-section-head">
+						<div>
+							<div class="section-kicker"><?= html_escape($group['kicker']); ?></div>
+							<h2><?= html_escape($group['title']); ?></h2>
+						</div>
+						<a href="<?= $group['url']; ?>" class="btn btn-outline-primary"><i class="ti ti-books me-1"></i><?= html_escape($group['button']); ?></a>
+					</div>
+					<div class="member-shelf-grid">
+						<?php foreach ($shelf_labels as $shelf_key => $label): ?>
+							<?php $shelf_books = $book_shelves[$group_key][$shelf_key] ?? []; ?>
+							<article class="member-shelf-panel">
+								<div class="member-shelf-head">
+									<div class="member-shelf-icon"><i class="<?= html_escape($label['icon']); ?>"></i></div>
+									<div><h3><?= html_escape($label['title']); ?></h3><p><?= html_escape($label['subtitle']); ?></p></div>
+								</div>
+								<div class="member-shelf-list">
+									<?php if (empty($shelf_books)): ?>
+										<div class="member-mini-empty">Belum ada koleksi untuk ditampilkan.</div>
+									<?php endif; ?>
+									<?php foreach ($shelf_books as $shelf_book): ?>
+										<?php
+											$shelf_is_digital = ! empty($shelf_book['has_digital']);
+											$shelf_url = $group['digital'] && ! empty($shelf_book['digital_asset_id'])
+												? base_url('reader/read/' . (int) $shelf_book['digital_asset_id'])
+												: base_url('katalog/detail/' . (int) $shelf_book['id']);
+											$read_count = (int) ($shelf_book['physical_read_count'] ?? 0) + (int) ($shelf_book['digital_read_count'] ?? 0);
+										?>
+										<a href="<?= $shelf_url; ?>" class="member-shelf-book">
+											<img src="<?= html_escape($dashboard_cover_url($shelf_book)); ?>" class="member-shelf-cover" alt="" loading="lazy">
+											<span class="member-shelf-copy">
+												<strong><?= html_escape($shelf_book['title']); ?></strong>
+												<small><?= html_escape($shelf_book['statement_responsibility'] ?: ($shelf_book['publisher'] ?: 'Koleksi Pustaka')); ?></small>
+												<em><?= $shelf_key === 'popular' ? number_format($read_count, 0, ',', '.') . ' kali dibaca' : html_escape($shelf_book['content_category_name'] ?: ($shelf_is_digital ? 'Buku digital' : 'Katalog')); ?></em>
+											</span>
+											<i class="ti <?= $group['digital'] ? 'ti-book-reader' : 'ti-chevron-right'; ?> member-shelf-arrow"></i>
+										</a>
+									<?php endforeach; ?>
+								</div>
+							</article>
+						<?php endforeach; ?>
+					</div>
+				</section>
+			<?php endforeach; ?>
+
 			<section class="member-events-strip">
 				<div class="member-section-head">
 					<div>
@@ -358,56 +429,6 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 				<?php else: ?>
 					<div class="member-mini-empty">Belum ada event literasi yang tayang. Nanti agenda baru akan muncul di sini.</div>
 				<?php endif; ?>
-			</section>
-
-			<section class="member-digital-library">
-				<div class="member-section-head">
-					<div>
-						<div class="section-kicker">Buku Digital</div>
-						<h2>Siap dibaca online</h2>
-					</div>
-					<a href="<?= base_url('katalog?q=Project%20Gutenberg'); ?>" class="btn btn-outline-primary"><i class="ti ti-books me-1"></i>Lihat Katalog Digital</a>
-				</div>
-				<div class="member-digital-grid">
-					<?php if (empty($digital_books)): ?>
-						<div class="member-mini-empty">Belum ada buku digital aktif.</div>
-					<?php endif; ?>
-					<?php foreach ($digital_books as $asset): ?>
-						<?php
-							if (! empty($asset['cover_local_path'])) {
-								$digital_cover = base_url($url_path($asset['cover_local_path']));
-							} elseif (! empty($asset['cover_source_path'])) {
-								$digital_cover = base_url($url_path('assets/uploads/inlislite/source_mirror/' . $asset['cover_source_path']));
-							} else {
-								$digital_cover = '';
-							}
-							$policy_label = [
-								'download_allowed' => 'Bebas unduh',
-								'location_only' => 'Token/GPS',
-								'online_only' => 'Online',
-								'member_only' => 'Member',
-								'internal' => 'Internal',
-							][$asset['access_policy']] ?? $asset['access_policy'];
-						?>
-						<article class="member-digital-book">
-							<a href="<?= base_url('reader/read/' . (int) $asset['id']); ?>" class="member-digital-cover">
-								<?php if ($digital_cover): ?>
-									<img src="<?= html_escape($digital_cover); ?>" alt="Cover <?= html_escape($asset['title']); ?>" loading="lazy">
-								<?php else: ?>
-									<i class="ti ti-book"></i>
-								<?php endif; ?>
-							</a>
-							<div>
-								<span><?= html_escape($policy_label); ?></span>
-								<h3><?= html_escape($asset['title']); ?></h3>
-								<p><?= html_escape($asset['statement_responsibility'] ?: 'Penulis belum tercatat'); ?></p>
-								<a href="<?= base_url('reader/read/' . (int) $asset['id']); ?>" class="btn btn-primary btn-sm">
-									<i class="ti ti-book-reader me-1"></i>Baca Online
-								</a>
-							</div>
-						</article>
-					<?php endforeach; ?>
-				</div>
 			</section>
 
 			<section class="member-content-grid">

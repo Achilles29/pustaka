@@ -8,7 +8,7 @@ class Reader_model extends CI_Model
 		return [
 			'assets' => $this->count_where('digital_assets'),
 			'active_assets' => $this->count_where('digital_assets', ['status' => 'active']),
-			'online_only' => $this->count_where('digital_assets', ['access_policy' => 'online_only']),
+			'online_only' => $this->count_where('digital_assets', ['reader_audience' => 'member']),
 			'downloadable' => $this->count_where('digital_assets', ['is_downloadable' => 1]),
 			'locked_assets' => $this->count_locked_assets(),
 			'rights_expiring' => $this->count_rights_expiring(),
@@ -422,9 +422,14 @@ class Reader_model extends CI_Model
 			$this->db->where('da.status', $status);
 		}
 
-		$policy = trim((string) ($filters['access_policy'] ?? ''));
-		if (in_array($policy, ['online_only', 'download_allowed', 'location_only', 'member_only', 'internal'], true)) {
-			$this->db->where('da.access_policy', $policy);
+		$audience = trim((string) ($filters['reader_audience'] ?? ''));
+		if (in_array($audience, ['member', 'internal'], true)) {
+			$this->db->where('da.reader_audience', $audience);
+		}
+
+		$delivery = trim((string) ($filters['pdf_delivery'] ?? ''));
+		if (in_array($delivery, ['render_locked', 'download_allowed'], true)) {
+			$this->db->where('da.pdf_delivery', $delivery);
 		}
 
 		$rights = trim((string) ($filters['rights_basis'] ?? ''));
@@ -440,9 +445,13 @@ class Reader_model extends CI_Model
 			throw new InvalidArgumentException('Buku wajib dipilih.');
 		}
 
-		$access_policy = (string) ($data['access_policy'] ?? 'internal');
-		if (! in_array($access_policy, ['online_only', 'download_allowed', 'location_only', 'member_only', 'internal'], true)) {
-			$access_policy = 'internal';
+		$reader_audience = (string) ($data['reader_audience'] ?? 'member');
+		if (! in_array($reader_audience, ['member', 'internal'], true)) {
+			$reader_audience = 'member';
+		}
+		$pdf_delivery = (string) ($data['pdf_delivery'] ?? 'render_locked');
+		if (! in_array($pdf_delivery, ['render_locked', 'download_allowed'], true)) {
+			$pdf_delivery = 'render_locked';
 		}
 
 		$status = (string) ($data['status'] ?? 'draft');
@@ -455,10 +464,7 @@ class Reader_model extends CI_Model
 			$rights_basis = 'unknown';
 		}
 
-		$is_downloadable = $access_policy === 'download_allowed' ? 1 : (int) ! empty($data['is_downloadable']);
-		if ($access_policy !== 'download_allowed') {
-			$is_downloadable = 0;
-		}
+		$is_downloadable = $pdf_delivery === 'download_allowed' ? 1 : 0;
 
 		$file_path = trim((string) ($data['file_path'] ?? ''));
 		if ($require_file && $file_path === '') {
@@ -476,7 +482,10 @@ class Reader_model extends CI_Model
 			'file_path' => $file_path !== '' ? $file_path : null,
 			'mime_type' => $this->blank_to_null($data['mime_type'] ?? 'application/pdf'),
 			'file_size' => ! empty($data['file_size']) ? (int) $data['file_size'] : null,
-			'access_policy' => $access_policy,
+			// Kolom lama tetap diisi agar audit/sesi lama tidak putus.
+			'access_policy' => $reader_audience === 'internal' ? 'internal' : ($pdf_delivery === 'download_allowed' ? 'download_allowed' : 'online_only'),
+			'reader_audience' => $reader_audience,
+			'pdf_delivery' => $pdf_delivery,
 			'is_downloadable' => $is_downloadable,
 			'status' => $status,
 			'updated_at' => date('Y-m-d H:i:s'),

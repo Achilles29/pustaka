@@ -44,7 +44,7 @@ if (! empty($book['cover_local_path'])) {
 } elseif (! empty($book['cover_source_path'])) {
 	$cover_url = base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
 } else {
-	$cover_url = '';
+	$cover_url = base_url('assets/img/book-cover-default.webp');
 }
 ?>
 <div class="page-header d-print-none">
@@ -52,7 +52,7 @@ if (! empty($book['cover_local_path'])) {
 		<div class="row g-2 align-items-center">
 			<div class="col">
 				<div class="page-pretitle">Katalog</div>
-				<h1 class="page-title">Detail Buku</h1>
+				<h1 class="page-title">Detail Katalog</h1>
 			</div>
 			<div class="col-auto ms-auto">
 				<div class="btn-list">
@@ -159,14 +159,15 @@ if (! empty($book['cover_local_path'])) {
 							<tbody>
 								<?php if (empty($digital_assets)): ?><tr><td colspan="5" class="text-center text-secondary py-4">Buku ini belum punya ebook. Ini normal untuk koleksi fisik.</td></tr><?php endif; ?>
 								<?php foreach ($digital_assets ?? [] as $asset): ?>
-									<?php $is_locked = (int) $asset['is_downloadable'] !== 1 || $asset['access_policy'] !== 'download_allowed'; ?>
+									<?php $is_locked = (int) $asset['is_downloadable'] !== 1 || ($asset['pdf_delivery'] ?? '') !== 'download_allowed'; ?>
 									<tr>
 										<td data-label="File">
 											<div class="fw-semibold"><?= html_escape($asset['file_original_name'] ?: basename((string) $asset['file_path'])); ?></div>
 											<div class="text-secondary small"><?= number_format((int) ($asset['file_size'] ?? 0), 0, ',', '.'); ?> byte</div>
 										</td>
 										<td data-label="Policy">
-											<span class="badge bg-blue-lt"><?= html_escape($policy_labels[$asset['access_policy']] ?? $asset['access_policy']); ?></span>
+											<span class="badge bg-blue-lt"><?= html_escape(($asset['reader_audience'] ?? 'member') === 'internal' ? 'Internal petugas' : 'Member aktif'); ?></span>
+											<span class="badge bg-azure-lt"><?= html_escape(($asset['pdf_delivery'] ?? 'render_locked') === 'download_allowed' ? 'Download diizinkan' : 'Render terkunci'); ?></span>
 											<span class="badge <?= $is_locked ? 'bg-red-lt' : 'bg-green-lt'; ?>"><?= $is_locked ? 'PDF utuh dikunci' : 'Download boleh'; ?></span>
 										</td>
 										<td data-label="Hak Publikasi">
@@ -197,7 +198,7 @@ if (! empty($book['cover_local_path'])) {
 					<div class="card-header workspace-header">
 						<div>
 							<h2 class="card-title">Eksemplar</h2>
-							<div class="text-secondary small">Item fisik/digital beserta lokasi, aturan pinjam, dan status OPAC.</div>
+							<div class="text-secondary small">Jenis koleksi, item fisik/digital, lokasi, aturan akses, dan status OPAC.</div>
 						</div>
 						<?php if (! empty($can_create_item)): ?>
 							<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#item-modal-create">
@@ -231,7 +232,8 @@ if (! empty($book['cover_local_path'])) {
 											<div class="text-secondary small"><?= html_escape($item['location_library_name'] ?: '-'); ?></div>
 										</td>
 										<td>
-											<div><?= html_escape($item['category_name'] ?: ($item['collection_type'] ?: '-')); ?></div>
+											<div>Jenis: <?= html_escape($item['collection_type'] ?: ($item['category_name'] ?: '-')); ?></div>
+											<div class="text-secondary small">Kategori: <?= html_escape($item['category_name'] ?: '-'); ?></div>
 											<div class="text-secondary small">Aturan: <?= html_escape($item['rule_name'] ?: '-'); ?></div>
 											<div class="text-secondary small">Media: <?= html_escape($item['media_name'] ?: '-'); ?></div>
 										</td>

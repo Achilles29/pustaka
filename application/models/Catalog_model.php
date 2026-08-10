@@ -86,7 +86,7 @@ class Catalog_model extends CI_Model
 		$this->apply_book_filters($filters, $scope_library_id);
 
 		return $this->db
-			->select('b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS item_count')
+			->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS item_count, GROUP_CONCAT(DISTINCT NULLIF(i.collection_type, '') ORDER BY i.collection_type SEPARATOR ', ') AS collection_types", false)
 			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
 			->join('book_classification_masters cm', 'cm.id = b.content_classification_id', 'left')
 			->group_by('b.id')
@@ -103,7 +103,7 @@ class Catalog_model extends CI_Model
 		}
 
 		$this->db
-			->select('b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS item_count')
+			->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS item_count, MIN(NULLIF(i.collection_type, '')) AS primary_collection_type", false)
 			->from('books b')
 			->join('book_items i', 'i.book_id = b.id AND i.deleted_at IS NULL', 'left')
 			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
@@ -138,7 +138,7 @@ class Catalog_model extends CI_Model
 		$this->apply_public_book_filters($filters);
 
 		return $this->db
-			->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS public_item_count, SUM(CASE WHEN i.status = 'available' THEN 1 ELSE 0 END) AS available_count, COUNT(DISTINCT da.id) AS digital_asset_count, MIN(da.id) AS first_digital_asset_id", false)
+			->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS public_item_count, SUM(CASE WHEN i.status = 'available' THEN 1 ELSE 0 END) AS available_count, COUNT(DISTINCT da.id) AS digital_asset_count, MIN(da.id) AS first_digital_asset_id, GROUP_CONCAT(DISTINCT NULLIF(i.collection_type, '') ORDER BY i.collection_type SEPARATOR ', ') AS collection_types", false)
 			->join('digital_assets da', "da.book_id = b.id AND da.status = 'active'", 'left')
 			->group_by('b.id')
 			->order_by('b.title', 'ASC')
@@ -189,7 +189,7 @@ class Catalog_model extends CI_Model
 			->join('books b', 'b.id = da.book_id', 'left')
 			->where('da.book_id', (int) $book_id)
 			->where('da.status', 'active')
-			->where_in('da.access_policy', ['online_only', 'download_allowed', 'location_only', 'member_only'])
+			->where('da.reader_audience', 'member')
 			->order_by('da.is_downloadable', 'DESC')
 			->order_by('da.id', 'ASC')
 			->get()
@@ -225,11 +225,101 @@ class Catalog_model extends CI_Model
 			->where('da.status', 'active')
 			->where('b.status', 'published')
 			->where('b.deleted_at IS NULL', null, false)
-			->where_in('da.access_policy', ['online_only', 'download_allowed', 'location_only', 'member_only'])
-			->order_by('da.id', 'ASC')
+			->where('da.reader_audience', 'member')
+			->order_by('da.id', 'DESC')
 			->limit(max(1, min(12, (int) $limit)))
 			->get()
 			->result_array();
+	}
+
+	public function get_dashboard_book_shelves($limit = 4)
+	{
+		$limit = max(3, min(8, (int) $limit));
+		return [
+			'catalog' => [
+				'random' => $this->get_dashboard_shelf('random', false, $limit),
+				'popular' => $this->get_dashboard_shelf('popular', false, $limit),
+				'newest' => $this->get_dashboard_shelf('newest', false, $limit),
+			],
+			'digital' => [
+				'random' => $this->get_dashboard_shelf('random', true, $limit),
+				'popular' => $this->get_dashboard_shelf('popular', true, $limit),
+				'newest' => $this->get_dashboard_shelf('newest', true, $limit),
+			],
+		];
+	}
+
+	private function get_dashboard_shelf($sort, $digital_only, $limit)
+	{
+		$has_digital = "EXISTS (SELECT 1 FROM digital_assets da_filter WHERE da_filter.book_id = b.id AND da_filter.status = 'active' AND da_filter.reader_audience = 'member')";
+		$digital_asset = "(SELECT MIN(da_asset.id) FROM digital_assets da_asset WHERE da_asset.book_id = b.id AND da_asset.status = 'active' AND da_asset.reader_audience = 'member')";
+		$physical_reads = '(SELECT COUNT(*) FROM loan_transaction_items lti JOIN book_items popular_item ON popular_item.id = lti.book_item_id WHERE popular_item.book_id = b.id)';
+		$digital_reads = '(SELECT COUNT(*) FROM reading_sessions rs WHERE rs.book_id = b.id)';
+
+		$builder = $this->db
+			->select("b.id, b.title, b.statement_responsibility, b.publisher, b.publish_year, b.cover_local_path, b.cover_source_path, cc.name AS content_category_name, {$has_digital} AS has_digital, {$digital_asset} AS digital_asset_id, {$physical_reads} AS physical_read_count, {$digital_reads} AS digital_read_count", false)
+			->from('books b')
+			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
+			->where('b.status', 'published')
+			->where('b.deleted_at IS NULL', null, false);
+
+		if ($digital_only) {
+			$builder->where($has_digital, null, false);
+		}
+
+		if ($sort === 'popular') {
+			$builder->order_by("({$physical_reads} + {$digital_reads})", 'DESC', false)
+				->order_by('b.created_at', 'DESC');
+		} elseif ($sort === 'random') {
+			$builder->order_by('RAND()', '', false);
+		} else {
+			$builder->order_by('b.created_at', 'DESC')->order_by('b.id', 'DESC');
+		}
+
+		return $builder
+			->limit($limit)
+			->get()
+			->result_array();
+	}
+
+	public function admin_filter_options($scope_library_id = null)
+	{
+		$option_query = function ($field, $limit = 40) use ($scope_library_id) {
+			$this->db
+				->select($field . ' AS name, COUNT(DISTINCT b.id) AS total', false)
+				->from('book_items i')
+				->join('books b', 'b.id = i.book_id')
+				->where('b.deleted_at IS NULL', null, false)
+				->where('i.deleted_at IS NULL', null, false)
+				->where($field . ' IS NOT NULL', null, false)
+				->where($field . ' <>', '');
+			if (! empty($scope_library_id)) {
+				$this->db->where('i.library_id', (int) $scope_library_id);
+			}
+			return $this->db
+				->group_by($field)
+				->order_by('total', 'DESC')
+				->limit($limit)
+				->get()
+				->result_array();
+		};
+
+		$this->db
+			->select('COALESCE(NULLIF(source_system, \'\'), \'manual\') AS name, COUNT(*) AS total', false)
+			->from('books')
+			->where('deleted_at IS NULL', null, false)
+			->group_by('name')
+			->order_by('total', 'DESC');
+		$sources = $this->db->get()->result_array();
+
+		return [
+			'sources' => $sources,
+			'collection_types' => $option_query('i.collection_type', 30),
+			'categories' => $option_query('i.category_name', 50),
+			'medias' => $option_query('i.media_name', 30),
+			'rules' => $option_query('i.rule_name', 30),
+			'locations' => $option_query('i.location_library_name', 40),
+		];
 	}
 
 	public function count_highlights(array $filters = [])
@@ -251,7 +341,7 @@ class Catalog_model extends CI_Model
 		$this->apply_highlight_filters($filters);
 
 		return $this->db
-			->select('ch.*, b.title AS book_title, b.statement_responsibility, b.publish_year, b.status AS book_status, cc.name AS category_name, target_cc.name AS target_category_name')
+			->select("ch.*, b.title AS book_title, b.statement_responsibility, b.publish_year, b.status AS book_status, cc.name AS category_name, target_cc.name AS target_category_name, EXISTS (SELECT 1 FROM digital_assets da_kind WHERE da_kind.book_id = b.id AND da_kind.status = 'active' AND da_kind.reader_audience = 'member') AS target_has_digital", false)
 			->join('books b', 'b.id = ch.book_id', 'left')
 			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
 			->join('book_content_categories target_cc', 'target_cc.id = ch.content_category_id', 'left')
@@ -312,12 +402,12 @@ class Catalog_model extends CI_Model
 		}
 
 		return $this->db
-			->select("ch.*, b.title, b.statement_responsibility, b.cover_local_path, b.cover_source_path, b.publish_year, b.call_number, cc.name AS content_category_name, cm.name AS content_classification_name, MIN(da.id) AS first_digital_asset_id, MIN(da.access_policy) AS digital_access_policy", false)
+			->select("ch.*, b.title, b.statement_responsibility, b.cover_local_path, b.cover_source_path, b.publish_year, b.call_number, cc.name AS content_category_name, cm.name AS content_classification_name, MIN(da.id) AS first_digital_asset_id, MIN(da.pdf_delivery) AS digital_access_policy", false)
 			->from('catalog_highlights ch')
 			->join('books b', 'b.id = ch.book_id')
 			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
 			->join('book_classification_masters cm', 'cm.id = b.content_classification_id', 'left')
-			->join('digital_assets da', "da.book_id = b.id AND da.status = 'active' AND da.access_policy IN ('online_only','download_allowed','location_only','member_only')", 'left')
+			->join('digital_assets da', "da.book_id = b.id AND da.status = 'active' AND da.reader_audience = 'member'", 'left')
 			->where('ch.target_type', 'book')
 			->where('ch.is_active', 1)
 			->where('b.status', 'published')
@@ -396,6 +486,61 @@ class Catalog_model extends CI_Model
 			->result_array();
 	}
 
+	public function get_highlight_book($id)
+	{
+		$id = (int) $id;
+		if ($id <= 0) {
+			return null;
+		}
+
+		return $this->highlight_book_query()
+			->where('b.id', $id)
+			->limit(1)
+			->get()
+			->row_array();
+	}
+
+	public function search_highlight_books($query = '', $kind = 'all', $limit = 12)
+	{
+		$query = trim((string) $query);
+		$builder = $this->highlight_book_query();
+		if ($query !== '') {
+			$builder->group_start()
+				->like('b.title', $query)
+				->or_like('b.statement_responsibility', $query)
+				->or_like('b.publisher', $query)
+				->or_like('b.isbn', $query)
+				->group_end();
+		}
+
+		$has_digital = "EXISTS (SELECT 1 FROM digital_assets da_filter WHERE da_filter.book_id = b.id AND da_filter.status = 'active' AND da_filter.reader_audience = 'member')";
+		if ($kind === 'digital') {
+			$builder->where($has_digital, null, false);
+		} elseif ($kind === 'non_digital') {
+			$builder->where('NOT ' . $has_digital, null, false);
+		}
+
+		return $builder
+			->order_by('b.title', 'ASC')
+			->limit(max(1, min(20, (int) $limit)))
+			->get()
+			->result_array();
+	}
+
+	private function highlight_book_query()
+	{
+		$has_digital = "EXISTS (SELECT 1 FROM digital_assets da_filter WHERE da_filter.book_id = b.id AND da_filter.status = 'active' AND da_filter.reader_audience = 'member')";
+		$digital_asset = "(SELECT MIN(da_asset.id) FROM digital_assets da_asset WHERE da_asset.book_id = b.id AND da_asset.status = 'active' AND da_asset.reader_audience = 'member')";
+
+		return $this->db
+			->select("b.id, b.title, b.statement_responsibility, b.publisher, b.publish_year, b.isbn, b.cover_local_path, b.cover_source_path, cc.name AS content_category_name, cm.name AS content_classification_name, {$has_digital} AS has_digital, {$digital_asset} AS digital_asset_id", false)
+			->from('books b')
+			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
+			->join('book_classification_masters cm', 'cm.id = b.content_classification_id', 'left')
+			->where('b.status', 'published')
+			->where('b.deleted_at IS NULL', null, false);
+	}
+
 	public function public_filter_options(array $filters = [])
 	{
 		$option_query = function ($field, $limit = 40) {
@@ -417,6 +562,7 @@ class Catalog_model extends CI_Model
 		};
 
 		$categories = $option_query('i.category_name', 50);
+		$collection_types = $option_query('i.collection_type', 30);
 		$medias = $option_query('i.media_name', 30);
 		$rules = $option_query('i.rule_name', 30);
 		$content_categories = $this->get_content_categories(true);
@@ -451,6 +597,7 @@ class Catalog_model extends CI_Model
 
 		return [
 			'categories' => $categories,
+			'collection_types' => $collection_types,
 			'content_categories' => $content_categories,
 			'content_classifications' => $content_classifications,
 			'medias' => $medias,
@@ -492,6 +639,22 @@ class Catalog_model extends CI_Model
 			->from('book_classification_masters')
 			->order_by('sort_order', 'ASC')
 			->order_by('code', 'ASC')
+			->get()
+			->result_array();
+	}
+
+	public function get_collection_types($active_only = false)
+	{
+		if (! $this->db->table_exists('book_collection_types')) {
+			return [];
+		}
+		if ($active_only) {
+			$this->db->where('is_active', 1);
+		}
+		return $this->db
+			->from('book_collection_types')
+			->order_by('sort_order', 'ASC')
+			->order_by('name', 'ASC')
 			->get()
 			->result_array();
 	}
@@ -542,6 +705,33 @@ class Catalog_model extends CI_Model
 
 		$this->db->insert('book_classification_masters', $payload);
 		return (int) $this->db->insert_id();
+	}
+
+	public function save_collection_type(array $data, $id = null)
+	{
+		if (! $this->db->table_exists('book_collection_types')) {
+			throw new RuntimeException('Master jenis koleksi belum tersedia. Jalankan patch SQL terbaru.');
+		}
+		$payload = $this->master_payload($data);
+		if ($id) {
+			$this->db->where('id', (int) $id)->update('book_collection_types', $payload);
+			return (int) $id;
+		}
+		$this->db->insert('book_collection_types', $payload);
+		return (int) $this->db->insert_id();
+	}
+
+	public function delete_collection_type($id)
+	{
+		$type = $this->db->from('book_collection_types')->where('id', (int) $id)->limit(1)->get()->row_array();
+		if (! $type) {
+			throw new RuntimeException('Master jenis koleksi tidak ditemukan.');
+		}
+		$in_use = (int) $this->db->from('book_items')->where('collection_type', $type['name'])->count_all_results();
+		if ($in_use > 0) {
+			throw new RuntimeException('Jenis koleksi masih digunakan oleh ' . $in_use . ' eksemplar. Nonaktifkan atau pindahkan datanya terlebih dahulu.');
+		}
+		$this->db->where('id', (int) $id)->delete('book_collection_types');
 	}
 
 	public function create_book_request($book_id, array $data, array $member = null)
@@ -661,6 +851,11 @@ class Catalog_model extends CI_Model
 			$this->db->where('i.category_name', $category);
 		}
 
+		$collection_type = trim((string) ($filters['collection_type'] ?? ''));
+		if ($collection_type !== '') {
+			$this->db->where('i.collection_type', $collection_type);
+		}
+
 		$content_category = (int) ($filters['content_category_id'] ?? 0);
 		if ($content_category > 0) {
 			$this->db->where('b.content_category_id', $content_category);
@@ -699,6 +894,8 @@ class Catalog_model extends CI_Model
 			$this->db->where('i.status', 'available');
 		} elseif ($availability === 'with_items') {
 			$this->db->where('i.id IS NOT NULL', null, false);
+		} elseif ($availability === 'digital') {
+			$this->db->where("EXISTS (SELECT 1 FROM digital_assets da_filter WHERE da_filter.book_id = b.id AND da_filter.status = 'active' AND da_filter.reader_audience = 'member')", null, false);
 		}
 	}
 
@@ -892,6 +1089,7 @@ class Catalog_model extends CI_Model
 
 		$this->db->insert('books', $payload);
 		$book_id = (int) $this->db->insert_id();
+		$this->sync_catalog_primary_item($book_id, $data, $payload);
 		$this->sync_manual_book_terms($book_id, $data);
 
 		$this->db->trans_complete();
@@ -922,6 +1120,9 @@ class Catalog_model extends CI_Model
 		}
 
 		$this->db->where('id', (int) $id)->update('books', $payload);
+		if (empty($book['source_system']) || $book['source_system'] === 'manual') {
+			$this->sync_catalog_primary_item((int) $id, $data, $payload);
+		}
 		$this->sync_manual_book_terms((int) $id, $data);
 
 		$this->db->trans_complete();
@@ -948,6 +1149,7 @@ class Catalog_model extends CI_Model
 		$this->db
 			->from('books b')
 			->join('book_items i', 'i.book_id = b.id AND i.deleted_at IS NULL', 'left')
+			->join('libraries l', 'l.id = i.library_id', 'left')
 			->where('b.deleted_at IS NULL', null, false);
 
 		if (! empty($scope_library_id)) {
@@ -979,6 +1181,52 @@ class Catalog_model extends CI_Model
 		$content_classification = (int) ($filters['content_classification_id'] ?? 0);
 		if ($content_classification > 0) {
 			$this->db->where('b.content_classification_id', $content_classification);
+		}
+
+		$source_system = trim((string) ($filters['source_system'] ?? ''));
+		if ($source_system !== '') {
+			if ($source_system === 'manual') {
+				$this->db->where('(b.source_system IS NULL OR b.source_system = \'\')', null, false);
+			} else {
+				$this->db->where('b.source_system', $source_system);
+			}
+		}
+
+		$category = trim((string) ($filters['category'] ?? ''));
+		if ($category !== '') {
+			$this->db->where('i.category_name', $category);
+		}
+
+		$collection_type = trim((string) ($filters['collection_type'] ?? ''));
+		if ($collection_type !== '') {
+			$this->db->where('i.collection_type', $collection_type);
+		}
+
+		$media = trim((string) ($filters['media'] ?? ''));
+		if ($media !== '') {
+			$this->db->where('i.media_name', $media);
+		}
+
+		$rule = trim((string) ($filters['rule'] ?? ''));
+		if ($rule !== '') {
+			$this->db->where('i.rule_name', $rule);
+		}
+
+		$location_library = trim((string) ($filters['location_library'] ?? ''));
+		if ($location_library !== '') {
+			$this->db->group_start()
+				->where('i.location_library_name', $location_library)
+				->or_where('l.name', $location_library)
+				->group_end();
+		}
+
+		$availability = trim((string) ($filters['availability'] ?? ''));
+		if ($availability === 'available') {
+			$this->db->where('i.status', 'available');
+		} elseif ($availability === 'with_items') {
+			$this->db->where('i.id IS NOT NULL', null, false);
+		} elseif ($availability === 'digital') {
+			$this->db->where("EXISTS (SELECT 1 FROM digital_assets da_filter WHERE da_filter.book_id = b.id AND da_filter.status = 'active' AND da_filter.reader_audience = 'member')", null, false);
 		}
 
 		$year = trim((string) ($filters['publish_year'] ?? ''));
@@ -1399,6 +1647,7 @@ class Catalog_model extends CI_Model
 			'barcode' => $this->clip($data['barcode'] ?? null, 120),
 			'call_number' => $this->clip($data['call_number'] ?? null, 120),
 			'inventory_number' => $this->clip($data['inventory_number'] ?? null, 120),
+			'collection_type' => $this->clip($data['collection_type'] ?? null, 120),
 			'status' => in_array(($data['status'] ?? 'unknown'), ['available', 'loaned', 'missing', 'damaged', 'unknown'], true) ? $data['status'] : 'unknown',
 			'is_public' => ! empty($data['is_public']) ? 1 : 0,
 			'updated_at' => date('Y-m-d H:i:s'),
@@ -1424,7 +1673,7 @@ class Catalog_model extends CI_Model
 		}
 
 		$payload['location_name'] = $this->clip($payload['location_room_name'] ?: $payload['location_library_name'], 180);
-		$payload['collection_type'] = $this->clip($payload['category_name'], 120);
+		$payload['collection_type'] = $this->clip($payload['collection_type'] ?: $payload['category_name'], 120);
 
 		if (empty($payload['source_status_id'])) {
 			$payload['status_label'] = null;
@@ -1513,6 +1762,51 @@ class Catalog_model extends CI_Model
 				'subject' => $this->clip($subject, 180),
 			]);
 		}
+	}
+
+	private function sync_catalog_primary_item($book_id, array $data, array $book_payload)
+	{
+		$type = $this->clip($data['collection_type'] ?? null, 120);
+		if ($type === null) {
+			return;
+		}
+
+		$item = $this->db
+			->from('book_items')
+			->where('book_id', (int) $book_id)
+			->where('source_system', 'manual')
+			->where('source_id', 'catalog-primary')
+			->limit(1)
+			->get()
+			->row_array();
+
+		$media = strtolower($type) === 'ebook' ? 'Digital' : $type;
+		$common = [
+			'collection_type' => $type,
+			'category_name' => $type,
+			'media_name' => $media,
+			'call_number' => $book_payload['call_number'] ?? null,
+			'deleted_at' => null,
+			'updated_at' => date('Y-m-d H:i:s'),
+		];
+
+		if ($item) {
+			$this->db->where('id', (int) $item['id'])->update('book_items', $common);
+			return;
+		}
+
+		$this->db->insert('book_items', array_merge($common, [
+			'book_id' => (int) $book_id,
+			'source_system' => 'manual',
+			'source_id' => 'catalog-primary',
+			'item_code' => 'CAT-' . (int) $book_id,
+			'location_name' => 'Belum ditentukan',
+			'rule_name' => 'Belum ditentukan',
+			'source_name' => 'Input katalog',
+			'status' => 'unknown',
+			'status_label' => 'Belum diverifikasi',
+			'is_public' => 1,
+		]));
 	}
 
 	private function source_id($value)

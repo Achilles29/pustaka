@@ -134,11 +134,24 @@ $status_labels = [
 								</select>
 							</div>
 							<div class="mb-3">
+								<label class="form-label">Jenis Koleksi</label>
+								<select class="form-select" name="collection_type">
+									<option value="">Pilih jenis koleksi</option>
+									<?php foreach (($collection_types ?? []) as $type): ?>
+										<option value="<?= html_escape($type['name']); ?>" <?= $field('primary_collection_type') === $type['name'] ? 'selected' : ''; ?>><?= html_escape($type['code'] . ' — ' . $type['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<div class="d-flex justify-content-between gap-2 mt-1">
+									<div class="form-hint">Disimpan sebagai jenis eksemplar utama pada katalog. Satu judul dapat mempunyai jenis/eksemplar lain setelah tersimpan.</div>
+									<a href="<?= base_url('catalog/masters?tab=collection_types'); ?>" class="small fw-semibold text-primary text-nowrap"><i class="ti ti-settings me-1"></i>Kelola jenis</a>
+								</div>
+							</div>
+							<div class="mb-3">
 								<label class="form-label">Kategori Isi</label>
 								<select class="form-select" name="content_category_id">
 									<option value="">Belum dipetakan</option>
 									<?php foreach ($content_categories ?? [] as $category): ?>
-										<option value="<?= (int) $category['id']; ?>" <?= (int) $field('content_category_id') === (int) $category['id'] ? 'selected' : ''; ?>><?= html_escape($category['name']); ?></option>
+										<option value="<?= (int) $category['id']; ?>" <?= (int) $field('content_category_id') === (int) $category['id'] ? 'selected' : ''; ?>><?= html_escape($category['code'] . ' — ' . $category['name']); ?></option>
 									<?php endforeach; ?>
 								</select>
 								<div class="form-hint">Dipakai untuk filter publik seperti fiksi, karya ilmiah, lokal Rembang.</div>
@@ -148,7 +161,7 @@ $status_labels = [
 								<select class="form-select" name="content_classification_id">
 									<option value="">Belum dipetakan</option>
 									<?php foreach ($classification_masters ?? [] as $classification): ?>
-										<option value="<?= (int) $classification['id']; ?>" <?= (int) $field('content_classification_id') === (int) $classification['id'] ? 'selected' : ''; ?>><?= html_escape($classification['name']); ?></option>
+										<option value="<?= (int) $classification['id']; ?>" <?= (int) $field('content_classification_id') === (int) $classification['id'] ? 'selected' : ''; ?>><?= html_escape($classification['code'] . ' — ' . $classification['name']); ?></option>
 									<?php endforeach; ?>
 								</select>
 							</div>

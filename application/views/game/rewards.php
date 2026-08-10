@@ -1,5 +1,5 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
-$unit_labels = ['minutes' => 'menit', 'pages' => 'halaman', 'books' => 'buku'];
+$unit_labels = ['minutes' => 'menit (legacy)', 'pages' => 'halaman (legacy)', 'books' => 'sesi baca'];
 $csrf_name = $this->security->get_csrf_token_name();
 $csrf_hash = $this->security->get_csrf_hash();
 ?>
@@ -195,7 +195,7 @@ $csrf_hash = $this->security->get_csrf_hash();
         });
     });
 
-    function unitLabel(u) { return { minutes: 'menit', pages: 'halaman', books: 'buku' }[u] || u; }
+    function unitLabel(u) { return { minutes: 'menit (legacy)', pages: 'halaman (legacy)', books: 'sesi baca' }[u] || u; }
     function formatDate(s) {
         var d = new Date(s.replace(' ', 'T'));
         if (isNaN(d)) return s;

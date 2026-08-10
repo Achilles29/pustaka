@@ -7,13 +7,8 @@ $metrics = [
 	['key' => 'locked_assets', 'label' => 'Download Dikunci', 'icon' => 'ti ti-lock'],
 	['key' => 'rights_expiring', 'label' => 'Izin < 60 Hari', 'icon' => 'ti ti-alert-circle'],
 ];
-$policy_labels = [
-	'online_only' => 'Online aman',
-	'download_allowed' => 'Bebas download',
-	'location_only' => 'Pojok Baca / token',
-	'member_only' => 'Member saja',
-	'internal' => 'Internal petugas',
-];
+$audience_labels = ['member' => 'Member aktif', 'internal' => 'Internal petugas'];
+$delivery_labels = ['render_locked' => 'Render terkunci', 'download_allowed' => 'Download diizinkan'];
 $rights_labels = [
 	'public_domain' => 'Domain publik',
 	'licensed' => 'Lisensi resmi',
@@ -43,7 +38,7 @@ $pagination = $pagination ?? ['page' => 1, 'total_pages' => 1, 'total_rows' => 0
 		<div class="row g-2 align-items-center">
 			<div class="col">
 				<div class="page-pretitle">Layanan Digital</div>
-				<h1 class="page-title">Manajemen Ebook & Reader Aman</h1>
+				<h1 class="page-title">Aset PDF & Reader Aman</h1>
 			</div>
 			<div class="col-auto ms-auto btn-list">
 				<a href="<?= base_url('assets-migration'); ?>" class="btn btn-outline-primary">
@@ -86,8 +81,8 @@ $pagination = $pagination ?? ['page' => 1, 'total_pages' => 1, 'total_rows' => 0
 		<div class="card admin-card data-workspace mb-3">
 			<div class="card-header workspace-header">
 				<div>
-					<h2 class="card-title">Filter Ebook</h2>
-					<div class="text-secondary small">Cari buku, file, policy, atau dasar hak publikasi.</div>
+					<h2 class="card-title">Filter Aset PDF</h2>
+					<div class="text-secondary small">Aset selalu terhubung ke satu judul katalog; kelola file, policy, atau dasar hak publikasi di sini.</div>
 				</div>
 			</div>
 			<div class="card-body">
@@ -97,11 +92,20 @@ $pagination = $pagination ?? ['page' => 1, 'total_pages' => 1, 'total_rows' => 0
 						<input type="text" class="form-control" name="q" value="<?= html_escape($filters['q'] ?? ''); ?>" placeholder="Judul, nomor panggil, file, pemegang hak">
 					</div>
 					<div class="col-lg-2 col-md-6">
-						<label class="form-label">Policy</label>
-						<select class="form-select" name="access_policy">
+						<label class="form-label">Akses pembaca</label>
+						<select class="form-select" name="reader_audience">
 							<option value="">Semua</option>
-							<?php foreach ($policy_labels as $value => $label): ?>
-								<option value="<?= $value; ?>" <?= ($filters['access_policy'] ?? '') === $value ? 'selected' : ''; ?>><?= html_escape($label); ?></option>
+							<?php foreach ($audience_labels as $value => $label): ?>
+								<option value="<?= $value; ?>" <?= ($filters['reader_audience'] ?? '') === $value ? 'selected' : ''; ?>><?= html_escape($label); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="col-lg-2 col-md-6">
+						<label class="form-label">Pengiriman PDF</label>
+						<select class="form-select" name="pdf_delivery">
+							<option value="">Semua</option>
+							<?php foreach ($delivery_labels as $value => $label): ?>
+								<option value="<?= $value; ?>" <?= ($filters['pdf_delivery'] ?? '') === $value ? 'selected' : ''; ?>><?= html_escape($label); ?></option>
 							<?php endforeach; ?>
 						</select>
 					</div>
@@ -155,7 +159,7 @@ $pagination = $pagination ?? ['page' => 1, 'total_pages' => 1, 'total_rows' => 0
 								<?php if (empty($assets)): ?><tr><td colspan="5" class="text-center text-secondary py-4">Belum ada aset PDF sesuai filter.</td></tr><?php endif; ?>
 								<?php foreach ($assets as $asset): ?>
 									<?php
-										$is_locked = (int) $asset['is_downloadable'] !== 1 || $asset['access_policy'] !== 'download_allowed';
+						$is_locked = (int) $asset['is_downloadable'] !== 1 || ($asset['pdf_delivery'] ?? '') !== 'download_allowed';
 										$rights_end = ! empty($asset['permission_ends_at']) ? strtotime($asset['permission_ends_at']) : null;
 										$rights_warning = $rights_end && $rights_end >= strtotime(date('Y-m-d')) && $rights_end <= strtotime('+60 days');
 									?>
@@ -166,7 +170,8 @@ $pagination = $pagination ?? ['page' => 1, 'total_pages' => 1, 'total_rows' => 0
 											<div class="text-secondary small text-truncate" style="max-width: 20rem;"><?= html_escape($asset['file_original_name'] ?: basename((string) $asset['file_path'])); ?></div>
 										</td>
 										<td data-label="Hak Akses">
-											<span class="badge bg-blue-lt"><?= html_escape($policy_labels[$asset['access_policy']] ?? $asset['access_policy']); ?></span>
+							<span class="badge bg-blue-lt"><?= html_escape($audience_labels[$asset['reader_audience'] ?? 'member'] ?? 'Member aktif'); ?></span>
+							<span class="badge bg-azure-lt"><?= html_escape($delivery_labels[$asset['pdf_delivery'] ?? 'render_locked'] ?? 'Render terkunci'); ?></span>
 											<span class="badge <?= $is_locked ? 'bg-red-lt' : 'bg-green-lt'; ?>"><?= $is_locked ? 'PDF utuh dikunci' : 'Download boleh'; ?></span>
 										</td>
 										<td data-label="Hak Publikasi">

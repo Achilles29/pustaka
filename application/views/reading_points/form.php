@@ -86,14 +86,14 @@ $lng = (float) ($field('longitude') ?: 111.3502);
 							</div>
 							<div class="mb-3">
 								<label class="form-label">Kuota Harian</label>
-								<input type="number" class="form-control" name="daily_quota" value="<?= html_escape($field('daily_quota', 60)); ?>" min="0">
+								<input type="number" class="form-control" name="daily_quota" value="<?= html_escape($field('daily_quota', 5)); ?>" min="0">
 							</div>
 							<div class="mb-3">
 								<label class="form-label">Satuan Kuota</label>
 								<select class="form-select" name="quota_unit">
-									<option value="minutes" <?= $field('quota_unit', 'minutes') === 'minutes' ? 'selected' : ''; ?>>Menit</option>
-									<option value="pages" <?= $field('quota_unit') === 'pages' ? 'selected' : ''; ?>>Halaman</option>
-									<option value="books" <?= $field('quota_unit') === 'books' ? 'selected' : ''; ?>>Buku</option>
+									<option value="books" <?= $field('quota_unit', 'books') === 'books' ? 'selected' : ''; ?>>Sesi baca</option>
+									<option value="minutes" <?= $field('quota_unit') === 'minutes' ? 'selected' : ''; ?>>Menit (legacy)</option>
+									<option value="pages" <?= $field('quota_unit') === 'pages' ? 'selected' : ''; ?>>Halaman (legacy)</option>
 								</select>
 							</div>
 							<div class="mb-3">

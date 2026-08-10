@@ -5,7 +5,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $is_cli_request = (PHP_SAPI === 'cli' || defined('STDIN'));
 $script_name = str_replace(basename($_SERVER['SCRIPT_NAME'] ?? 'index.php'), '', (string)($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
 $http_host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
-$config['base_url'] = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http")
+$host_name = strtolower((string) preg_replace('/:\d+$/', '', $http_host));
+$forwarded_proto = strtolower(trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0]));
+$cf_visitor = json_decode((string)($_SERVER['HTTP_CF_VISITOR'] ?? ''), true);
+$is_https_request = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')
+    || $forwarded_proto === 'https'
+    || (is_array($cf_visitor) && strtolower((string)($cf_visitor['scheme'] ?? '')) === 'https')
+    || $host_name === 'pustaka.rembangkab.go.id';
+$config['base_url'] = ($is_https_request ? "https" : "http")
     . "://" . $http_host . rtrim($script_name, '/') . '/';
 
 if (!$is_cli_request) {

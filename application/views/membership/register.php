@@ -20,6 +20,9 @@ $options_for = function ($group, $current = '') use ($form_options) {
 	}
 	return array_values(array_unique($options));
 };
+$districts = $districts ?? [];
+$villages = $villages ?? [];
+$village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!doctype html>
 <html lang="id">
@@ -34,7 +37,7 @@ $options_for = function ($group, $current = '') use ($form_options) {
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810o'); ?>">
 </head>
 <body class="public-page public-register-page">
 	<header class="public-nav">
@@ -66,8 +69,9 @@ $options_for = function ($group, $current = '') use ($form_options) {
 					<h1>Daftar member tanpa datang dulu.</h1>
 					<p>Isi data sesuai identitas, unggah berkas, lalu admin akan memverifikasi sebelum akun anggota aktif.</p>
 					<div class="register-rule-list">
-						<div><i class="ti ti-id"></i><span>Foto, KTP, dan KK wajib diunggah.</span></div>
-						<div><i class="ti ti-map-pin"></i><span>NIK luar Rembang wajib melampirkan surat domisili, sekolah, pondok, atau keterangan lain yang berlaku.</span></div>
+						<div><i class="ti ti-id"></i><span>Unggah foto dan pilih salah satu: KTP atau Kartu Keluarga.</span></div>
+						<div><i class="ti ti-map-pin"></i><span>Bila dokumen identitas dari luar Rembang, surat keterangan dan catatan domisili dapat diisi bila diperlukan.</span></div>
+						<div><i class="ti ti-file-check"></i><span>Ukuran setiap berkas maksimal 2 MB.</span></div>
 						<div><i class="ti ti-shield-check"></i><span>Akun aktif setelah data diverifikasi admin.</span></div>
 					</div>
 					<div class="auth-secondary-link mt-3">
@@ -94,11 +98,19 @@ $options_for = function ($group, $current = '') use ($form_options) {
 								<input type="text" class="form-control" name="full_name" value="<?= html_escape($field('full_name')); ?>" required>
 							</div>
 							<div class="col-md-4 mb-3">
-								<label class="form-label">NIK</label>
+								<label class="form-label">NIK (sesuai KTP/KK)</label>
 								<input type="text" class="form-control" name="identity_number" value="<?= html_escape($field('identity_number')); ?>" required inputmode="numeric">
-								<div class="form-hint">NIK Rembang diawali <code>3317</code>.</div>
+								<div class="form-hint">Gunakan NIK pada dokumen yang diunggah. Domisili ditentukan dari alamat KTP/KK, bukan awalan NIK.</div>
 							</div>
 						</div>
+						<fieldset class="mb-3" aria-describedby="domicile-help">
+							<legend class="form-label mb-2">Apakah Anda warga Rembang?</legend>
+							<div class="identity-choice-group identity-choice-group-compact">
+								<label class="identity-choice"><input type="radio" name="identity_domicile" value="rembang" <?= $field('identity_domicile', 'rembang') === 'rembang' ? 'checked' : ''; ?> required><span><strong>Ya, warga Rembang</strong><small>Alamat pada KTP/KK berada di Kabupaten Rembang.</small></span></label>
+								<label class="identity-choice"><input type="radio" name="identity_domicile" value="outside_rembang" <?= $field('identity_domicile') === 'outside_rembang' ? 'checked' : ''; ?>><span><strong>Bukan warga Rembang</strong><small>Alamat pada KTP/KK berada di luar Kabupaten Rembang.</small></span></label>
+							</div>
+							<div id="domicile-help" class="form-hint">Pilihan ini berdasarkan alamat pada identitas, bukan awalan NIK.</div>
+						</fieldset>
 						<div class="row">
 							<div class="col-md-4 mb-3">
 								<label class="form-label">Jenis Kelamin</label>
@@ -128,15 +140,37 @@ $options_for = function ($group, $current = '') use ($form_options) {
 								<input type="email" class="form-control" name="email" value="<?= html_escape($field('email')); ?>">
 							</div>
 						</div>
-						<div class="row">
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Kecamatan</label>
-								<input type="text" class="form-control" name="district" value="<?= html_escape($field('district')); ?>">
+						<div class="resident-location-fields">
+							<div class="row">
+								<div class="col-md-6 mb-3">
+									<label class="form-label" for="district_id">Kecamatan</label>
+									<select id="district_id" class="form-select" name="district_id" data-current="<?= (int) $field('district_id'); ?>">
+										<option value="">Pilih kecamatan</option>
+										<?php foreach ($districts as $district): ?>
+											<option value="<?= (int) $district['id']; ?>" <?= (int) $field('district_id') === (int) $district['id'] ? 'selected' : ''; ?>><?= html_escape($district['name']); ?></option>
+										<?php endforeach; ?>
+									</select>
+								</div>
+								<div class="col-md-6 mb-3">
+									<label class="form-label" for="village_id">Desa / Kelurahan</label>
+									<select id="village_id" class="form-select" name="village_id" data-current="<?= (int) $field('village_id'); ?>">
+										<option value="">Pilih desa / kelurahan</option>
+									</select>
+								</div>
 							</div>
-							<div class="col-md-6 mb-3">
-								<label class="form-label">Desa / Kelurahan</label>
-								<input type="text" class="form-control" name="village" value="<?= html_escape($field('village')); ?>">
+						</div>
+						<div class="outside-location-fields" hidden>
+							<div class="row">
+								<div class="col-md-6 mb-3">
+									<label class="form-label" for="district">Kecamatan / Kota</label>
+									<input id="district" type="text" class="form-control" name="district" value="<?= html_escape($field('district')); ?>" placeholder="Ketik kecamatan atau kota domisili" disabled>
+								</div>
+								<div class="col-md-6 mb-3">
+									<label class="form-label" for="village">Desa / Kelurahan</label>
+									<input id="village" type="text" class="form-control" name="village" value="<?= html_escape($field('village')); ?>" placeholder="Ketik desa atau kelurahan domisili" disabled>
+								</div>
 							</div>
+							<div class="form-hint mb-3">Untuk domisili luar Rembang, isikan wilayah sesuai alamat identitas secara manual.</div>
 						</div>
 						<div class="mb-3">
 							<label class="form-label">Alamat Lengkap</label>
@@ -170,28 +204,39 @@ $options_for = function ($group, $current = '') use ($form_options) {
 								</select>
 							</div>
 						</div>
-						<div class="row">
-							<div class="col-md-4 mb-3">
+						<div class="registration-files">
+							<div class="mb-3">
 								<label class="form-label">Foto Diri</label>
-								<input type="file" class="form-control" name="photo_file" accept=".jpg,.jpeg,.png" required>
+								<input type="file" class="form-control" name="photo_file" accept=".jpg,.jpeg,.png" required data-max-upload>
+								<div class="form-hint">JPG atau PNG, maksimal 2 MB.</div>
 							</div>
-							<div class="col-md-4 mb-3">
-								<label class="form-label">KTP</label>
-								<input type="file" class="form-control" name="ktp_file" accept=".jpg,.jpeg,.png,.pdf" required>
-							</div>
-							<div class="col-md-4 mb-3">
-								<label class="form-label">Kartu Keluarga</label>
-								<input type="file" class="form-control" name="kk_file" accept=".jpg,.jpeg,.png,.pdf" required>
-							</div>
+							<fieldset class="mb-3" aria-describedby="identity-document-help">
+								<legend class="form-label mb-2">Dokumen Identitas Utama</legend>
+								<div class="identity-choice-group">
+									<label class="identity-choice"><input type="radio" name="identity_document_type" value="ktp" <?= $field('identity_document_type', 'ktp') === 'ktp' ? 'checked' : ''; ?> required><span><strong>KTP</strong><small>Untuk pendaftar yang sudah memiliki KTP.</small></span></label>
+									<label class="identity-choice"><input type="radio" name="identity_document_type" value="kk" <?= $field('identity_document_type') === 'kk' ? 'checked' : ''; ?>><span><strong>Kartu Keluarga</strong><small>Untuk anak atau pendaftar yang belum memiliki KTP.</small></span></label>
+								</div>
+								<div class="identity-file mt-2" data-identity-file="ktp">
+									<label class="form-label" for="ktp_file">File KTP</label>
+									<input id="ktp_file" type="file" class="form-control" name="ktp_file" accept=".jpg,.jpeg,.png,.pdf" data-max-upload>
+								</div>
+								<div class="identity-file mt-2" data-identity-file="kk">
+									<label class="form-label" for="kk_file">File Kartu Keluarga</label>
+									<input id="kk_file" type="file" class="form-control" name="kk_file" accept=".jpg,.jpeg,.png,.pdf" data-max-upload>
+								</div>
+								<div id="identity-document-help" class="form-hint">Pilih dan unggah salah satu saja. JPG, PNG, atau PDF; maksimal 2 MB.</div>
+							</fieldset>
 						</div>
-						<div class="mb-3">
-							<label class="form-label">Surat Keterangan Luar Rembang</label>
-							<input type="file" class="form-control" name="support_letter_file" accept=".jpg,.jpeg,.png,.pdf">
-							<div class="form-hint">Wajib untuk NIK yang tidak diawali <code>3317</code>.</div>
-						</div>
-						<div class="mb-3">
-							<label class="form-label">Catatan Domisili / Instansi</label>
-							<input type="text" class="form-control" name="residency_note" value="<?= html_escape($field('residency_note')); ?>" placeholder="Contoh: Domisili Desa X, santri Pondok Y, siswa Sekolah Z">
+						<div class="outside-rembang-fields" hidden>
+							<div class="mb-3">
+								<label class="form-label">Surat Keterangan Luar Rembang <span class="text-secondary">(opsional)</span></label>
+								<input type="file" class="form-control" name="support_letter_file" accept=".jpg,.jpeg,.png,.pdf" data-max-upload disabled>
+								<div class="form-hint">Boleh dilampirkan bila ada surat domisili, sekolah, pondok, atau instansi. Maksimal 2 MB.</div>
+							</div>
+							<div class="mb-3">
+								<label class="form-label">Catatan Domisili / Instansi <span class="text-secondary">(opsional)</span></label>
+								<input type="text" class="form-control" name="residency_note" value="<?= html_escape($field('residency_note')); ?>" placeholder="Contoh: Domisili Desa X, santri Pondok Y, siswa Sekolah Z" disabled>
+							</div>
 						</div>
 						<div class="register-submit-bar">
 							<button type="submit" class="btn btn-primary btn-lg w-100">
@@ -204,5 +249,75 @@ $options_for = function ($group, $current = '') use ($form_options) {
 			</div>
 		</div>
 	</main>
+	<script>
+	(function () {
+		var form = document.querySelector('.public-member-register-form');
+		if (!form) return;
+		var maxBytes = 2 * 1024 * 1024;
+		var villageMap = <?= $village_json ?: '{}'; ?>;
+		var districtSelect = document.getElementById('district_id');
+		var villageSelect = document.getElementById('village_id');
+		var currentVillage = parseInt(villageSelect.dataset.current || '0', 10);
+		var renderVillages = function () {
+			var districtId = parseInt(districtSelect.value || '0', 10);
+			var villages = villageMap[districtId] || [];
+			villageSelect.innerHTML = '<option value="">Pilih desa / kelurahan</option>';
+			villages.forEach(function (village) {
+				var option = document.createElement('option');
+				option.value = village.id;
+				option.textContent = village.name;
+				option.selected = parseInt(village.id, 10) === currentVillage;
+				villageSelect.appendChild(option);
+			});
+		};
+		var selectedDocument = function () {
+			var selected = form.querySelector('input[name="identity_document_type"]:checked');
+			return selected ? selected.value : '';
+		};
+		var updateDocument = function () {
+			var type = selectedDocument();
+			form.querySelectorAll('[data-identity-file]').forEach(function (group) {
+				var active = group.getAttribute('data-identity-file') === type;
+				group.hidden = !active;
+				var input = group.querySelector('input');
+				input.disabled = !active;
+				input.required = active;
+			});
+		};
+		var updateDomicile = function () {
+			var selected = form.querySelector('input[name="identity_domicile"]:checked');
+			var outside = selected && selected.value === 'outside_rembang';
+			var supportGroup = form.querySelector('.outside-rembang-fields');
+			var residentLocationGroup = form.querySelector('.resident-location-fields');
+			var outsideLocationGroup = form.querySelector('.outside-location-fields');
+			supportGroup.hidden = !outside;
+			supportGroup.querySelectorAll('input').forEach(function (input) { input.disabled = !outside; });
+			residentLocationGroup.hidden = outside;
+			residentLocationGroup.querySelectorAll('select').forEach(function (input) { input.disabled = outside; input.required = !outside; });
+			outsideLocationGroup.hidden = !outside;
+			outsideLocationGroup.querySelectorAll('input').forEach(function (input) { input.disabled = !outside; input.required = outside; });
+		};
+		form.querySelectorAll('input[name="identity_document_type"]').forEach(function (input) { input.addEventListener('change', updateDocument); });
+		form.querySelectorAll('input[name="identity_domicile"]').forEach(function (input) { input.addEventListener('change', updateDomicile); });
+		districtSelect.addEventListener('change', function () { currentVillage = 0; renderVillages(); });
+		form.querySelectorAll('[data-max-upload]').forEach(function (input) {
+			input.addEventListener('change', function () {
+				if (input.files[0] && input.files[0].size > maxBytes) {
+					alert('Ukuran setiap berkas maksimal 2 MB.');
+					input.value = '';
+				}
+			});
+		});
+		form.addEventListener('submit', function (event) {
+			var oversized = Array.prototype.some.call(form.querySelectorAll('[data-max-upload]'), function (input) {
+				return !input.disabled && input.files[0] && input.files[0].size > maxBytes;
+			});
+			if (oversized) { event.preventDefault(); alert('Ukuran setiap berkas maksimal 2 MB.'); }
+		});
+		renderVillages();
+		updateDocument();
+		updateDomicile();
+	}());
+	</script>
 </body>
 </html>

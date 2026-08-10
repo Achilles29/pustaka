@@ -51,11 +51,14 @@ class User_dashboard extends CI_Controller
 			'member' => $member,
 			'verify_url' => $verify_url,
 			'catalog_count' => $this->Catalog_model->count_public_books(['availability' => 'with_items']),
+			'catalog_total_count' => $this->Catalog_model->count_public_books(),
+			'catalog_digital_count' => $this->Catalog_model->count_public_books(['availability' => 'digital']),
 			'recent_loans' => $member ? $this->Member_model->get_member_loans((int) $member['id'], 5) : [],
 			'recent_visits' => $member ? $this->Member_model->get_member_visits((int) $member['id'], 5) : [],
 			'renewal_requests' => $member ? $this->Member_model->get_member_renewal_requests((int) $member['id'], 5) : [],
 			'book_requests' => $member ? $this->Catalog_model->get_member_book_requests((int) $member['id'], 5) : [],
 			'digital_books' => $this->Catalog_model->get_member_digital_books(6),
+			'book_shelves' => $this->Catalog_model->get_dashboard_book_shelves(4),
 			'highlight_books' => $highlight_books,
 			'highlight_categories' => $highlight_categories,
 			'reading_token' => $member ? $this->Reading_point_model->get_member_active_token((int) $member['id']) : null,
@@ -88,6 +91,7 @@ class User_dashboard extends CI_Controller
 			'active_token' => $this->Reading_point_model->get_member_active_token((int) $member['id']),
 			'points' => $this->Reading_point_model->get_active_points(200),
 			'tokens' => $this->Reading_point_model->get_member_tokens((int) $member['id'], 8),
+			'token_request' => $this->Reading_point_model->get_member_pending_token_request((int) $member['id']),
 		]);
 	}
 
@@ -191,12 +195,32 @@ class User_dashboard extends CI_Controller
 				$this->input->post('latitude', true),
 				$this->input->post('longitude', true)
 			);
-			$message = $result['is_new'] ? 'Check-in berhasil. Token baca harian diterbitkan.' : 'Anda masih punya token aktif di titik ini.';
+			$message = $result['is_new'] ? 'Check-in berhasil. Token baca harian diterbitkan.' : 'Anda masih memiliki token aktif yang dapat digunakan.';
 			$this->session->set_flashdata('success', $message);
 		} catch (Throwable $e) {
 			$this->session->set_flashdata('error', $e->getMessage());
 		}
 
+		redirect('user/reading-checkin');
+	}
+
+	public function store_token_request()
+	{
+		$user = $this->require_member_user();
+		$this->load->model('Member_model');
+		$this->load->model('Reading_point_model');
+		$member = $this->Member_model->get_member_by_auth_user_id((int) ($user['id'] ?? 0));
+		if (! $member || ($member['status'] ?? '') !== 'active') {
+			$this->session->set_flashdata('error', 'Permohonan token hanya untuk member aktif.');
+			redirect('user/reading-checkin');
+		}
+
+		try {
+			$this->Reading_point_model->create_member_token_request((int) $member['id'], $this->input->post('request_note', true));
+			$this->session->set_flashdata('success', 'Permohonan token berhasil dikirim untuk diperiksa petugas.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
 		redirect('user/reading-checkin');
 	}
 

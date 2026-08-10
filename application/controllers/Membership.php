@@ -8,6 +8,7 @@ class Membership extends CI_Controller
 		parent::__construct();
 		$this->load->model('Member_model');
 		$this->load->model('Member_registration_model');
+		$this->load->model('Region_model');
 	}
 
 	public function register()
@@ -15,6 +16,8 @@ class Membership extends CI_Controller
 		$this->load->view('membership/register', [
 			'title' => 'Pendaftaran Member Online',
 			'form_options' => $this->Member_model->form_options(),
+			'districts' => $this->Region_model->get_districts(),
+			'villages' => $this->Region_model->village_payload(),
 		]);
 	}
 
@@ -45,11 +48,15 @@ class Membership extends CI_Controller
 				'address' => $this->input->post('address', true),
 				'district' => $this->input->post('district', true),
 				'village' => $this->input->post('village', true),
+				'district_id' => $this->input->post('district_id', true),
+				'village_id' => $this->input->post('village_id', true),
 				'phone' => $this->input->post('phone', true),
 				'email' => $this->input->post('email', true),
 				'member_type' => $this->input->post('member_type', true),
 				'education' => $this->input->post('education', true),
 				'occupation' => $this->input->post('occupation', true),
+				'identity_document_type' => $this->input->post('identity_document_type', true),
+				'identity_domicile' => $this->input->post('identity_domicile', true),
 				'residency_note' => $this->input->post('residency_note', true),
 			], $_FILES);
 			$this->session->set_flashdata('registration_success', 'Pendaftaran berhasil dikirim. Kode antrean: ' . $result['code']);

@@ -5,12 +5,13 @@ $is_edit = ! empty($asset);
 $field = function ($key, $default = '') use ($asset) {
 	return $asset[$key] ?? $default;
 };
-$policy_labels = [
-	'online_only' => 'Online aman - render halaman, PDF utuh dikunci',
-	'download_allowed' => 'Bebas download - hanya untuk domain publik/lisensi bebas',
-	'location_only' => 'Pojok Baca / token - akses luar lokasi mengurangi kuota',
-	'member_only' => 'Member saja - butuh login, PDF utuh dikunci',
-	'internal' => 'Internal petugas - tidak tampil untuk publik/member',
+$audience_labels = [
+	'member' => 'Member aktif',
+	'internal' => 'Internal petugas',
+];
+$delivery_labels = [
+	'render_locked' => 'Render terkunci (disarankan)',
+	'download_allowed' => 'Download diizinkan',
 ];
 $rights_labels = [
 	'public_domain' => 'Domain publik',
@@ -26,6 +27,8 @@ $status_labels = [
 	'archived' => 'Arsip',
 ];
 $selected_book_id = (int) ($is_edit ? $field('book_id') : ($selected_book_id ?? 0));
+$selected_audience = $field('reader_audience', ($field('access_policy') === 'internal' ? 'internal' : 'member'));
+$selected_delivery = $field('pdf_delivery', ((int) $field('is_downloadable') === 1 || $field('access_policy') === 'download_allowed') ? 'download_allowed' : 'render_locked');
 $selected_exists = false;
 foreach ($books ?? [] as $book) {
 	if ((int) $book['id'] === $selected_book_id) {
@@ -107,19 +110,22 @@ foreach ($books ?? [] as $book) {
 						<div class="card-header"><h2 class="card-title">Hak Akses Baca</h2></div>
 						<div class="card-body">
 							<div class="mb-3">
-								<label class="form-label">Policy akses</label>
-								<select class="form-select" name="access_policy" id="access_policy">
-									<?php foreach ($policy_labels as $value => $label): ?>
-										<option value="<?= $value; ?>" <?= $field('access_policy', 'online_only') === $value ? 'selected' : ''; ?>><?= html_escape($label); ?></option>
+								<label class="form-label">Akses pembaca</label>
+								<select class="form-select" name="reader_audience">
+									<?php foreach ($audience_labels as $value => $label): ?>
+										<option value="<?= $value; ?>" <?= $selected_audience === $value ? 'selected' : ''; ?>><?= html_escape($label); ?></option>
 									<?php endforeach; ?>
 								</select>
+								<div class="form-hint">Member aktif selalu membaca online. Lokasi hanya menentukan: di perpustakaan/GIS atau Pojok Baca gratis; luar zona memakai 1 token per sesi.</div>
 							</div>
 							<div class="mb-3">
-								<label class="form-check form-switch">
-									<input class="form-check-input" type="checkbox" name="is_downloadable" value="1" id="is_downloadable" <?= (int) $field('is_downloadable') === 1 ? 'checked' : ''; ?>>
-									<span class="form-check-label">Izinkan download PDF utuh</span>
-								</label>
-								<div class="form-hint">Akan otomatis aktif hanya jika policy `Bebas download`. Untuk policy lain, server tetap menolak stream PDF utuh.</div>
+								<label class="form-label">Pengiriman PDF</label>
+								<select class="form-select" name="pdf_delivery">
+									<?php foreach ($delivery_labels as $value => $label): ?>
+										<option value="<?= $value; ?>" <?= $selected_delivery === $value ? 'selected' : ''; ?>><?= html_escape($label); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<div class="form-hint">Render terkunci mengirim halaman ber-watermark, bukan file PDF utuh. Download hanya untuk karya yang hak publikasinya memang mengizinkan.</div>
 							</div>
 							<div class="mb-3">
 								<label class="form-label">Status</label>
@@ -181,22 +187,3 @@ foreach ($books ?? [] as $book) {
 		<?= form_close(); ?>
 	</div>
 </div>
-
-<script>
-	(function () {
-		const policy = document.getElementById('access_policy');
-		const downloadable = document.getElementById('is_downloadable');
-		if (!policy || !downloadable) return;
-		function syncDownload() {
-			if (policy.value === 'download_allowed') {
-				downloadable.checked = true;
-				downloadable.disabled = false;
-				return;
-			}
-			downloadable.checked = false;
-			downloadable.disabled = true;
-		}
-		policy.addEventListener('change', syncDownload);
-		syncDownload();
-	})();
-</script>

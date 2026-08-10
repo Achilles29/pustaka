@@ -47,7 +47,7 @@ class Member_model extends CI_Model
 			'identity_types' => $this->merge_options($this->reference_names('master_jenis_identitas'), ['NIK/KTP', 'KIA', 'Paspor', 'Kartu Pelajar', 'Lainnya']),
 			'genders' => $this->merge_options($this->reference_names('jenis_kelamin'), ['Laki-laki', 'Perempuan']),
 			'member_types' => $this->merge_options($this->reference_names('jenis_anggota'), ['Umum', 'Pelajar', 'Mahasiswa', 'Guru/Tenaga Pendidik', 'Peneliti', 'Komunitas/Lembaga', 'Istimewa']),
-			'educations' => $this->merge_options($this->reference_names('master_pendidikan'), ['SD/Sederajat', 'SMP/Sederajat', 'SMA/SMK/MA', 'D1', 'D2', 'D3', 'S1', 'S2', 'S3', 'Lainnya']),
+			'educations' => $this->education_options(),
 			'occupations' => $this->merge_options($this->reference_names('master_pekerjaan'), ['Pelajar', 'Mahasiswa', 'Guru', 'Dosen', 'Peneliti', 'ASN', 'TNI/POLRI', 'Pegawai Swasta', 'Wiraswasta', 'Pensiunan', 'Lainnya']),
 		];
 	}
@@ -1080,6 +1080,39 @@ class Member_model extends CI_Model
 		});
 
 		return array_values(array_unique($options));
+	}
+
+	private function education_options()
+	{
+		$options = array_merge(
+			$this->reference_names('master_pendidikan'),
+			['SD/Sederajat', 'SMP/Sederajat', 'SMA/Sederajat', 'SMK/Sederajat', 'MA/Sederajat', 'D1', 'D2', 'D3', 'S1', 'S2', 'S3', 'Lainnya']
+		);
+		$aliases = [
+			'SD' => 'SD/Sederajat',
+			'SD/SEDERAJAT' => 'SD/Sederajat',
+			'SMP' => 'SMP/Sederajat',
+			'SMP/SEDERAJAT' => 'SMP/Sederajat',
+			'SMA' => 'SMA/Sederajat',
+			'SMA/SEDERAJAT' => 'SMA/Sederajat',
+			'SMK' => 'SMK/Sederajat',
+			'SMK/SEDERAJAT' => 'SMK/Sederajat',
+			'MA' => 'MA/Sederajat',
+			'MA/SEDERAJAT' => 'MA/Sederajat',
+			'SMA/SMK/MA' => 'SMA/Sederajat',
+		];
+		$unique = [];
+		foreach ($options as $option) {
+			$option = trim((string) $option);
+			if ($option === '') {
+				continue;
+			}
+			$key = strtoupper($option);
+			$option = $aliases[$key] ?? $option;
+			$unique[strtolower($option)] = $option;
+		}
+
+		return array_values($unique);
 	}
 
 	private function normalize_member_operational_labels()

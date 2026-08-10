@@ -125,7 +125,7 @@ class Learn_rewards extends MY_Controller
             'color'               => $this->input->post('color', true) ?: '#0ea5e9',
             'cost_points'         => (int) $this->input->post('cost_points', true),
             'quota_amount'        => (int) $this->input->post('quota_amount', true),
-            'quota_unit'          => $this->input->post('quota_unit', true) ?: 'minutes',
+			'quota_unit'          => $this->input->post('quota_unit', true) ?: 'books',
             'token_validity_days' => (int) $this->input->post('token_validity_days', true),
             'stock'               => $this->input->post('stock', true),
             'per_user_limit'      => (int) $this->input->post('per_user_limit', true),

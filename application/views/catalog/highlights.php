@@ -24,6 +24,7 @@ $page_url = function ($page) use ($query_base) {
 	return base_url('catalog/highlights?' . http_build_query(array_merge($query_base, ['page' => $page])));
 };
 $edit_highlight = isset($edit_highlight) ? $edit_highlight : null;
+$selected_book = isset($selected_book) ? $selected_book : null;
 $is_edit = ! empty($edit_highlight);
 $form_highlight = $edit_highlight ?: [
 	'target_type' => 'book',
@@ -171,6 +172,9 @@ $datetime_value = function ($key) use ($value) {
 								</td>
 								<td>
 									<span class="badge bg-blue-lt"><?= html_escape($target_labels[$highlight['target_type']] ?? $highlight['target_type']); ?></span>
+									<?php if ($highlight['target_type'] === 'book'): ?>
+										<span class="badge <?= ! empty($highlight['target_has_digital']) ? 'bg-cyan-lt' : 'bg-secondary-lt'; ?>"><?= ! empty($highlight['target_has_digital']) ? 'Digital' : 'Non-digital'; ?></span>
+									<?php endif; ?>
 									<div class="small mt-1"><?= html_escape($target_name); ?></div>
 									<div class="text-secondary small"><?= html_escape($target_meta); ?></div>
 								</td>
@@ -247,22 +251,31 @@ $datetime_value = function ($key) use ($value) {
 							<input type="number" class="form-control" name="sort_order" min="0" max="9999" value="<?= html_escape($value('sort_order', 100)); ?>">
 						</div>
 						<div class="col-12 highlight-book-field">
-							<label class="form-label">Buku</label>
-							<select class="form-select" name="book_id">
-								<option value="">Belum dipilih</option>
-								<?php foreach ($book_options as $book): ?>
-									<?php
-										$book_label = $book['title'];
-										if (! empty($book['statement_responsibility'])) {
-											$book_label .= ' - ' . $book['statement_responsibility'];
-										}
-										if (! empty($book['publish_year'])) {
-											$book_label .= ' (' . $book['publish_year'] . ')';
-										}
-									?>
-									<option value="<?= (int) $book['id']; ?>" <?= (int) $value('book_id') === (int) $book['id'] ? 'selected' : ''; ?>><?= html_escape($book_label); ?></option>
-								<?php endforeach; ?>
-							</select>
+							<label class="form-label">Pilih Buku</label>
+							<div class="highlight-book-picker" data-search-url="<?= html_escape(base_url('catalog/highlights/books')); ?>">
+								<input type="hidden" name="book_id" id="highlight-book-id" value="<?= (int) $value('book_id'); ?>">
+								<div class="input-group">
+									<span class="input-group-text"><i class="ti ti-search"></i></span>
+									<input type="search" class="form-control" id="highlight-book-search" autocomplete="off" placeholder="Ketik minimal 2 huruf judul, penulis, ISBN, atau penerbit">
+									<select class="form-select highlight-book-kind" id="highlight-book-kind" aria-label="Jenis koleksi" style="max-width: 11rem;">
+										<option value="all">Semua koleksi</option>
+										<option value="digital">Buku digital</option>
+										<option value="non_digital">Non-digital</option>
+									</select>
+								</div>
+								<div class="highlight-book-help">Cari lalu klik hasil untuk memilih. Buku digital dan non-digital dipisahkan agar highlight lebih terarah.</div>
+								<div class="highlight-book-results" id="highlight-book-results" aria-live="polite"></div>
+								<div class="highlight-book-preview<?= $selected_book ? '' : ' d-none'; ?>" id="highlight-book-preview">
+									<?php if ($selected_book): ?>
+										<div class="highlight-book-preview-copy">
+											<strong><?= html_escape($selected_book['title']); ?></strong>
+											<span><?= html_escape($selected_book['statement_responsibility'] ?: ($selected_book['publisher'] ?: 'Metadata buku')); ?></span>
+											<small><?= html_escape($selected_book['content_category_name'] ?: 'Belum berkategori'); ?> · <?= ! empty($selected_book['has_digital']) ? 'Buku digital' : 'Non-digital'; ?></small>
+										</div>
+										<button type="button" class="btn btn-sm btn-outline-secondary" id="highlight-book-clear" title="Ganti buku"><i class="ti ti-x"></i></button>
+									<?php endif; ?>
+								</div>
+							</div>
 						</div>
 						<div class="col-12 highlight-category-field">
 							<label class="form-label">Kategori Katalog</label>
@@ -327,6 +340,112 @@ document.addEventListener('DOMContentLoaded', function () {
 		targetType.addEventListener('change', refreshTargetFields);
 		refreshTargetFields();
 	}
+
+	var picker = document.querySelector('.highlight-book-picker');
+	var searchInput = document.getElementById('highlight-book-search');
+	var kindInput = document.getElementById('highlight-book-kind');
+	var selectedInput = document.getElementById('highlight-book-id');
+	var results = document.getElementById('highlight-book-results');
+	var preview = document.getElementById('highlight-book-preview');
+	var requestTimer = null;
+	var activeRequest = null;
+
+	function clearElement(element) {
+		while (element && element.firstChild) element.removeChild(element.firstChild);
+	}
+
+	function makeText(tag, text, className) {
+		var node = document.createElement(tag);
+		if (className) node.className = className;
+		node.textContent = text || '';
+		return node;
+	}
+
+	function renderSelected(book) {
+		if (!preview || !selectedInput) return;
+		selectedInput.value = book ? book.id : '';
+		clearElement(preview);
+		if (!book) {
+			preview.classList.add('d-none');
+			return;
+		}
+		preview.classList.remove('d-none');
+		var copy = document.createElement('div');
+		copy.className = 'highlight-book-preview-copy';
+		copy.appendChild(makeText('strong', book.title));
+		copy.appendChild(makeText('span', book.statement_responsibility || book.publisher || 'Metadata buku'));
+		copy.appendChild(makeText('small', (book.content_category_name || 'Belum berkategori') + ' · ' + (Number(book.has_digital) ? 'Buku digital' : 'Non-digital')));
+		preview.appendChild(copy);
+		var clear = document.createElement('button');
+		clear.type = 'button';
+		clear.className = 'btn btn-sm btn-outline-secondary';
+		clear.title = 'Ganti buku';
+		clear.innerHTML = '<i class="ti ti-x"></i>';
+		clear.addEventListener('click', function () {
+			renderSelected(null);
+			searchInput.focus();
+		});
+		preview.appendChild(clear);
+	}
+
+	function renderResults(items, message) {
+		if (!results) return;
+		clearElement(results);
+		if (message) {
+			results.appendChild(makeText('div', message, 'highlight-book-empty'));
+			return;
+		}
+		items.forEach(function (book) {
+			var button = document.createElement('button');
+			button.type = 'button';
+			button.className = 'highlight-book-result';
+			var copy = document.createElement('span');
+			copy.className = 'highlight-book-result-copy';
+			copy.appendChild(makeText('strong', book.title));
+			copy.appendChild(makeText('span', book.statement_responsibility || book.publisher || 'Metadata buku'));
+			copy.appendChild(makeText('small', (book.content_category_name || 'Belum berkategori') + (book.publish_year ? ' · ' + book.publish_year : '')));
+			button.appendChild(copy);
+			button.appendChild(makeText('em', Number(book.has_digital) ? 'Digital' : 'Non-digital', Number(book.has_digital) ? 'is-digital' : 'is-print'));
+			button.addEventListener('click', function () {
+				renderSelected(book);
+				searchInput.value = '';
+				renderResults([]);
+			});
+			results.appendChild(button);
+		});
+	}
+
+	function searchBooks() {
+		if (!picker || !searchInput || !kindInput) return;
+		var query = searchInput.value.trim();
+		if (query.length < 2) {
+			renderResults([], query ? 'Ketik minimal 2 huruf untuk mencari.' : '');
+			return;
+		}
+		if (activeRequest) activeRequest.abort();
+		activeRequest = new AbortController();
+		renderResults([], 'Mencari koleksi…');
+		var url = picker.dataset.searchUrl + '?' + new URLSearchParams({q: query, kind: kindInput.value}).toString();
+		fetch(url, {credentials: 'same-origin', signal: activeRequest.signal})
+			.then(function (response) { return response.ok ? response.json() : Promise.reject(); })
+			.then(function (payload) {
+				var items = payload.items || [];
+				renderResults(items, items.length ? '' : 'Buku tidak ditemukan pada jenis koleksi ini.');
+			})
+			.catch(function (error) {
+				if (error.name !== 'AbortError') renderResults([], 'Pencarian belum dapat dimuat. Coba lagi.');
+			});
+	}
+
+	if (searchInput) {
+		searchInput.addEventListener('input', function () {
+			clearTimeout(requestTimer);
+			requestTimer = setTimeout(searchBooks, 260);
+		});
+	}
+	if (kindInput) kindInput.addEventListener('change', searchBooks);
+	var initialClear = document.getElementById('highlight-book-clear');
+	if (initialClear) initialClear.addEventListener('click', function () { renderSelected(null); searchInput.focus(); });
 	<?php if ($is_edit): ?>
 	var modalElement = document.getElementById('highlight-modal');
 	if (modalElement && window.bootstrap) {
