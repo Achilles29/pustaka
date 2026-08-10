@@ -6,6 +6,7 @@ $action = $is_edit ? base_url('regions/districts/update/' . (int) $edit_district
 $value = function ($key, $default = '') use ($edit_district) {
 	return $edit_district[$key] ?? $default;
 };
+$local_code = $is_edit ? substr((string) $value('code'), -2) : '';
 ?>
 <div class="modal fade" id="district-modal" tabindex="-1" aria-hidden="true"<?= $is_edit ? ' data-pustaka-open-modal="1"' : ''; ?>>
 	<div class="modal-dialog">
@@ -27,7 +28,7 @@ $value = function ($key, $default = '') use ($edit_district) {
 						</div>
 						<div class="col-md-4 mb-3">
 							<label class="form-label">Kode</label>
-							<input type="text" class="form-control" name="code" value="<?= html_escape($value('code')); ?>" maxlength="2" required>
+							<input type="text" class="form-control" name="code" value="<?= html_escape($local_code); ?>" maxlength="2" required>
 						</div>
 					</div>
 					<div class="mb-3">

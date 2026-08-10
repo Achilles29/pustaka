@@ -1,5 +1,12 @@
 # Progress Proyek
 
+## 2026-08-10 — Master wilayah nasional dan alamat member
+
+- Master wilayah diperluas menjadi provinsi, kabupaten/kota, kecamatan, serta desa/kelurahan dengan kode administrasi nasional.
+- Importer `tools/import_wilayah_kemendagri_2025.php` membaca dataset Kepmendagri 2025 secara idempoten; dataset XLSX tidak disimpan di Git.
+- Form pendaftaran membedakan alur warga Rembang (satu alamat berbasis kecamatan/desa Rembang) dan luar Rembang (alamat KTP serta domisili, masing-masing berjenjang nasional).
+- Request pendaftaran dan data member menyimpan referensi wilayah serta label alamat identitas dan domisili.
+
 ## 2026-08-10
 
 Status: impor koleksi buku ajar digital dari direktori server selesai.

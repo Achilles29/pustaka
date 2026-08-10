@@ -1,0 +1,11 @@
+<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<section class="national-address-card mb-3" data-address-prefix="<?= html_escape($prefix); ?>">
+	<h3><?= html_escape($title); ?></h3>
+	<div class="row">
+		<div class="col-md-6 mb-3"><label class="form-label" for="<?= $prefix; ?>_province_id">Provinsi</label><select id="<?= $prefix; ?>_province_id" class="form-select national-province" name="<?= $prefix; ?>_province_id" data-current="<?= (int) $field($prefix . '_province_id'); ?>" disabled><option value="">Pilih provinsi</option><?php foreach ($provinces as $province): ?><option value="<?= (int) $province['id']; ?>" <?= (int) $field($prefix . '_province_id') === (int) $province['id'] ? 'selected' : ''; ?>><?= html_escape($province['name']); ?></option><?php endforeach; ?></select></div>
+		<div class="col-md-6 mb-3"><label class="form-label" for="<?= $prefix; ?>_regency_id">Kabupaten / Kota</label><select id="<?= $prefix; ?>_regency_id" class="form-select national-regency" name="<?= $prefix; ?>_regency_id" data-current="<?= (int) $field($prefix . '_regency_id'); ?>" disabled><option value="">Pilih kabupaten / kota</option></select></div>
+		<div class="col-md-6 mb-3"><label class="form-label" for="<?= $prefix; ?>_district_id">Kecamatan</label><select id="<?= $prefix; ?>_district_id" class="form-select national-district" name="<?= $prefix; ?>_district_id" data-current="<?= (int) $field($prefix . '_district_id'); ?>" disabled><option value="">Pilih kecamatan</option></select></div>
+		<div class="col-md-6 mb-3"><label class="form-label" for="<?= $prefix; ?>_village_id">Desa / Kelurahan</label><select id="<?= $prefix; ?>_village_id" class="form-select national-village" name="<?= $prefix; ?>_village_id" data-current="<?= (int) $field($prefix . '_village_id'); ?>" disabled><option value="">Pilih desa / kelurahan</option></select></div>
+	</div>
+	<div class="mb-1"><label class="form-label" for="<?= $prefix; ?>_address">Alamat Lengkap</label><textarea id="<?= $prefix; ?>_address" class="form-control" name="<?= $prefix; ?>_address" rows="2" placeholder="Jalan, RT/RW, nomor rumah" disabled><?= html_escape($field($prefix . '_address')); ?></textarea></div>
+</section>

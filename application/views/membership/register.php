@@ -22,6 +22,7 @@ $options_for = function ($group, $current = '') use ($form_options) {
 };
 $districts = $districts ?? [];
 $villages = $villages ?? [];
+$provinces = $provinces ?? [];
 $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!doctype html>
@@ -37,7 +38,7 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810o'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810p'); ?>">
 </head>
 <body class="public-page public-register-page">
 	<header class="public-nav">
@@ -158,23 +159,14 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 									</select>
 								</div>
 							</div>
+							<div class="mb-3">
+								<label class="form-label" for="address">Alamat Lengkap</label>
+								<textarea id="address" class="form-control" name="address" rows="3" placeholder="Jalan, RT/RW, nomor rumah"><?= html_escape($field('address')); ?></textarea>
+							</div>
 						</div>
 						<div class="outside-location-fields" hidden>
-							<div class="row">
-								<div class="col-md-6 mb-3">
-									<label class="form-label" for="district">Kecamatan / Kota</label>
-									<input id="district" type="text" class="form-control" name="district" value="<?= html_escape($field('district')); ?>" placeholder="Ketik kecamatan atau kota domisili" disabled>
-								</div>
-								<div class="col-md-6 mb-3">
-									<label class="form-label" for="village">Desa / Kelurahan</label>
-									<input id="village" type="text" class="form-control" name="village" value="<?= html_escape($field('village')); ?>" placeholder="Ketik desa atau kelurahan domisili" disabled>
-								</div>
-							</div>
-							<div class="form-hint mb-3">Untuk domisili luar Rembang, isikan wilayah sesuai alamat identitas secara manual.</div>
-						</div>
-						<div class="mb-3">
-							<label class="form-label">Alamat Lengkap</label>
-							<textarea class="form-control" name="address" rows="3"><?= html_escape($field('address')); ?></textarea>
+							<?= $this->load->view('membership/_national_address_fields', ['prefix' => 'identity', 'title' => 'Alamat Sesuai KTP / KK', 'field' => $field, 'provinces' => $provinces], true); ?>
+							<?= $this->load->view('membership/_national_address_fields', ['prefix' => 'domicile', 'title' => 'Alamat Domisili Saat Ini', 'field' => $field, 'provinces' => $provinces], true); ?>
 						</div>
 						<div class="row">
 							<div class="col-md-4 mb-3">
@@ -270,6 +262,23 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 				villageSelect.appendChild(option);
 			});
 		};
+		var regionBaseUrl = <?= json_encode(base_url('membership/regions/'), JSON_UNESCAPED_SLASHES); ?>;
+		var setOptions = function (select, rows, label, selectedId) {
+			select.innerHTML = '<option value="">Pilih ' + label + '</option>';
+			(rows || []).forEach(function (row) {
+				var option = document.createElement('option'); option.value = row.id; option.textContent = row.name; option.selected = parseInt(row.id, 10) === selectedId; select.appendChild(option);
+			});
+		};
+		var fetchRegions = function (path) { return fetch(regionBaseUrl + path, { credentials: 'same-origin' }).then(function (response) { return response.ok ? response.json() : { data: [] }; }).then(function (json) { return json.data || []; }); };
+		var setupNationalAddress = function (card) {
+			var province = card.querySelector('.national-province'), regency = card.querySelector('.national-regency'), district = card.querySelector('.national-district'), village = card.querySelector('.national-village');
+			var selectedRegency = parseInt(regency.dataset.current || '0', 10), selectedDistrict = parseInt(district.dataset.current || '0', 10), selectedVillage = parseInt(village.dataset.current || '0', 10);
+			var loadRegencies = function (keep) { setOptions(regency, [], 'kabupaten / kota', keep ? selectedRegency : 0); setOptions(district, [], 'kecamatan', 0); setOptions(village, [], 'desa / kelurahan', 0); if (!province.value) return Promise.resolve(); return fetchRegions('regencies/' + province.value).then(function (rows) { setOptions(regency, rows, 'kabupaten / kota', keep ? selectedRegency : 0); if (keep && regency.value) return loadDistricts(true); }); };
+			var loadDistricts = function (keep) { setOptions(district, [], 'kecamatan', keep ? selectedDistrict : 0); setOptions(village, [], 'desa / kelurahan', 0); if (!regency.value) return Promise.resolve(); return fetchRegions('districts/' + regency.value).then(function (rows) { setOptions(district, rows, 'kecamatan', keep ? selectedDistrict : 0); if (keep && district.value) return loadVillages(true); }); };
+			var loadVillages = function (keep) { setOptions(village, [], 'desa / kelurahan', keep ? selectedVillage : 0); if (!district.value) return Promise.resolve(); return fetchRegions('villages/' + district.value).then(function (rows) { setOptions(village, rows, 'desa / kelurahan', keep ? selectedVillage : 0); }); };
+			province.addEventListener('change', function () { selectedRegency = selectedDistrict = selectedVillage = 0; loadRegencies(false); }); regency.addEventListener('change', function () { selectedDistrict = selectedVillage = 0; loadDistricts(false); }); district.addEventListener('change', function () { selectedVillage = 0; loadVillages(false); });
+			if (province.value) loadRegencies(true);
+		};
 		var selectedDocument = function () {
 			var selected = form.querySelector('input[name="identity_document_type"]:checked');
 			return selected ? selected.value : '';
@@ -294,12 +303,15 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 			supportGroup.querySelectorAll('input').forEach(function (input) { input.disabled = !outside; });
 			residentLocationGroup.hidden = outside;
 			residentLocationGroup.querySelectorAll('select').forEach(function (input) { input.disabled = outside; input.required = !outside; });
+			residentLocationGroup.querySelectorAll('textarea').forEach(function (input) { input.disabled = outside; input.required = false; });
 			outsideLocationGroup.hidden = !outside;
-			outsideLocationGroup.querySelectorAll('input').forEach(function (input) { input.disabled = !outside; input.required = outside; });
+			outsideLocationGroup.querySelectorAll('select').forEach(function (input) { input.disabled = !outside; input.required = outside; });
+			outsideLocationGroup.querySelectorAll('textarea').forEach(function (input) { input.disabled = !outside; input.required = false; });
 		};
 		form.querySelectorAll('input[name="identity_document_type"]').forEach(function (input) { input.addEventListener('change', updateDocument); });
 		form.querySelectorAll('input[name="identity_domicile"]').forEach(function (input) { input.addEventListener('change', updateDomicile); });
 		districtSelect.addEventListener('change', function () { currentVillage = 0; renderVillages(); });
+		form.querySelectorAll('[data-address-prefix]').forEach(setupNationalAddress);
 		form.querySelectorAll('[data-max-upload]').forEach(function (input) {
 			input.addEventListener('change', function () {
 				if (input.files[0] && input.files[0].size > maxBytes) {

@@ -17,6 +17,7 @@ class Regions extends MY_Controller
 		$filters = [
 			'q' => $this->input->get('q', true),
 			'area_type' => $this->input->get('area_type', true),
+			'regency_code' => Region_model::REMBANG_REGENCY_CODE,
 		];
 		$per_page = (int) $this->input->get('per_page', true);
 		$per_page = in_array($per_page, [10, 25, 50, 100], true) ? $per_page : 25;
@@ -46,6 +47,10 @@ class Regions extends MY_Controller
 				'page' => $page,
 				'per_page' => $per_page,
 				'offset' => $offset,
+			],
+			'national_stats' => [
+				'provinces' => (int) $this->db->count_all('ref_provinces'),
+				'regencies' => (int) $this->db->count_all('ref_regencies'),
 			],
 			'can_create' => $this->can('regions.index', 'create'),
 			'can_edit' => $this->can('regions.index', 'edit'),

@@ -92,7 +92,7 @@ class Member_registration_model extends CI_Model
 		}
 
 		$is_rembang = $identity_domicile === 'rembang';
-		$location = $this->resolve_location($data, $is_rembang);
+		$addresses = $this->resolve_addresses($data, $is_rembang);
 		$paths = $this->upload_required_files($files, $identity_document_type, $is_rembang);
 
 		$payload = [
@@ -103,9 +103,24 @@ class Member_registration_model extends CI_Model
 			'birth_place' => $this->blank_to_null($data['birth_place'] ?? null),
 			'birth_date' => $this->blank_to_null($data['birth_date'] ?? null),
 			'gender' => $this->blank_to_null($data['gender'] ?? null),
-			'address' => $this->blank_to_null($data['address'] ?? null),
-			'district' => $location['district'],
-			'village' => $location['village'],
+			'address' => $addresses['domicile']['address'],
+			'province_id' => $addresses['domicile']['province_id'],
+			'regency_id' => $addresses['domicile']['regency_id'],
+			'district_id' => $addresses['domicile']['district_id'],
+			'village_id' => $addresses['domicile']['village_id'],
+			'district' => $addresses['domicile']['district'],
+			'village' => $addresses['domicile']['village'],
+			'province' => $addresses['domicile']['province'],
+			'regency' => $addresses['domicile']['regency'],
+			'identity_address' => $addresses['identity']['address'],
+			'identity_province_id' => $addresses['identity']['province_id'],
+			'identity_regency_id' => $addresses['identity']['regency_id'],
+			'identity_district_id' => $addresses['identity']['district_id'],
+			'identity_village_id' => $addresses['identity']['village_id'],
+			'identity_province' => $addresses['identity']['province'],
+			'identity_regency' => $addresses['identity']['regency'],
+			'identity_district' => $addresses['identity']['district'],
+			'identity_village' => $addresses['identity']['village'],
 			'phone' => $this->clip($data['phone'] ?? null, 80),
 			'email' => $this->clip($data['email'] ?? null, 180),
 			'member_type' => $this->clip($data['member_type'] ?? 'Umum', 80),
@@ -128,33 +143,26 @@ class Member_registration_model extends CI_Model
 		];
 	}
 
-	private function resolve_location(array $data, $is_rembang)
+	private function resolve_addresses(array $data, $is_rembang)
 	{
-		if (! $is_rembang) {
-			$district = $this->blank_to_null($data['district'] ?? null);
-			$village = $this->blank_to_null($data['village'] ?? null);
-			if ($district === null || $village === null) {
-				throw new RuntimeException('Kecamatan/kota dan desa/kelurahan wajib diisi untuk domisili luar Rembang.');
-			}
-
-			return [
-				'district' => $this->clip($district, 120),
-				'village' => $this->clip($village, 120),
-			];
-		}
-
-		$district_id = (int) ($data['district_id'] ?? 0);
-		$village_id = (int) ($data['village_id'] ?? 0);
-		$district = $district_id > 0 ? $this->Region_model->get_district($district_id) : null;
-		$village = $village_id > 0 ? $this->Region_model->get_village($village_id) : null;
-		if (! $district || ! $village || (int) $district['is_active'] !== 1 || (int) $village['is_active'] !== 1 || (int) $village['district_id'] !== $district_id) {
-			throw new RuntimeException('Pilih kecamatan dan desa/kelurahan Rembang yang valid.');
+		if ($is_rembang) {
+			$address = $this->resolve_address((int) ($data['district_id'] ?? 0), (int) ($data['village_id'] ?? 0), $data['address'] ?? null, 'Alamat Rembang');
+			if ($address['regency_code'] !== Region_model::REMBANG_REGENCY_CODE) throw new RuntimeException('Pilih kecamatan dan desa/kelurahan di Kabupaten Rembang.');
+			return ['identity' => $address, 'domicile' => $address];
 		}
 
 		return [
-			'district' => $this->clip($district['name'], 120),
-			'village' => $this->clip($village['name'], 120),
+			'identity' => $this->resolve_address((int) ($data['identity_district_id'] ?? 0), (int) ($data['identity_village_id'] ?? 0), $data['identity_address'] ?? null, 'Alamat sesuai KTP/KK'),
+			'domicile' => $this->resolve_address((int) ($data['domicile_district_id'] ?? 0), (int) ($data['domicile_village_id'] ?? 0), $data['domicile_address'] ?? null, 'Alamat domisili'),
 		];
+	}
+
+	private function resolve_address($district_id, $village_id, $address, $label)
+	{
+		$district = $district_id > 0 ? $this->Region_model->get_district($district_id) : null;
+		$village = $village_id > 0 ? $this->Region_model->get_village($village_id) : null;
+		if (! $district || ! $village || (int) $district['is_active'] !== 1 || (int) $village['is_active'] !== 1 || (int) $village['district_id'] !== $district_id || (int) $village['regency_id'] !== (int) $district['regency_id']) throw new RuntimeException($label . ' belum lengkap atau tidak valid.');
+		return ['address' => $this->blank_to_null($address), 'province_id' => (int) $district['province_id'], 'regency_id' => (int) $district['regency_id'], 'district_id' => (int) $district['id'], 'village_id' => (int) $village['id'], 'province' => $this->clip($district['province_name'], 120), 'regency' => $this->clip($district['regency_name'], 160), 'district' => $this->clip($district['name'], 120), 'village' => $this->clip($village['name'], 120), 'regency_code' => (string) $district['regency_code']];
 	}
 
 	public function update_status($id, $status, $admin_note, $verified_by, callable $create_member)

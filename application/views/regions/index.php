@@ -77,8 +77,8 @@ $page_url = function ($page) use ($filters) {
 				<div class="card stat-card stat-card-compact">
 					<div class="card-body">
 						<div class="subheader">Provinsi</div>
-						<div class="h1 mb-0">33</div>
-						<div class="text-secondary">Jawa Tengah</div>
+						<div class="h1 mb-0"><?= number_format($national_stats['provinces'], 0, ',', '.'); ?></div>
+						<div class="text-secondary">master nasional</div>
 					</div>
 				</div>
 			</div>
@@ -86,8 +86,8 @@ $page_url = function ($page) use ($filters) {
 				<div class="card stat-card stat-card-compact">
 					<div class="card-body">
 						<div class="subheader">Kabupaten</div>
-						<div class="h1 mb-0">17</div>
-						<div class="text-secondary">Rembang</div>
+						<div class="h1 mb-0"><?= number_format($national_stats['regencies'], 0, ',', '.'); ?></div>
+						<div class="text-secondary">kabupaten / kota</div>
 					</div>
 				</div>
 			</div>

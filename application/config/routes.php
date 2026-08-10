@@ -188,6 +188,9 @@ $route['regions/districts/toggle/(:num)'] = 'regions/toggle_district/$1';
 $route['regions/villages/store'] = 'regions/store_village';
 $route['regions/villages/update/(:num)'] = 'regions/update_village/$1';
 $route['regions/villages/toggle/(:num)'] = 'regions/toggle_village/$1';
+$route['membership/regions/regencies/(:num)'] = 'membership/region_regencies/$1';
+$route['membership/regions/districts/(:num)'] = 'membership/region_districts/$1';
+$route['membership/regions/villages/(:num)'] = 'membership/region_villages/$1';
 
 $route['rbac'] = 'rbac/index';
 $route['rbac/admins'] = 'rbac/admins';
