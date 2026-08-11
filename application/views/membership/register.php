@@ -50,6 +50,7 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 			<a href="<?= base_url(); ?>">Beranda</a>
 			<a href="<?= base_url('katalog'); ?>">Katalog</a>
 			<a href="<?= base_url('agenda'); ?>">Agenda</a>
+			<a href="<?= base_url('membership/registration-status'); ?>" class="btn btn-outline-primary btn-sm">Cek Status</a>
 			<a href="<?= base_url('login'); ?>" class="btn btn-primary btn-sm">Masuk</a>
 		</nav>
 	</header>
@@ -72,7 +73,7 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 					<div class="register-rule-list">
 						<div><i class="ti ti-id"></i><span>Unggah foto dan pilih salah satu: KTP atau Kartu Keluarga.</span></div>
 						<div><i class="ti ti-map-pin"></i><span>Bila dokumen identitas dari luar Rembang, surat keterangan dan catatan domisili dapat diisi bila diperlukan.</span></div>
-						<div><i class="ti ti-file-check"></i><span>Ukuran setiap berkas maksimal 2 MB.</span></div>
+						<div><i class="ti ti-file-check"></i><span>Target ukuran setiap berkas maksimal 2 MB; berkas lebih besar akan dicoba dikompresi otomatis.</span></div>
 						<div><i class="ti ti-shield-check"></i><span>Akun aktif setelah data diverifikasi admin.</span></div>
 					</div>
 					<div class="auth-secondary-link mt-3">
@@ -83,13 +84,13 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 					<div class="register-form-head">
 						<div class="section-kicker">Data calon anggota</div>
 						<h2>Identitas, kontak, alamat, dan berkas verifikasi.</h2>
-						<p>Username akun akan memakai NIK. Password awal ditampilkan setelah pendaftaran terkirim.</p>
+						<p>Username akun akan memakai NIK. Password awal dapat dilihat setelah pendaftaran diverifikasi.</p>
 					</div>
 					<?php if ($this->session->flashdata('registration_success')): ?>
 						<div class="alert alert-success"><?= html_escape($this->session->flashdata('registration_success')); ?></div>
 					<?php endif; ?>
 					<?php if ($this->session->flashdata('registration_error')): ?>
-						<div class="alert alert-danger"><?= html_escape($this->session->flashdata('registration_error')); ?></div>
+						<div class="alert alert-danger" role="alert"><strong>Pendaftaran belum terkirim.</strong><br><?= html_escape($this->session->flashdata('registration_error')); ?><div class="small mt-1">Periksa kembali berkas yang disebutkan, lalu pilih ulang berkas tersebut sebelum mengirim formulir.</div></div>
 					<?php endif; ?>
 
 					<?= form_open_multipart('membership/register/submit', ['class' => 'public-member-register-form']); ?>
@@ -100,8 +101,8 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 							</div>
 							<div class="col-md-4 mb-3">
 								<label class="form-label">NIK (sesuai KTP/KK)</label>
-								<input type="text" class="form-control" name="identity_number" value="<?= html_escape($field('identity_number')); ?>" required inputmode="numeric">
-								<div class="form-hint">Gunakan NIK pada dokumen yang diunggah. Domisili ditentukan dari alamat KTP/KK, bukan awalan NIK.</div>
+								<input type="text" class="form-control" name="identity_number" value="<?= html_escape($field('identity_number')); ?>" required inputmode="numeric" pattern="[0-9]{16}" maxlength="16" title="NIK harus terdiri dari 16 digit angka.">
+								<div class="form-hint">NIK harus tepat 16 digit dan hanya dapat digunakan untuk satu member. Domisili ditentukan dari alamat KTP/KK, bukan awalan NIK.</div>
 							</div>
 						</div>
 						<fieldset class="mb-3" aria-describedby="domicile-help">
@@ -199,8 +200,8 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 						<div class="registration-files">
 							<div class="mb-3">
 								<label class="form-label">Foto Diri</label>
-								<input type="file" class="form-control" name="photo_file" accept=".jpg,.jpeg,.png" required data-max-upload>
-								<div class="form-hint">JPG atau PNG, maksimal 2 MB.</div>
+								<input type="file" class="form-control" name="photo_file" accept=".jpg,.jpeg,.png" required data-upload-file>
+								<div class="form-hint">JPG atau PNG. Target maksimal 2 MB; gambar yang lebih besar akan dicoba dikompresi otomatis.</div>
 							</div>
 							<fieldset class="mb-3" aria-describedby="identity-document-help">
 								<legend class="form-label mb-2">Dokumen Identitas Utama</legend>
@@ -210,28 +211,31 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 								</div>
 								<div class="identity-file mt-2" data-identity-file="ktp">
 									<label class="form-label" for="ktp_file">File KTP</label>
-									<input id="ktp_file" type="file" class="form-control" name="ktp_file" accept=".jpg,.jpeg,.png,.pdf" data-max-upload>
+									<input id="ktp_file" type="file" class="form-control" name="ktp_file" accept=".jpg,.jpeg,.png,.pdf" data-upload-file>
 								</div>
 								<div class="identity-file mt-2" data-identity-file="kk">
 									<label class="form-label" for="kk_file">File Kartu Keluarga</label>
-									<input id="kk_file" type="file" class="form-control" name="kk_file" accept=".jpg,.jpeg,.png,.pdf" data-max-upload>
+									<input id="kk_file" type="file" class="form-control" name="kk_file" accept=".jpg,.jpeg,.png,.pdf" data-upload-file>
 								</div>
-								<div id="identity-document-help" class="form-hint">Pilih dan unggah salah satu saja. JPG, PNG, atau PDF; maksimal 2 MB.</div>
+								<div id="identity-document-help" class="form-hint">Pilih dan unggah salah satu saja. JPG, PNG, atau PDF. Target maksimal 2 MB; berkas lebih besar akan dicoba dikompresi otomatis.</div>
 							</fieldset>
 						</div>
 						<div class="outside-rembang-fields" hidden>
 							<div class="mb-3">
 								<label class="form-label">Surat Keterangan Luar Rembang <span class="text-secondary">(opsional)</span></label>
-								<input type="file" class="form-control" name="support_letter_file" accept=".jpg,.jpeg,.png,.pdf" data-max-upload disabled>
-								<div class="form-hint">Boleh dilampirkan bila ada surat domisili, sekolah, pondok, atau instansi. Maksimal 2 MB.</div>
+								<input type="file" class="form-control" name="support_letter_file" accept=".jpg,.jpeg,.png,.pdf" data-upload-file disabled>
+								<div class="form-hint">Boleh dilampirkan bila ada surat domisili, sekolah, pondok, atau instansi. Target maksimal 2 MB; berkas lebih besar akan dicoba dikompresi otomatis.</div>
 							</div>
 							<div class="mb-3">
 								<label class="form-label">Catatan Domisili / Instansi <span class="text-secondary">(opsional)</span></label>
 								<input type="text" class="form-control" name="residency_note" value="<?= html_escape($field('residency_note')); ?>" placeholder="Contoh: Domisili Desa X, santri Pondok Y, siswa Sekolah Z" disabled>
 							</div>
 						</div>
+						<div id="upload-compression-notice" class="alert alert-info py-2 small" role="status" hidden>
+							<i class="ti ti-file-zip me-1"></i>Ada berkas di atas 2 MB. Server akan mencoba mengompresinya setelah formulir dikirim. Proses dapat membutuhkan waktu lebih lama; jangan menutup halaman.
+						</div>
 						<div class="register-submit-bar">
-							<button type="submit" class="btn btn-primary btn-lg w-100">
+							<button type="submit" class="btn btn-primary btn-lg w-100" data-submit-registration>
 								<i class="ti ti-send me-1"></i>Kirim Pendaftaran
 							</button>
 							<div class="text-secondary small text-center mt-2">Setelah terkirim, halaman pending akan menampilkan username dan password awal.</div>
@@ -292,6 +296,7 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 				input.disabled = !active;
 				input.required = active;
 			});
+			if (typeof updateCompressionNotice === 'function') updateCompressionNotice();
 		};
 		var updateDomicile = function () {
 			var selected = form.querySelector('input[name="identity_domicile"]:checked');
@@ -307,28 +312,35 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 			outsideLocationGroup.hidden = !outside;
 			outsideLocationGroup.querySelectorAll('select').forEach(function (input) { input.disabled = !outside; input.required = outside; });
 			outsideLocationGroup.querySelectorAll('textarea').forEach(function (input) { input.disabled = !outside; input.required = false; });
+			if (typeof updateCompressionNotice === 'function') updateCompressionNotice();
 		};
 		form.querySelectorAll('input[name="identity_document_type"]').forEach(function (input) { input.addEventListener('change', updateDocument); });
 		form.querySelectorAll('input[name="identity_domicile"]').forEach(function (input) { input.addEventListener('change', updateDomicile); });
 		districtSelect.addEventListener('change', function () { currentVillage = 0; renderVillages(); });
 		form.querySelectorAll('[data-address-prefix]').forEach(setupNationalAddress);
-		form.querySelectorAll('[data-max-upload]').forEach(function (input) {
-			input.addEventListener('change', function () {
-				if (input.files[0] && input.files[0].size > maxBytes) {
-					alert('Ukuran setiap berkas maksimal 2 MB.');
-					input.value = '';
-				}
-			});
-		});
-		form.addEventListener('submit', function (event) {
-			var oversized = Array.prototype.some.call(form.querySelectorAll('[data-max-upload]'), function (input) {
+		var compressionNotice = document.getElementById('upload-compression-notice');
+		var submitButton = form.querySelector('[data-submit-registration]');
+		var hasOversizedUpload = function () {
+			return Array.prototype.some.call(form.querySelectorAll('[data-upload-file]'), function (input) {
 				return !input.disabled && input.files[0] && input.files[0].size > maxBytes;
 			});
-			if (oversized) { event.preventDefault(); alert('Ukuran setiap berkas maksimal 2 MB.'); }
+		};
+		var updateCompressionNotice = function () {
+			compressionNotice.hidden = !hasOversizedUpload();
+		};
+		form.querySelectorAll('[data-upload-file]').forEach(function (input) {
+			input.addEventListener('change', updateCompressionNotice);
+		});
+		form.addEventListener('submit', function () {
+			if (hasOversizedUpload() && submitButton) {
+				submitButton.disabled = true;
+				submitButton.innerHTML = '<i class="ti ti-loader-2 me-1"></i>Mengirim dan mengompresi berkas...';
+			}
 		});
 		renderVillages();
 		updateDocument();
 		updateDomicile();
+		updateCompressionNotice();
 	}());
 	</script>
 </body>

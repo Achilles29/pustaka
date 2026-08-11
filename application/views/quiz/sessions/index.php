@@ -1,6 +1,7 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
-$status_labels = ['draft'=>'Draft','open'=>'Buka','ongoing'=>'Berlangsung','closed'=>'Ditutup','archived'=>'Arsip'];
-$status_colors = ['draft'=>'bg-secondary','open'=>'bg-success','ongoing'=>'bg-blue','closed'=>'bg-warning','archived'=>'bg-muted'];
+$status_labels = ['draft'=>'Draft','open'=>'Buka','closed'=>'Ditutup'];
+$status_colors = ['draft'=>'bg-secondary','open'=>'bg-success','closed'=>'bg-warning'];
+$difficulty_labels = ['easy'=>'Mudah','medium'=>'Sedang','hard'=>'Sulit','mixed'=>'Campuran'];
 $page_url = function($p) use ($filters) { return base_url('quiz-sessions?'.http_build_query(array_merge($filters,['page'=>$p]))); };
 ?>
 <div class="page-header d-print-none">
@@ -33,16 +34,24 @@ $page_url = function($p) use ($filters) { return base_url('quiz-sessions?'.http_
             </div>
             <div class="card-body workspace-filter">
                 <?= form_open('quiz-sessions',['method'=>'get','class'=>'row g-2 align-items-end']); ?>
-                <div class="col-md-4"><label class="form-label">Cari</label><input type="text" class="form-control" name="q" value="<?= html_escape($filters['q']??''); ?>" placeholder="Judul sesi..."></div>
-                <div class="col-md-2"><label class="form-label">Status</label>
+                <div class="col-lg-3 col-md-6"><label class="form-label">Cari</label><input type="search" class="form-control" name="q" value="<?= html_escape($filters['q']??''); ?>" placeholder="Judul sesi..."></div>
+                <div class="col-lg-2 col-md-3"><label class="form-label">Status</label>
                     <select class="form-select" name="status"><option value="">Semua</option>
                     <?php foreach($status_labels as $k=>$v): ?><option value="<?=$k?>" <?= ($filters['status']??'')===$k?'selected':''; ?>><?=$v?></option><?php endforeach; ?></select>
                 </div>
-                <div class="col-md-3"><label class="form-label">Mapel</label>
+                <div class="col-lg-2 col-md-3"><label class="form-label">Mapel</label>
                     <select class="form-select" name="subject_id"><option value="">Semua</option>
                     <?php foreach($subjects as $s): ?><option value="<?=$s['id']?>" <?= (int)($filters['subject_id']??0)===$s['id']?'selected':''; ?>><?= html_escape($s['name']); ?></option><?php endforeach; ?></select>
                 </div>
-                <div class="col-auto"><label class="form-label">&nbsp;</label><div class="d-flex gap-1"><button type="submit" class="btn btn-primary"><i class="ti ti-filter"></i></button><a href="<?= base_url('quiz-sessions'); ?>" class="btn btn-outline-secondary"><i class="ti ti-x"></i></a></div></div>
+                <div class="col-lg-2 col-md-4"><label class="form-label">Jenjang</label>
+                    <select class="form-select" name="grade_level_id"><option value="">Semua</option>
+                    <?php foreach($grades as $g): ?><option value="<?=$g['id']?>" <?= (int)($filters['grade_level_id']??0)===$g['id']?'selected':''; ?>><?= html_escape($g['name']); ?></option><?php endforeach; ?></select>
+                </div>
+                <div class="col-lg-2 col-md-4"><label class="form-label">Kesulitan</label>
+                    <select class="form-select" name="difficulty"><option value="">Semua</option>
+                    <?php foreach($difficulty_labels as $k=>$v): ?><option value="<?=$k?>" <?= ($filters['difficulty']??'')===$k?'selected':''; ?>><?=$v?></option><?php endforeach; ?></select>
+                </div>
+                <div class="col-lg-1 col-md-4"><label class="form-label d-none d-md-block">&nbsp;</label><div class="d-flex gap-1"><button type="submit" class="btn btn-primary" title="Terapkan filter"><i class="ti ti-filter"></i><span class="d-lg-none ms-1">Filter</span></button><a href="<?= base_url('quiz-sessions'); ?>" class="btn btn-outline-secondary" title="Reset filter"><i class="ti ti-x"></i></a></div></div>
                 <?= form_close(); ?>
             </div>
 

@@ -265,8 +265,8 @@ class Quiz_bank extends MY_Controller
         // CSV (juga jadi acuan kolom untuk Excel .xlsx)
         $csv  = "question_text,type,difficulty,subject_code,grade_code,option_a,option_b,option_c,option_d,option_e,correct_answer,explanation,tags\n";
         $csv .= "\"Berapakah hasil dari 2 + 2?\",multiple_choice,easy,matematika,sd_4,\"3\",\"4\",\"5\",\"6\",\"7\",B,\"2 + 2 = 4\",\"aritmatika,penjumlahan\"\n";
-        $csv .= "\"Ibu kota Indonesia adalah ....\",multiple_choice,easy,ips,sd_4,\"Bandung\",\"Jakarta\",\"Surabaya\",\"Medan\",,B,\"Jakarta.\",\"geografi\"\n";
-        $csv .= "\"Sebutkan 3 contoh benda padat!\",essay,medium,ipa,sd_5,,,,,,,\"Batu, kayu, besi.\",\"benda padat\"\n";
+        $csv .= "\"Contoh sumber daya alam yang dapat diperbarui adalah ....\",multiple_choice,easy,ipas,sd_4,\"Batu bara\",\"Matahari\",\"Minyak bumi\",\"Gas alam\",,B,\"Matahari tersedia kembali secara alami.\",\"sumber-daya-alam\"\n";
+        $csv .= "\"Sebutkan 3 contoh benda padat di sekitarmu!\",essay,medium,ipas,sd_5,,,,,,,\"Contoh: batu, kayu, dan besi.\",\"benda-padat\"\n";
 
         $this->output->set_status_header(200)->set_content_type('text/csv; charset=utf-8')
             ->set_header('Content-Disposition: attachment; filename="template_bank_soal.csv"')
@@ -279,8 +279,8 @@ class Quiz_bank extends MY_Controller
         $rows = [
             ['question_text', 'type', 'difficulty', 'subject_code', 'grade_code', 'option_a', 'option_b', 'option_c', 'option_d', 'option_e', 'correct_answer', 'explanation', 'tags'],
             ['Berapakah hasil dari 2 + 2?', 'multiple_choice', 'easy', 'matematika', 'sd_4', '3', '4', '5', '6', '7', 'B', '2 + 2 = 4', 'aritmatika,penjumlahan'],
-            ['Ibu kota Indonesia adalah ....', 'multiple_choice', 'easy', 'ips', 'sd_4', 'Bandung', 'Jakarta', 'Surabaya', 'Medan', '', 'B', 'Jakarta.', 'geografi'],
-            ['Sebutkan 3 contoh benda padat!', 'essay', 'medium', 'ipa', 'sd_5', '', '', '', '', '', '', 'Batu, kayu, besi.', 'benda padat'],
+            ['Contoh sumber daya alam yang dapat diperbarui adalah ....', 'multiple_choice', 'easy', 'ipas', 'sd_4', 'Batu bara', 'Matahari', 'Minyak bumi', 'Gas alam', '', 'B', 'Matahari tersedia kembali secara alami.', 'sumber-daya-alam'],
+            ['Sebutkan 3 contoh benda padat di sekitarmu!', 'essay', 'medium', 'ipas', 'sd_5', '', '', '', '', '', '', 'Contoh: batu, kayu, dan besi.', 'benda-padat'],
         ];
 
         // Shared strings

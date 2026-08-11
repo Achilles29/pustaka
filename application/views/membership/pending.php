@@ -36,6 +36,7 @@ $status = $status_labels[$request['status']] ?? $status_labels['pending'];
 			<a href="<?= base_url(); ?>">Beranda</a>
 			<a href="<?= base_url('katalog'); ?>">Katalog</a>
 			<a href="<?= base_url('agenda'); ?>">Agenda</a>
+			<a href="<?= base_url('membership/registration-status'); ?>" class="btn btn-outline-primary btn-sm">Cek Status</a>
 			<a href="<?= base_url('login'); ?>" class="btn btn-primary btn-sm">Masuk</a>
 		</nav>
 	</header>
@@ -56,19 +57,15 @@ $status = $status_labels[$request['status']] ?? $status_labels['pending'];
 					<span class="badge <?= html_escape($status[1]); ?>"><?= html_escape($status[0]); ?></span>
 					<code><?= html_escape($request['registration_code']); ?></code>
 				</div>
-				<div class="pending-account-grid">
-					<div>
-						<span>Username</span>
-						<strong><?= html_escape($request['identity_number']); ?></strong>
+				<?php if ($request['status'] === 'verified'): ?>
+					<div class="pending-account-grid">
+						<div><span>Username</span><strong><?= html_escape($request['identity_number']); ?></strong></div>
+						<div><span>Password awal</span><strong><?= html_escape($default_password); ?></strong></div>
 					</div>
-					<div>
-						<span>Password</span>
-						<strong><?= html_escape($default_password); ?></strong>
-					</div>
-				</div>
-				<div class="alert alert-info mb-0">
-					Catat username dan password ini. Setelah admin menyetujui pendaftaran, login akan masuk ke dashboard member.
-				</div>
+					<div class="alert alert-info mb-0">Masuk menggunakan data di atas, lalu segera ganti password pada halaman akun.</div>
+				<?php else: ?>
+					<div class="alert alert-info mb-0">Akun belum aktif. Setelah diverifikasi, username memakai NIK dan password awal dapat dilihat melalui halaman ini atau menu Cek Status.</div>
+				<?php endif; ?>
 				<?php if (! empty($request['admin_note'])): ?>
 					<div class="pending-note">
 						<span>Catatan Admin</span>
@@ -76,7 +73,8 @@ $status = $status_labels[$request['status']] ?? $status_labels['pending'];
 					</div>
 				<?php endif; ?>
 				<div class="pending-actions">
-					<a href="<?= base_url('login'); ?>" class="btn btn-primary"><i class="ti ti-login me-1"></i>Masuk</a>
+					<?php if ($request['status'] === 'verified'): ?><a href="<?= base_url('login'); ?>" class="btn btn-primary"><i class="ti ti-login me-1"></i>Masuk</a><?php endif; ?>
+					<a href="<?= base_url('membership/registration-status'); ?>" class="btn btn-outline-primary"><i class="ti ti-search me-1"></i>Cek Status</a>
 					<a href="<?= base_url('membership/register'); ?>" class="btn btn-outline-primary">Daftar Baru</a>
 				</div>
 			</div>

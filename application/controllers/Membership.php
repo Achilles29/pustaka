@@ -37,8 +37,39 @@ class Membership extends CI_Controller
 		]);
 	}
 
+	public function registration_status()
+	{
+		$lookup_type = (string) $this->input->post('lookup_type', true);
+		$lookup_value = (string) $this->input->post('lookup_value', true);
+		$request = null;
+		$error = null;
+
+		if ($this->input->method(true) === 'POST') {
+			try {
+				$request = $this->Member_registration_model->find_request_for_public_status($lookup_type, $lookup_value);
+			} catch (Throwable $e) {
+				$error = $e->getMessage();
+			}
+		}
+
+		$this->load->view('membership/status_lookup', [
+			'title' => 'Cek Status Pendaftaran Member',
+			'lookup_type' => $lookup_type ?: 'nik',
+			'lookup_value' => $lookup_value,
+			'request' => $request,
+			'error' => $error,
+			'default_password' => 'perpus2026',
+		]);
+	}
+
 	public function submit_registration()
 	{
+		if ($this->post_body_exceeds_server_limit()) {
+			$this->session->set_flashdata('registration_error', 'Pendaftaran belum terkirim karena total ukuran berkas melebihi batas penerimaan server (' . $this->format_ini_size(ini_get('post_max_size')) . '). Perkecil berkas atau kurangi lampiran opsional hingga totalnya di bawah batas tersebut.');
+			redirect('membership/register');
+			return;
+		}
+
 		try {
 			$result = $this->Member_registration_model->create_request([
 				'full_name' => $this->input->post('full_name', true),
@@ -75,6 +106,31 @@ class Membership extends CI_Controller
 			$this->session->set_flashdata('registration_old', $this->input->post(null, true));
 			redirect('membership/register');
 		}
+	}
+
+	private function post_body_exceeds_server_limit()
+	{
+		$content_length = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
+		$limit = $this->ini_size_to_bytes(ini_get('post_max_size'));
+		return $content_length > 0 && $limit > 0 && $content_length > $limit;
+	}
+
+	private function ini_size_to_bytes($value)
+	{
+		$value = trim((string) $value);
+		if ($value === '') return 0;
+		$unit = strtolower(substr($value, -1));
+		$number = (float) $value;
+		if ($unit === 'g') return (int) ($number * 1073741824);
+		if ($unit === 'm') return (int) ($number * 1048576);
+		if ($unit === 'k') return (int) ($number * 1024);
+		return (int) $number;
+	}
+
+	private function format_ini_size($value)
+	{
+		$bytes = $this->ini_size_to_bytes($value);
+		return $bytes > 0 ? number_format($bytes / 1048576, 0, ',', '.') . ' MB' : 'konfigurasi server';
 	}
 
 	public function region_regencies($province_id)

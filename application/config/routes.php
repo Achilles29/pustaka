@@ -74,6 +74,7 @@ $route['agenda/register/(:num)'] = 'agenda/register/$1';
 $route['agenda/ticket/(:any)'] = 'agenda/ticket/$1';
 $route['membership/verify/(:num)/(:any)'] = 'membership/verify/$1/$2';
 $route['membership/register'] = 'membership/register';
+$route['membership/registration-status'] = 'membership/registration_status';
 $route['membership/register/pending/(:any)'] = 'membership/pending/$1';
 $route['membership/register/submit'] = 'membership/submit_registration';
 $route['membership/renewal/request'] = 'membership/renewal_request';

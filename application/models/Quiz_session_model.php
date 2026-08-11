@@ -354,6 +354,12 @@ class Quiz_session_model extends CI_Model
         if (! empty($filters['subject_id'])) {
             $this->db->where('s.subject_id', (int) $filters['subject_id']);
         }
+        if (! empty($filters['grade_level_id'])) {
+            $this->db->where('s.grade_level_id', (int) $filters['grade_level_id']);
+        }
+        if (! empty($filters['difficulty'])) {
+            $this->db->where('s.difficulty_filter', $filters['difficulty']);
+        }
         if (! empty($filters['q'])) {
             $this->db->like('s.title', $filters['q']);
         }

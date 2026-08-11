@@ -47,6 +47,7 @@ $poster_url = function ($event) {
 				<a href="<?= base_url('logout'); ?>" class="btn btn-primary btn-sm">Logout</a>
 			<?php else: ?>
 				<a href="<?= base_url('membership/register'); ?>">Daftar Member</a>
+				<a href="<?= base_url('membership/registration-status'); ?>" class="btn btn-outline-primary btn-sm">Cek Status</a>
 				<a href="<?= base_url('login'); ?>" class="btn btn-primary btn-sm">Masuk</a>
 			<?php endif; ?>
 		</nav>

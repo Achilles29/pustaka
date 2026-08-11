@@ -10,71 +10,139 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-    <style>
-        body { font-family:'Plus Jakarta Sans',sans-serif; background:#f4f6fb; }
-        .lt-hero { background:linear-gradient(135deg,#0369a1 0%,#0ea5e9 100%); color:#fff; padding:52px 0 90px; text-align:center; }
-        .lt-hero h1 { font-size:2.4rem; font-weight:900; }
-        .lt-wrap { max-width:900px; margin:-56px auto 0; padding:0 16px 60px; }
-        .lt-card { background:#fff; border-radius:18px; padding:22px; box-shadow:0 4px 20px rgba(0,0,0,.07); display:flex; flex-direction:column; height:100%; }
-        .lt-meta { display:flex; gap:14px; flex-wrap:wrap; font-size:.82rem; color:#64748b; margin:8px 0 14px; }
-        .back-btn { position:fixed; top:16px; left:16px; z-index:10; }
-    </style>
+    <link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260811b'); ?>">
 </head>
-<body>
-    <a href="<?= base_url('belajar'); ?>" class="btn btn-sm btn-white back-btn"><i class="ti ti-arrow-left me-1"></i>Arena Belajar</a>
-
-    <div class="lt-hero">
-        <div class="container">
-            <div style="font-size:3rem;margin-bottom:8px">📝</div>
-            <h1>Latihan Soal</h1>
-            <p style="opacity:.9">Pilih sesi latihan, kerjakan soalnya, dan raih poin!</p>
-            <?php if (! $user): ?>
-            <a href="<?= base_url('login'); ?>" class="btn btn-white mt-2"><i class="ti ti-login me-1"></i>Login untuk mulai latihan</a>
-            <?php endif; ?>
-        </div>
+<body class="practice-list-page">
+<?php
+$now = date('Y-m-d H:i:s');
+$difficulty_labels = ['easy' => 'Mudah', 'medium' => 'Sedang', 'hard' => 'Menantang', 'mixed' => 'Campuran'];
+$recommended_url = ! empty($recommendation['grade_id']) ? base_url('belajar/latihan?' . http_build_query(['grade_level_id' => $recommendation['grade_id']])) : '';
+?>
+<header class="practice-list-topbar">
+    <div class="container practice-list-topbar-inner">
+        <a href="<?= base_url('belajar'); ?>" class="practice-list-back"><i class="ti ti-arrow-left"></i><span>Arena Belajar</span></a>
+        <a href="<?= base_url(); ?>" class="practice-list-home"><i class="ti ti-home"></i><span>Beranda</span></a>
     </div>
+</header>
 
-    <div class="lt-wrap">
+<main class="container practice-list-shell">
+    <section class="practice-list-hero">
+        <div>
+            <span class="practice-list-eyebrow"><i class="ti ti-sparkles"></i> Arena pembelajaran</span>
+            <h1>Latihan yang pas untukmu</h1>
+            <p>Cari sesi berdasarkan jenjang, mata pelajaran, dan tingkat kesulitan. Hasil latihan langsung dapat dilihat setelah selesai.</p>
+        </div>
+        <div class="practice-list-hero-icon" aria-hidden="true"><i class="ti ti-notebook"></i></div>
+    </section>
+
+    <?php if (! empty($recommendation)): ?>
+    <section class="practice-recommendation">
+        <div class="practice-recommendation-icon"><i class="ti ti-target-arrow"></i></div>
+        <div class="practice-recommendation-copy">
+            <span>Rekomendasi untuk usia <?= (int) $recommendation['age']; ?> tahun</span>
+            <h2>Mulai dari <?= html_escape($recommendation['label']); ?></h2>
+            <p><?= html_escape($recommendation['message']); ?></p>
+        </div>
+        <?php if ($recommended_url !== ''): ?>
+        <a class="btn btn-primary practice-recommendation-action" href="<?= $recommended_url; ?>">Lihat latihan yang disarankan <i class="ti ti-arrow-right"></i></a>
+        <?php endif; ?>
+    </section>
+    <?php elseif (! $user): ?>
+    <section class="practice-guest-tip">
+        <i class="ti ti-user-check"></i>
+        <span><strong>Masuk sebagai anggota</strong> agar kami dapat menyarankan jenjang latihan berdasarkan usia.</span>
+        <a href="<?= base_url('login'); ?>">Login</a>
+    </section>
+    <?php endif; ?>
+
+    <section class="practice-filter-card" aria-label="Filter latihan">
+        <div class="practice-filter-heading">
+            <div>
+                <span class="practice-list-eyebrow">Temukan latihan</span>
+                <h2>Filter sesi latihan</h2>
+            </div>
+            <span class="practice-result-count"><?= count($sessions); ?> sesi ditemukan</span>
+        </div>
+        <form method="get" action="<?= base_url('belajar/latihan'); ?>" class="practice-filter-form">
+            <label class="practice-search-field">
+                <span>Cari judul atau mata pelajaran</span>
+                <div><i class="ti ti-search"></i><input type="search" name="q" value="<?= html_escape($filters['q']); ?>" placeholder="Contoh: Matematika"></div>
+            </label>
+            <label>
+                <span>Jenjang</span>
+                <select name="grade_level_id">
+                    <option value="">Semua jenjang</option>
+                    <?php foreach ($grades as $grade): ?>
+                    <option value="<?= (int) $grade['id']; ?>" <?= (int) $filters['grade_level_id'] === (int) $grade['id'] ? 'selected' : ''; ?>><?= html_escape($grade['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label>
+                <span>Mata pelajaran</span>
+                <select name="subject_id">
+                    <option value="">Semua mata pelajaran</option>
+                    <?php foreach ($subjects as $subject): ?>
+                    <option value="<?= (int) $subject['id']; ?>" <?= (int) $filters['subject_id'] === (int) $subject['id'] ? 'selected' : ''; ?>><?= html_escape($subject['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label>
+                <span>Tingkat kesulitan</span>
+                <select name="difficulty">
+                    <option value="">Semua tingkat</option>
+                    <?php foreach ($difficulty_labels as $value => $label): ?>
+                    <option value="<?= $value; ?>" <?= $filters['difficulty'] === $value ? 'selected' : ''; ?>><?= $label; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label>
+                <span>Ketersediaan</span>
+                <select name="availability">
+                    <option value="available" <?= $filters['availability'] === 'available' ? 'selected' : ''; ?>>Sedang tersedia</option>
+                    <option value="upcoming" <?= $filters['availability'] === 'upcoming' ? 'selected' : ''; ?>>Segera dibuka</option>
+                </select>
+            </label>
+            <div class="practice-filter-actions">
+                <button type="submit" class="btn btn-primary"><i class="ti ti-adjustments-horizontal"></i> Terapkan filter</button>
+                <a href="<?= base_url('belajar/latihan'); ?>" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </section>
+
+    <?php if (! empty($recommended_sessions) && empty($filters['q']) && ! $filters['subject_id'] && ! $filters['grade_level_id'] && ! $filters['difficulty'] && $filters['availability'] === 'available'): ?>
+    <section class="practice-suggested-section">
+        <div class="practice-section-title">
+            <div><span class="practice-list-eyebrow">Pilihan awal</span><h2>Sesuai jenjangmu</h2></div>
+            <a href="<?= $recommended_url; ?>">Lihat semua <i class="ti ti-arrow-right"></i></a>
+        </div>
         <div class="row g-3">
-            <?php $now = date('Y-m-d H:i:s'); foreach ($sessions as $s):
-                $not_open_yet = ! empty($s['start_time']) && $now < $s['start_time'];
-            ?>
-            <div class="col-12 col-md-6">
-                <div class="lt-card">
-                    <h4 class="fw-bold mb-1"><?= html_escape($s['title']); ?></h4>
-                    <div class="lt-meta">
-                        <?php if (! empty($s['subject_name'])): ?><span><i class="ti ti-book me-1"></i><?= html_escape($s['subject_name']); ?></span><?php endif; ?>
-                        <?php if (! empty($s['grade_name'])): ?><span><i class="ti ti-stairs me-1"></i><?= html_escape($s['grade_name']); ?></span><?php endif; ?>
-                        <span><i class="ti ti-list-numbers me-1"></i><?= (int)$s['question_count']; ?> soal</span>
-                        <?php if ((int)$s['time_limit_minutes'] > 0): ?><span><i class="ti ti-clock me-1"></i><?= (int)$s['time_limit_minutes']; ?> mnt</span><?php endif; ?>
-                    </div>
-                    <?php if (! empty($s['start_time']) || ! empty($s['end_time'])): ?>
-                    <div class="mb-2" style="font-size:.8rem;color:#0369a1">
-                        <i class="ti ti-calendar-clock me-1"></i>
-                        <?php if (! empty($s['start_time'])): ?>Buka <?= date('d M H:i', strtotime($s['start_time'])); ?><?php endif; ?>
-                        <?php if (! empty($s['end_time'])): ?> s/d <?= date('d M H:i', strtotime($s['end_time'])); ?><?php endif; ?>
-                    </div>
-                    <?php endif; ?>
-                    <div class="mt-auto">
-                        <?php if (! $user): ?>
-                        <a href="<?= base_url('login'); ?>" class="btn btn-outline-primary w-100">Login untuk mengerjakan</a>
-                        <?php elseif ($not_open_yet): ?>
-                        <button class="btn btn-light w-100" disabled><i class="ti ti-lock me-1"></i>Belum dibuka</button>
-                        <?php else: ?>
-                        <a href="<?= base_url('quiz/practice/'.$s['code']); ?>" class="btn btn-primary w-100"><i class="ti ti-player-play me-1"></i>Mulai Latihan</a>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
+            <?php foreach ($recommended_sessions as $s): ?>
+            <div class="col-12 col-md-4"><?php $compact = true; include __DIR__ . '/_practice_card.php'; ?></div>
             <?php endforeach; ?>
-            <?php if (empty($sessions)): ?>
-            <div class="col-12 text-center text-secondary py-5" style="background:#fff;border-radius:18px">
-                <i class="ti ti-clipboard-off fs-1 d-block mb-2"></i>
-                Belum ada sesi latihan yang dibuka. Cek lagi nanti, ya!
-            </div>
-            <?php endif; ?>
         </div>
-    </div>
+    </section>
+    <?php endif; ?>
+
+    <section class="practice-session-section">
+        <div class="practice-section-title">
+            <div><span class="practice-list-eyebrow">Daftar latihan</span><h2><?= $filters['availability'] === 'upcoming' ? 'Latihan yang segera dibuka' : 'Latihan yang dapat dikerjakan' ?></h2></div>
+        </div>
+        <?php if (! empty($sessions)): ?>
+        <div class="row g-3">
+            <?php foreach ($sessions as $s): ?>
+            <div class="col-12 col-md-6 col-xl-4"><?php $compact = false; include __DIR__ . '/_practice_card.php'; ?></div>
+            <?php endforeach; ?>
+        </div>
+        <?php else: ?>
+        <div class="practice-empty-state">
+            <i class="ti ti-clipboard-off"></i>
+            <h3>Belum ada latihan yang sesuai</h3>
+            <p>Ubah atau reset filter untuk melihat sesi lainnya. Latihan baru akan muncul saat dibuka oleh pengelola.</p>
+            <a href="<?= base_url('belajar/latihan'); ?>" class="btn btn-outline-primary">Reset filter</a>
+        </div>
+        <?php endif; ?>
+    </section>
+</main>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
 </body>
 </html>

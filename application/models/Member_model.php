@@ -348,6 +348,8 @@ class Member_model extends CI_Model
 
 	public function create_member(array $data, $default_password = 'perpus2026')
 	{
+		$data = $this->normalize_member_identity($data);
+		$this->ensure_member_nik_is_available($data);
 		$this->db->trans_start();
 
 		if (empty($data['registered_at'])) {
@@ -369,6 +371,7 @@ class Member_model extends CI_Model
 
 		$this->db->trans_complete();
 		if (! $this->db->trans_status()) {
+			$this->throw_if_nik_unique_violation();
 			throw new RuntimeException('Gagal membuat member.');
 		}
 
@@ -381,6 +384,8 @@ class Member_model extends CI_Model
 		if (! $member) {
 			return false;
 		}
+		$data = $this->normalize_member_identity($data);
+		$this->ensure_member_nik_is_available($data, (int) $id);
 
 		$this->db->trans_start();
 
@@ -402,6 +407,7 @@ class Member_model extends CI_Model
 
 		$this->db->trans_complete();
 		if (! $this->db->trans_status()) {
+			$this->throw_if_nik_unique_violation();
 			throw new RuntimeException('Gagal memperbarui member.');
 		}
 
@@ -439,6 +445,52 @@ class Member_model extends CI_Model
 			->from('members')
 			->where('member_no', (string) $member_no)
 			->count_all_results() > 0;
+	}
+
+	private function normalize_member_identity(array $data)
+	{
+		if (! $this->is_nik_identity_type($data['identity_type'] ?? null)) {
+			return $data;
+		}
+
+		$identity_number = preg_replace('/\D+/', '', (string) ($data['identity_number'] ?? ''));
+		if ($identity_number !== '' && strlen($identity_number) !== 16) {
+			throw new RuntimeException('NIK wajib terdiri dari tepat 16 digit.');
+		}
+		$data['identity_number'] = $identity_number;
+		return $data;
+	}
+
+	private function ensure_member_nik_is_available(array $data, $exclude_member_id = null)
+	{
+		if (! $this->is_nik_identity_type($data['identity_type'] ?? null)) {
+			return;
+		}
+		$identity_number = trim((string) ($data['identity_number'] ?? ''));
+		if ($identity_number === '') {
+			return;
+		}
+
+		$this->db->from('members')->where('identity_number', $identity_number);
+		if ($exclude_member_id !== null) {
+			$this->db->where('id !=', (int) $exclude_member_id);
+		}
+		if ($this->db->count_all_results() > 0) {
+			throw new RuntimeException('NIK ini sudah digunakan oleh member lain.');
+		}
+	}
+
+	private function is_nik_identity_type($identity_type)
+	{
+		return strpos(strtolower(trim((string) $identity_type)), 'nik') !== false;
+	}
+
+	private function throw_if_nik_unique_violation()
+	{
+		$error = $this->db->error();
+		if ((int) ($error['code'] ?? 0) === 1062 && strpos((string) ($error['message'] ?? ''), 'uq_members_identity_number') !== false) {
+			throw new RuntimeException('NIK ini sudah digunakan oleh member lain.');
+		}
 	}
 
 	private function next_renewal_code()

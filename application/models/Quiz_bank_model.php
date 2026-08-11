@@ -82,6 +82,7 @@ class Quiz_bank_model extends CI_Model
 
     public function create_question(array $data, array $options = [], array $tags = [])
     {
+        $this->assert_curriculum_scope($data);
         $this->db->insert('quiz_questions', $this->sanitize_question($data));
         $id = (int) $this->db->insert_id();
 
@@ -96,6 +97,7 @@ class Quiz_bank_model extends CI_Model
 
     public function update_question($id, array $data, array $options = [], array $tags = [])
     {
+        $this->assert_curriculum_scope($data);
         $this->db->update('quiz_questions', $this->sanitize_question($data), ['id' => (int) $id]);
 
         $this->db->delete('quiz_question_options', ['question_id' => (int) $id]);
@@ -189,6 +191,11 @@ class Quiz_bank_model extends CI_Model
                 $error_lines[] = "Baris {$row_num}: kode jenjang '{$grade_code}' tidak ditemukan.";
                 continue;
             }
+            if (! $this->scope_is_enabled($subjects[$sub_code], $grades[$grade_code])) {
+                $errors++;
+                $error_lines[] = "Baris {$row_num}: kombinasi mapel dan jenjang belum diizinkan dalam matriks kurikulum.";
+                continue;
+            }
 
             $options = [];
             $correct_idx = null;
@@ -213,7 +220,7 @@ class Quiz_bank_model extends CI_Model
                 'question_text'       => $q_text,
                 'explanation'         => $get('explanation'),
                 'correct_option_index'=> $correct_idx,
-                'is_active'           => 1,
+                'is_active'           => 0,
                 'import_batch_id'     => $batch_id,
                 'created_by'          => $user_id,
             ];
@@ -275,7 +282,14 @@ class Quiz_bank_model extends CI_Model
             default: throw new RuntimeException('Format tidak didukung.');
         }
         $valid = 0;
-        foreach ($questions as $q) { if ($q['status'] === 'ok') $valid++; }
+        foreach ($questions as &$q) {
+            if ($q['status'] === 'ok' && ! $this->scope_is_enabled($q['subject_id'], $q['grade_id'])) {
+                $q['status'] = 'error';
+                $q['issues'][] = 'Kombinasi mapel dan jenjang belum diizinkan dalam matriks Kurikulum Merdeka.';
+            }
+            if ($q['status'] === 'ok') $valid++;
+        }
+        unset($q);
         return [
             'questions' => $questions,
             'summary'   => ['total' => count($questions), 'valid' => $valid, 'invalid' => count($questions) - $valid],
@@ -290,6 +304,7 @@ class Quiz_bank_model extends CI_Model
 
         foreach ($questions as $q) {
             if (($q['status'] ?? '') !== 'ok') { $skipped++; continue; }
+            if (! $this->scope_is_enabled($q['subject_id'], $q['grade_id'])) { $skipped++; continue; }
 
             $this->db->insert('quiz_questions', [
                 'subject_id'           => (int) $q['subject_id'],
@@ -299,7 +314,8 @@ class Quiz_bank_model extends CI_Model
                 'question_text'        => $q['question_text'],
                 'explanation'          => $q['explanation'] ?? '',
                 'correct_option_index' => $q['type'] === 'multiple_choice' ? (int) $q['correct_index'] : null,
-                'is_active'            => 1,
+                // Hasil import masuk sebagai draft. Admin meninjau lalu mengaktifkannya satu per satu.
+                'is_active'            => 0,
                 'import_batch_id'      => $batch_id,
                 'created_by'           => $user_id,
             ]);
@@ -667,6 +683,25 @@ class Quiz_bank_model extends CI_Model
         }
         if (! empty($filters['tag'])) {
             $this->db->where("q.id IN (SELECT question_id FROM quiz_question_tags qt JOIN quiz_tags t ON t.id=qt.tag_id WHERE t.name='{$this->db->escape_str($filters['tag'])}')", null, false);
+        }
+    }
+
+    private function scope_is_enabled($subject_id, $grade_level_id)
+    {
+        if (! $this->db->table_exists('quiz_curriculum_scopes')) {
+            return true;
+        }
+        return (bool) $this->db
+            ->where('subject_id', (int) $subject_id)
+            ->where('grade_level_id', (int) $grade_level_id)
+            ->where('is_active', 1)
+            ->count_all_results('quiz_curriculum_scopes');
+    }
+
+    private function assert_curriculum_scope(array $data)
+    {
+        if (! $this->scope_is_enabled($data['subject_id'] ?? 0, $data['grade_level_id'] ?? 0)) {
+            throw new RuntimeException('Kombinasi jenjang dan mata pelajaran belum diizinkan dalam matriks Kurikulum Merdeka.');
         }
     }
 

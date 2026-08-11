@@ -19,6 +19,8 @@ class Play_game extends CI_Controller
         $this->load->model('Learn_notifications_model');
         $this->load->model('Learn_battle_model');
         $this->load->model('Learn_report_model');
+        $this->load->model('Member_model');
+        $this->load->model('Quiz_config_model');
     }
 
     /** Halaman daftar semua game */
@@ -41,29 +43,71 @@ class Play_game extends CI_Controller
     public function latihan()
     {
         $user = $this->_current_user();
-
-        // Sesi latihan (practice) yang berstatus open.
         $now = date('Y-m-d H:i:s');
+		$filters = [
+			'q' => trim((string) $this->input->get('q', true)),
+			'subject_id' => (int) $this->input->get('subject_id', true),
+			'grade_level_id' => (int) $this->input->get('grade_level_id', true),
+			'difficulty' => (string) $this->input->get('difficulty', true),
+			'availability' => (string) $this->input->get('availability', true),
+		];
+		$filters['difficulty'] = in_array($filters['difficulty'], ['easy', 'medium', 'hard', 'mixed'], true) ? $filters['difficulty'] : '';
+		$filters['availability'] = in_array($filters['availability'], ['available', 'upcoming'], true) ? $filters['availability'] : 'available';
+		$grades = $this->Quiz_config_model->get_grade_levels(true);
+		$subjects = $this->Quiz_config_model->get_subjects(true);
+		$recommendation = $this->practice_recommendation($user, $grades);
         $sessions = $this->db
-            ->select('s.code, s.title, s.question_count, s.time_limit_minutes, s.passing_score, s.start_time, s.end_time, sub.name AS subject_name, g.name AS grade_name')
+			->select('s.code, s.title, s.question_count, s.time_limit_minutes, s.passing_score, s.start_time, s.end_time, s.difficulty_filter, sub.name AS subject_name, sub.color AS subject_color, sub.icon AS subject_icon, g.id AS grade_id, g.name AS grade_name')
             ->from('quiz_sessions s')
             ->join('quiz_subjects sub', 'sub.id = s.subject_id', 'left')
             ->join('quiz_grade_levels g', 'g.id = s.grade_level_id', 'left')
             ->where('s.type', 'practice')
             ->where('s.status', 'open')
             ->where('s.deleted_at IS NULL', null, false)
-            // Sembunyikan yang sudah lewat masa tutup.
-            ->group_start()->where('s.end_time IS NULL', null, false)->or_where('s.end_time >=', $now)->group_end()
-            ->order_by('s.start_time', 'DESC')
+			->group_start()->where('s.end_time IS NULL', null, false)->or_where('s.end_time >=', $now)->group_end();
+		if ($filters['q'] !== '') $this->db->group_start()->like('s.title', $filters['q'])->or_like('sub.name', $filters['q'])->or_like('g.name', $filters['q'])->group_end();
+		if ($filters['subject_id']) $this->db->where('s.subject_id', $filters['subject_id']);
+		if ($filters['grade_level_id']) $this->db->where('s.grade_level_id', $filters['grade_level_id']);
+		if ($filters['difficulty'] !== '') $this->db->where('s.difficulty_filter', $filters['difficulty']);
+		if ($filters['availability'] === 'upcoming') $this->db->where('s.start_time >', $now);
+		else $this->db->group_start()->where('s.start_time IS NULL', null, false)->or_where('s.start_time <=', $now)->group_end();
+		$sessions = $this->db
+			->order_by('s.start_time', 'ASC')
             ->order_by('s.id', 'DESC')
             ->get()->result_array();
+		foreach ($sessions as &$session) $session['is_recommended'] = ! empty($recommendation['grade_id']) && (int) $session['grade_id'] === (int) $recommendation['grade_id'];
+		unset($session);
+		$recommended_sessions = array_values(array_filter($sessions, function ($session) { return ! empty($session['is_recommended']); }));
 
         $this->load->view('game/latihan_list', [
             'title'    => 'Latihan Soal',
             'user'     => $user,
             'sessions' => $sessions,
+			'subjects' => $subjects,
+			'grades' => $grades,
+			'filters' => $filters,
+			'recommendation' => $recommendation,
+			'recommended_sessions' => array_slice($recommended_sessions, 0, 3),
         ]);
     }
+
+	private function practice_recommendation($user, array $grades)
+	{
+		if (empty($user['id'])) return [];
+		$member = $this->Member_model->get_member_by_auth_user_id((int) $user['id']);
+		if (empty($member['birth_date']) || strtotime($member['birth_date']) === false) return [];
+		$age = (new DateTime($member['birth_date']))->diff(new DateTime('today'))->y;
+		if ($age < 4) return ['age' => $age, 'label' => 'Eksplorasi awal', 'message' => 'Pilih latihan yang paling nyaman untukmu.'];
+		if ($age === 4) $target = 'tk_a';
+		elseif ($age === 5) $target = 'tk_b';
+		elseif ($age <= 11) $target = 'sd_' . ($age - 5);
+		elseif ($age <= 14) $target = 'smp_' . ($age - 5);
+		elseif ($age <= 17) $target = 'sma_' . ($age - 5);
+		elseif ($age <= 22) $target = 'pt';
+		else $target = 'umum';
+		foreach ($grades as $grade) if (($grade['code'] ?? '') === $target) return ['age' => $age, 'grade_id' => (int) $grade['id'], 'label' => $grade['name'], 'message' => 'Rekomendasi dihitung dari usia. Kamu tetap bebas memilih jenjang lain.'];
+		return [];
+	}
 
     // ── Notifikasi (member) ────────────────────────────────────────────────────
 

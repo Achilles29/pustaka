@@ -13,7 +13,15 @@ class Quiz_sessions extends MY_Controller
     {
         $this->require_permission('quiz_sessions.index', 'view');
 
-        $filters  = ['q' => $this->input->get('q', true), 'status' => $this->input->get('status', true), 'subject_id' => $this->input->get('subject_id', true)];
+        $filters  = [
+            'q'              => trim((string) $this->input->get('q', true)),
+            'status'         => $this->input->get('status', true),
+            'subject_id'     => (int) $this->input->get('subject_id', true),
+            'grade_level_id' => (int) $this->input->get('grade_level_id', true),
+            'difficulty'     => $this->input->get('difficulty', true),
+        ];
+        $filters['status'] = in_array($filters['status'], ['draft', 'open', 'closed'], true) ? $filters['status'] : '';
+        $filters['difficulty'] = in_array($filters['difficulty'], ['easy', 'medium', 'hard', 'mixed'], true) ? $filters['difficulty'] : '';
         $per_page = in_array((int) $this->input->get('per_page', true), [10, 25, 50], true) ? (int) $this->input->get('per_page', true) : 25;
         $page     = max(1, (int) $this->input->get('page', true));
         $total    = $this->Quiz_session_model->count_sessions($filters, 'practice');
@@ -25,6 +33,7 @@ class Quiz_sessions extends MY_Controller
             'stats'      => $this->Quiz_session_model->stats('practice'),
             'sessions'   => $this->Quiz_session_model->get_sessions($filters, $per_page, ($page - 1) * $per_page, 'practice'),
             'subjects'   => $this->Quiz_config_model->get_subjects(true),
+            'grades'     => $this->Quiz_config_model->get_grade_levels(true),
             'filters'    => array_merge($filters, ['per_page' => $per_page, 'page' => $page]),
             'pagination' => ['total_rows' => $total, 'total_pages' => $pages, 'page' => $page, 'per_page' => $per_page],
             'can_create' => $this->can('quiz_sessions.index', 'create'),

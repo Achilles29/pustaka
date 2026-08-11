@@ -4,6 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Member_registration_model extends CI_Model
 {
 	const MAX_UPLOAD_BYTES = 2097152;
+	const MAX_IMAGE_PIXELS_FOR_COMPRESSION = 16000000;
 
 	public function __construct()
 	{
@@ -71,6 +72,60 @@ class Member_registration_model extends CI_Model
 			->row_array();
 	}
 
+	public function find_request_for_public_status($lookup_type, $value)
+	{
+		$lookup_type = strtolower(trim((string) $lookup_type));
+		$value = trim((string) $value);
+		if ($value === '') {
+			throw new RuntimeException('Masukkan data pendaftaran yang ingin digunakan untuk pencarian.');
+		}
+
+		if ($lookup_type === 'token') {
+			if (preg_match('~membership/register/pending/([a-f0-9]{64})~i', $value, $matches)) {
+				$value = $matches[1];
+			}
+			if (! preg_match('/^[a-f0-9]{64}$/i', $value)) {
+				throw new RuntimeException('Tautan atau token status tidak valid. Salin tautan status lengkap yang diterima setelah pendaftaran.');
+			}
+			$request = $this->get_request_by_public_token($value);
+		} elseif ($lookup_type === 'nik') {
+			$nik = preg_replace('/\D+/', '', $value);
+			if (strlen($nik) !== 16) {
+				throw new RuntimeException('NIK harus terdiri dari tepat 16 digit.');
+			}
+			$request = $this->get_request_by_identity_number($nik);
+		} elseif ($lookup_type === 'registration_code') {
+			$code = strtoupper(trim($value));
+			if (! preg_match('/^REG-\d{8}-\d{4}$/', $code)) {
+				throw new RuntimeException('Format kode pendaftaran tidak valid. Contoh: REG-20260811-0001.');
+			}
+			$request = $this->get_request_by_code($code);
+		} elseif ($lookup_type === 'phone') {
+			$phone = $this->normalize_phone($value);
+			if (strlen($phone) < 10 || strlen($phone) > 15) {
+				throw new RuntimeException('Nomor HP tidak valid. Gunakan nomor yang dicantumkan saat pendaftaran.');
+			}
+			$matches = [];
+			foreach ($this->db->from('member_registration_requests')->where('phone IS NOT NULL', null, false)->get()->result_array() as $row) {
+				if ($this->normalize_phone($row['phone'] ?? '') === $phone) {
+					$matches[] = $row;
+				}
+			}
+			if (count($matches) > 1) {
+				throw new RuntimeException('Nomor HP ini digunakan lebih dari satu pendaftaran. Gunakan NIK, kode pendaftaran, atau token status.');
+			}
+			$request = $matches[0] ?? null;
+		} else {
+			throw new RuntimeException('Pilih metode pencarian status yang tersedia.');
+		}
+
+		if (! $request) {
+			throw new RuntimeException('Pendaftaran tidak ditemukan. Periksa kembali data yang dimasukkan atau hubungi petugas perpustakaan.');
+		}
+
+		return $request;
+	}
+
 	public function create_request(array $data, array $files)
 	{
 		$identity_number = preg_replace('/\D+/', '', (string) ($data['identity_number'] ?? ''));
@@ -78,9 +133,10 @@ class Member_registration_model extends CI_Model
 		if ($full_name === '') {
 			throw new RuntimeException('Nama lengkap wajib diisi.');
 		}
-		if (strlen($identity_number) < 12) {
-			throw new RuntimeException('NIK/nomor identitas wajib diisi dengan benar.');
+		if (strlen($identity_number) !== 16) {
+			throw new RuntimeException('NIK wajib terdiri dari tepat 16 digit.');
 		}
+		$this->ensure_nik_is_available($identity_number);
 
 		$identity_document_type = (string) ($data['identity_document_type'] ?? '');
 		if (! in_array($identity_document_type, ['ktp', 'kk'], true)) {
@@ -93,6 +149,14 @@ class Member_registration_model extends CI_Model
 
 		$is_rembang = $identity_domicile === 'rembang';
 		$addresses = $this->resolve_addresses($data, $is_rembang);
+		$existing_request = $this->get_request_by_identity_number($identity_number);
+		if ($existing_request && ! in_array($existing_request['status'], ['rejected', 'cancelled'], true)) {
+			if ($existing_request['status'] === 'pending') {
+				throw new RuntimeException('NIK ini sudah memiliki pendaftaran yang sedang menunggu verifikasi.');
+			}
+			throw new RuntimeException('NIK ini sudah terdaftar sebagai member. Gunakan akun yang sudah ada atau hubungi petugas perpustakaan.');
+		}
+
 		$paths = $this->upload_required_files($files, $identity_document_type, $is_rembang);
 
 		$payload = [
@@ -135,12 +199,66 @@ class Member_registration_model extends CI_Model
 			'status' => 'pending',
 		];
 
-		$this->db->insert('member_registration_requests', $payload);
+		if ($existing_request) {
+			// NIK tetap satu rekam jejak. Pengajuan lama yang ditolak/dibatalkan dibuka kembali.
+			$payload['public_token'] = $this->new_public_token();
+			$payload['admin_note'] = null;
+			$payload['verified_by'] = null;
+			$payload['verified_at'] = null;
+			$payload['member_id'] = null;
+			$this->db->where('id', (int) $existing_request['id'])->update('member_registration_requests', $payload);
+			return [
+				'id' => (int) $existing_request['id'],
+				'code' => $existing_request['registration_code'],
+				'token' => $payload['public_token'],
+			];
+		}
+
+		if (! $this->db->insert('member_registration_requests', $payload)) {
+			$error = $this->db->error();
+			if ((int) ($error['code'] ?? 0) === 1062) {
+				throw new RuntimeException('NIK ini sudah digunakan pada data pendaftaran.');
+			}
+			throw new RuntimeException('Pendaftaran gagal disimpan. Silakan coba lagi.');
+		}
 		return [
 			'id' => (int) $this->db->insert_id(),
 			'code' => $payload['registration_code'],
 			'token' => $payload['public_token'],
 		];
+	}
+
+	private function ensure_nik_is_available($identity_number)
+	{
+		$member_exists = $this->db
+			->from('members')
+			->where('identity_number', $identity_number)
+			->count_all_results() > 0;
+		if ($member_exists) {
+			throw new RuntimeException('NIK ini sudah terdaftar sebagai member. Gunakan akun yang sudah ada atau hubungi petugas perpustakaan.');
+		}
+	}
+
+	private function get_request_by_identity_number($identity_number)
+	{
+		return $this->db
+			->from('member_registration_requests')
+			->where('identity_number', $identity_number)
+			->order_by('id', 'DESC')
+			->limit(1)
+			->get()
+			->row_array();
+	}
+
+	private function normalize_phone($phone)
+	{
+		$phone = preg_replace('/\D+/', '', (string) $phone);
+		if (strpos($phone, '62') === 0) {
+			$phone = '0' . substr($phone, 2);
+		} elseif (strpos($phone, '8') === 0) {
+			$phone = '0' . $phone;
+		}
+		return $phone;
 	}
 
 	private function resolve_addresses(array $data, $is_rembang)
@@ -223,7 +341,7 @@ class Member_registration_model extends CI_Model
 			return null;
 		}
 		if (! empty($files[$field]['error']) && (int) $files[$field]['error'] !== UPLOAD_ERR_OK) {
-			throw new RuntimeException('Upload berkas ' . $label . ' gagal. Ukuran maksimum setiap berkas adalah 2 MB.');
+			throw new RuntimeException($this->upload_error_message($label, (int) $files[$field]['error']));
 		}
 		if (empty($files[$field]['tmp_name']) || ! is_uploaded_file($files[$field]['tmp_name'])) {
 			throw new RuntimeException('Berkas ' . $label . ' tidak valid.');
@@ -233,23 +351,177 @@ class Member_registration_model extends CI_Model
 		if (! in_array($extension, $allowed_extensions, true)) {
 			throw new RuntimeException('Format berkas ' . $label . ' tidak sesuai.');
 		}
-		if ((int) $files[$field]['size'] > self::MAX_UPLOAD_BYTES) {
-			throw new RuntimeException('Ukuran setiap berkas maksimal 2 MB.');
+		$source = $files[$field]['tmp_name'];
+		$staged_file = null;
+		try {
+			if ((int) $files[$field]['size'] > self::MAX_UPLOAD_BYTES) {
+				$compressed = $this->compress_oversized_file($source, $extension, $label, (int) $files[$field]['size']);
+				$source = $compressed['path'];
+				$extension = $compressed['extension'];
+				$staged_file = $source;
+			}
+
+			$directory = $this->registration_upload_directory();
+			$name = $field . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
+			$target = $directory['absolute'] . '/' . $name;
+			$saved = $staged_file !== null
+				? (@rename($source, $target) || @copy($source, $target))
+				: @move_uploaded_file($source, $target);
+			if (! $saved) {
+				throw new RuntimeException('Berkas ' . $label . ' tidak dapat disimpan. Server tidak memiliki izin menulis ke folder unggahan.');
+			}
+
+			return $directory['relative'] . '/' . $name;
+		} finally {
+			if ($staged_file !== null && is_file($staged_file)) {
+				@unlink($staged_file);
+			}
+		}
+	}
+
+	private function registration_upload_directory()
+	{
+		$upload_base = FCPATH . 'assets/uploads';
+		if (! is_dir($upload_base) && ! @mkdir($upload_base, 0775, true)) {
+			throw new RuntimeException('Folder unggahan server belum tersedia. Mohon admin memeriksa folder assets/uploads.');
+		}
+		if (! is_writable($upload_base)) {
+			throw new RuntimeException('Server belum memiliki izin menulis ke folder unggahan. Mohon admin memperbaiki izin folder assets/uploads.');
 		}
 
-		$relative_dir = 'assets/uploads/member_registrations/' . date('Y/m');
-		$absolute_dir = FCPATH . $relative_dir;
-		if (! is_dir($absolute_dir)) {
-			mkdir($absolute_dir, 0775, true);
+		$relative = 'assets/uploads/member_registrations/' . date('Y/m');
+		$absolute = FCPATH . $relative;
+		if (! is_dir($absolute) && ! @mkdir($absolute, 0775, true)) {
+			throw new RuntimeException('Folder unggahan pendaftaran tidak dapat dibuat. Mohon admin memeriksa izin folder assets/uploads.');
+		}
+		if (! is_writable($absolute)) {
+			throw new RuntimeException('Server belum memiliki izin menulis ke folder unggahan pendaftaran. Mohon admin memperbaiki izin folder assets/uploads.');
 		}
 
-		$name = $field . '-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
-		$target = $absolute_dir . '/' . $name;
-		if (! move_uploaded_file($files[$field]['tmp_name'], $target)) {
-			throw new RuntimeException('Berkas gagal disimpan.');
+		return ['relative' => $relative, 'absolute' => $absolute];
+	}
+
+	private function compress_oversized_file($source, $extension, $label, $original_size)
+	{
+		if (in_array($extension, ['jpg', 'jpeg', 'png'], true)) {
+			return $this->compress_image($source, $extension, $label, $original_size);
+		}
+		if ($extension === 'pdf') {
+			return $this->compress_pdf($source, $label, $original_size);
 		}
 
-		return $relative_dir . '/' . $name;
+		throw new RuntimeException('Ukuran berkas ' . $label . ' melebihi 2 MB dan formatnya tidak dapat dikompresi otomatis.');
+	}
+
+	private function compress_image($source, $extension, $label, $original_size)
+	{
+		$info = @getimagesize($source);
+		if (! is_array($info) || empty($info[0]) || empty($info[1])) {
+			throw new RuntimeException('Berkas ' . $label . ' bukan gambar yang valid sehingga tidak dapat dikompresi.');
+		}
+		if ((int) $info[0] * (int) $info[1] > self::MAX_IMAGE_PIXELS_FOR_COMPRESSION) {
+			throw new RuntimeException('Berkas ' . $label . ' berukuran ' . $this->format_file_size($original_size) . ' dan resolusinya terlalu besar untuk dikompresi aman oleh server. Perkecil resolusi gambar lalu unggah kembali (maksimal 2 MB).');
+		}
+
+		$image = $extension === 'png' ? @imagecreatefrompng($source) : @imagecreatefromjpeg($source);
+		if (! $image) {
+			throw new RuntimeException('Berkas ' . $label . ' tidak dapat dibaca untuk dikompresi. Pastikan gambar tidak rusak.');
+		}
+
+		$temp = tempnam(sys_get_temp_dir(), 'member-image-');
+		$output = $temp ? $temp . '.jpg' : false;
+		if ($temp) @unlink($temp);
+		if (! $output) {
+			imagedestroy($image);
+			throw new RuntimeException('Server tidak dapat menyiapkan proses kompresi untuk berkas ' . $label . '.');
+		}
+
+		try {
+			$source_width = imagesx($image);
+			$source_height = imagesy($image);
+			foreach ([2200, 1800, 1400, 1100] as $max_dimension) {
+				$scale = min(1, $max_dimension / max($source_width, $source_height));
+				$width = max(1, (int) round($source_width * $scale));
+				$height = max(1, (int) round($source_height * $scale));
+				$canvas = imagecreatetruecolor($width, $height);
+				imagefill($canvas, 0, 0, imagecolorallocate($canvas, 255, 255, 255));
+				imagecopyresampled($canvas, $image, 0, 0, 0, 0, $width, $height, $source_width, $source_height);
+				foreach ([82, 75, 68] as $quality) {
+					@imagejpeg($canvas, $output, $quality);
+					if (is_file($output) && (int) filesize($output) <= self::MAX_UPLOAD_BYTES) {
+						imagedestroy($canvas);
+						return ['path' => $output, 'extension' => 'jpg'];
+					}
+				}
+				imagedestroy($canvas);
+			}
+		} finally {
+			imagedestroy($image);
+		}
+
+		$compressed_size = is_file($output) ? (int) filesize($output) : 0;
+		@unlink($output);
+		throw new RuntimeException('Berkas ' . $label . ' berukuran ' . $this->format_file_size($original_size) . '. Kompresi otomatis sudah dicoba, tetapi hasilnya masih ' . $this->format_file_size($compressed_size) . '. Unggah berkas maksimal 2 MB.');
+	}
+
+	private function compress_pdf($source, $label, $original_size)
+	{
+		$ghostscript = '/usr/bin/gs';
+		if (! is_executable($ghostscript)) {
+			throw new RuntimeException('Berkas PDF ' . $label . ' berukuran ' . $this->format_file_size($original_size) . ' dan server belum memiliki layanan kompresi PDF. Unggah berkas maksimal 2 MB.');
+		}
+
+		$temp = tempnam(sys_get_temp_dir(), 'member-pdf-');
+		$output = $temp ? $temp . '.pdf' : false;
+		if ($temp) @unlink($temp);
+		if (! $output) {
+			throw new RuntimeException('Server tidak dapat menyiapkan proses kompresi untuk PDF ' . $label . '.');
+		}
+
+		$last_size = 0;
+		foreach (['/ebook', '/screen'] as $profile) {
+			@unlink($output);
+			$command = escapeshellarg($ghostscript)
+				. ' -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dNOPAUSE -dQUIET -dBATCH'
+				. ' -dPDFSETTINGS=' . escapeshellarg($profile)
+				. ' ' . escapeshellarg('-sOutputFile=' . $output)
+				. ' ' . escapeshellarg($source) . ' 2>&1';
+			$output_lines = [];
+			$status = 1;
+			@exec($command, $output_lines, $status);
+			if ($status === 0 && is_file($output)) {
+				$last_size = (int) filesize($output);
+				if ($last_size <= self::MAX_UPLOAD_BYTES) {
+					return ['path' => $output, 'extension' => 'pdf'];
+				}
+			}
+		}
+
+		@unlink($output);
+		if ($last_size > 0) {
+			throw new RuntimeException('Berkas PDF ' . $label . ' berukuran ' . $this->format_file_size($original_size) . '. Kompresi otomatis sudah dicoba, tetapi hasilnya masih ' . $this->format_file_size($last_size) . '. Unggah berkas maksimal 2 MB.');
+		}
+		throw new RuntimeException('PDF ' . $label . ' tidak dapat dikompresi. Pastikan PDF tidak rusak atau terkunci, lalu unggah berkas maksimal 2 MB.');
+	}
+
+	private function upload_error_message($label, $error)
+	{
+		$messages = [
+			UPLOAD_ERR_INI_SIZE => 'Upload berkas ' . $label . ' ditolak sebelum diproses karena melebihi batas ukuran server. Perkecil berkas lalu coba lagi.',
+			UPLOAD_ERR_FORM_SIZE => 'Upload berkas ' . $label . ' melebihi batas yang diizinkan formulir.',
+			UPLOAD_ERR_PARTIAL => 'Upload berkas ' . $label . ' hanya terkirim sebagian. Periksa koneksi lalu coba lagi.',
+			UPLOAD_ERR_NO_FILE => 'Berkas ' . $label . ' belum dipilih.',
+			UPLOAD_ERR_NO_TMP_DIR => 'Upload berkas ' . $label . ' gagal karena folder sementara server tidak tersedia. Mohon hubungi admin.',
+			UPLOAD_ERR_CANT_WRITE => 'Upload berkas ' . $label . ' gagal karena server tidak dapat menulis berkas. Mohon hubungi admin.',
+			UPLOAD_ERR_EXTENSION => 'Upload berkas ' . $label . ' dihentikan oleh konfigurasi server. Mohon hubungi admin.',
+		];
+
+		return $messages[$error] ?? 'Upload berkas ' . $label . ' gagal (kode ' . $error . '). Silakan coba lagi.';
+	}
+
+	private function format_file_size($bytes)
+	{
+		return number_format(max(0, (int) $bytes) / 1048576, 1, ',', '.') . ' MB';
 	}
 
 	private function apply_filters(array $filters = [])
