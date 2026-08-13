@@ -18,6 +18,7 @@ $select_options = function ($options, $selected) {
 };
 $status_options = [
 	'available' => 'Tersedia',
+	'reserved' => 'Direservasi',
 	'loaned' => 'Dipinjam',
 	'missing' => 'Hilang',
 	'damaged' => 'Rusak',
@@ -118,10 +119,16 @@ $status_options = [
 							</select>
 						</div>
 						<div class="col-md-6 d-flex align-items-end">
-							<label class="form-check form-switch mb-2">
-								<input class="form-check-input" type="checkbox" name="is_public" value="1" <?= (int) $field('is_public', 1) === 1 ? 'checked' : ''; ?>>
-								<span class="form-check-label">Tampil di OPAC / katalog publik</span>
-							</label>
+							<div>
+								<label class="form-check form-switch mb-2">
+									<input class="form-check-input" type="checkbox" name="is_public" value="1" <?= (int) $field('is_public', 1) === 1 ? 'checked' : ''; ?>>
+									<span class="form-check-label">Tampil di OPAC / katalog publik</span>
+								</label>
+								<label class="form-check form-switch mb-0">
+									<input class="form-check-input" type="checkbox" name="is_loanable" value="1" <?= (int) $field('is_loanable', 1) === 1 ? 'checked' : ''; ?>>
+									<span class="form-check-label">Boleh dipinjam secara fisik</span>
+								</label>
+							</div>
 						</div>
 					</div>
 				</div>

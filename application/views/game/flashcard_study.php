@@ -49,6 +49,11 @@ $csrf_hash = $this->security->get_csrf_hash();
         .done-card { background:#fff; border-radius:24px; padding:40px 28px; text-align:center; box-shadow:0 12px 40px rgba(99,102,241,.15); }
         .toast-points { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#16a34a; color:#fff; padding:12px 24px; border-radius:999px; font-weight:700; box-shadow:0 8px 24px rgba(22,163,74,.35); z-index:100; opacity:0; transition:opacity .3s,transform .3s; }
         .toast-points.show { opacity:1; transform:translateX(-50%) translateY(6px); }
+        .deck-meta { text-align:center; color:#64748b; font-size:.78rem; margin-top:8px; }
+        .voice-btn { position:absolute;right:18px;bottom:17px;border:0;border-radius:50%;width:42px;height:42px;background:#ffffff22;color:inherit;font-size:1.2rem;z-index:3; }
+        .voice-btn:hover { transform:scale(1.08); }
+        .spark { position:fixed; z-index:999; pointer-events:none; animation:burst 1.1s ease-out forwards; font-size:1.5rem; }
+        @keyframes burst { to { transform:translate(var(--x),var(--y)) rotate(240deg); opacity:0; } }
     </style>
 </head>
 <body>
@@ -59,6 +64,7 @@ $csrf_hash = $this->security->get_csrf_hash();
             <span class="badge bg-purple text-white" id="counter">1 / <?= count($cards); ?></span>
         </div>
         <div class="study-bar"><div id="bar" style="width:0%"></div></div>
+        <div class="deck-meta"><?= html_escape($deck['subject_name'] ?? 'Umum'); ?> · <?= html_escape($deck['grade_name'] ?? 'Semua jenjang'); ?> · <a href="<?= current_url().'?shuffle=1'; ?>">🔀 Acak kartu</a></div>
     </div>
 
     <div class="study-wrap">
@@ -76,6 +82,7 @@ $csrf_hash = $this->security->get_csrf_hash();
                     <div class="flip-face flip-back">
                         <span class="flip-label">Definisi</span>
                         <div class="def" id="card-back">—</div>
+                        <button class="voice-btn" id="speak-back" type="button" title="Dengarkan jawaban"><i class="ti ti-volume"></i></button>
                     </div>
                 </div>
             </div>
@@ -164,6 +171,7 @@ $csrf_hash = $this->security->get_csrf_hash();
         document.getElementById('stage').style.display = 'none';
         document.getElementById('done').style.display = 'block';
         document.getElementById('sum-known').textContent = knownCount;
+        celebrate();
 
         if (LOGGED_IN) {
             post('<?= base_url('belajar/flashcard/finish'); ?>', { deck_id: DECK_ID }).then(function (j) {
@@ -186,7 +194,16 @@ $csrf_hash = $this->security->get_csrf_hash();
         setTimeout(function () { t.classList.remove('show'); }, 2600);
     }
 
+    function speak(text) {
+        if (!('speechSynthesis' in window)) { showToast('Suara belum didukung browser ini.'); return; }
+        window.speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(text); u.lang = 'id-ID'; u.rate = .92; window.speechSynthesis.speak(u);
+    }
+    function celebrate() {
+        var icons=['✨','⭐','🎉','💜']; for(var i=0;i<24;i++){var e=document.createElement('span');e.className='spark';e.textContent=icons[i%icons.length];e.style.left=(45+Math.random()*10)+'vw';e.style.top='45vh';e.style.setProperty('--x',((Math.random()-.5)*600)+'px');e.style.setProperty('--y',((Math.random()-.65)*500)+'px');document.body.appendChild(e);setTimeout(function(n){n.remove();},1200,e);}
+    }
+
     flip.addEventListener('click', function () { flip.classList.toggle('flipped'); });
+    document.getElementById('speak-back').addEventListener('click', function(e){e.stopPropagation();speak(CARDS[idx].back);});
     document.getElementById('btn-again').addEventListener('click', function () { advance('learning'); });
     document.getElementById('btn-known').addEventListener('click', function () { advance('known'); });
     document.getElementById('btn-restart').addEventListener('click', function () {

@@ -5,6 +5,7 @@ $tabler_css = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.m
 $tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css';
 $status_labels = [
 	'available' => 'Tersedia',
+	'reserved' => 'Direservasi',
 	'loaned' => 'Dipinjam',
 	'missing' => 'Hilang',
 	'damaged' => 'Rusak',
@@ -12,6 +13,7 @@ $status_labels = [
 ];
 $status_badges = [
 	'available' => 'bg-green-lt',
+	'reserved' => 'bg-blue-lt',
 	'loaned' => 'bg-yellow-lt',
 	'missing' => 'bg-red-lt',
 	'damaged' => 'bg-orange-lt',
@@ -41,6 +43,14 @@ $role_codes = array_map(function ($role) {
 }, (array) $this->session->userdata('user_roles'));
 $is_logged_in = ! empty($auth_user['id']);
 $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN', $role_codes, true)) ? base_url('admin') : base_url('user/dashboard');
+$loan_enabled = ! empty($loan_settings['is_loan_enabled']);
+$can_request_loan = $loan_enabled && (int) ($book['available_count'] ?? 0) > 0 && ! empty($current_member);
+$availability_class = (int) ($book['available_count'] ?? 0) > 0 ? 'bg-green-lt' : ((int) ($book['loaned_count'] ?? 0) > 0 ? 'bg-yellow-lt' : ((int) ($book['reserved_count'] ?? 0) > 0 ? 'bg-blue-lt' : 'bg-secondary-lt'));
+$availability_label = (int) ($book['available_count'] ?? 0) > 0
+	? number_format((int) $book['available_count'], 0, ',', '.') . ' tersedia untuk dipinjam'
+	: ((int) ($book['loaned_count'] ?? 0) > 0
+		? 'Semua eksemplar sedang dipinjam'
+		: ((int) ($book['reserved_count'] ?? 0) > 0 ? 'Semua eksemplar sedang direservasi' : 'Tidak tersedia untuk dipinjam'));
 ?>
 <!doctype html>
 <html lang="id">
@@ -55,7 +65,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812b'); ?>">
 </head>
 <body class="public-page public-catalog-page">
 	<header class="public-nav">
@@ -116,11 +126,15 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 						<p class="lead"><?= html_escape($book['statement_responsibility'] ?: 'Penulis belum tercatat'); ?></p>
 						<div class="public-detail-badges">
 							<span class="badge bg-blue-lt"><?= number_format((int) $book['public_item_count'], 0, ',', '.'); ?> eksemplar publik</span>
-							<span class="badge <?= (int) $book['available_count'] > 0 ? 'bg-green-lt' : 'bg-secondary-lt'; ?>"><?= number_format((int) $book['available_count'], 0, ',', '.'); ?> tersedia</span>
+							<span class="badge <?= $availability_class; ?>"><?= $availability_label; ?></span>
+							<?php if (! empty($book['textbook_grade_names'])): ?><a href="<?= base_url('buku-pelajaran'); ?>" class="badge bg-azure-lt text-decoration-none"><i class="ti ti-school me-1"></i><?= html_escape($book['textbook_grade_names']); ?></a><?php endif; ?>
+							<?php if (! empty($book['textbook_subject_names'])): ?><a href="<?= base_url('buku-pelajaran'); ?>" class="badge bg-green-lt text-decoration-none"><i class="ti ti-notebook me-1"></i><?= html_escape($book['textbook_subject_names']); ?></a><?php endif; ?>
 						</div>
-						<a href="#request-buku" class="btn btn-primary mt-3">
-							<i class="ti ti-book-upload me-1"></i><?= (int) $book['available_count'] > 0 ? 'Reservasi Buku' : 'Request Buku'; ?>
-						</a>
+						<?php if ($can_request_loan): ?><a href="#request-buku" class="btn btn-primary mt-3"><i class="ti ti-book-upload me-1"></i>Request Pinjam Buku</a>
+						<?php elseif ((int) ($book['loaned_count'] ?? 0) > 0): ?><span class="btn btn-outline-secondary disabled mt-3"><i class="ti ti-clock-off me-1"></i>Sedang Dipinjam</span>
+						<?php elseif ((int) ($book['reserved_count'] ?? 0) > 0): ?><span class="btn btn-outline-secondary disabled mt-3"><i class="ti ti-calendar-time me-1"></i>Sedang Direservasi</span>
+						<?php elseif (! $loan_enabled): ?><span class="btn btn-outline-secondary disabled mt-3"><i class="ti ti-lock me-1"></i>Peminjaman Ditutup</span>
+						<?php elseif (! $is_logged_in): ?><a href="<?= base_url('login'); ?>" class="btn btn-outline-primary mt-3"><i class="ti ti-login me-1"></i>Masuk untuk Meminjam</a><?php endif; ?>
 						<div class="public-detail-grid">
 							<div><span>ISBN</span><strong><?= html_escape($book['isbn'] ?: '-'); ?></strong></div>
 							<div><span>Penerbit</span><strong><?= html_escape($book['publisher'] ?: '-'); ?></strong></div>
@@ -180,7 +194,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 												<div><?= html_escape($item['category_name'] ?: '-'); ?></div>
 												<div class="text-secondary small"><?= html_escape($item['rule_name'] ?: '-'); ?></div>
 											</td>
-											<td data-label="Status"><span class="badge <?= html_escape($status_badges[$item['status']] ?? 'bg-secondary-lt'); ?>"><?= html_escape($status_labels[$item['status']] ?? ucfirst($item['status'])); ?></span></td>
+											<td data-label="Status"><span class="badge <?= html_escape($status_badges[$item['status']] ?? 'bg-secondary-lt'); ?>"><?= html_escape($status_labels[$item['status']] ?? ucfirst($item['status'])); ?></span><?php if (empty($item['is_loanable'])): ?><div class="text-secondary small mt-1">Tidak untuk dipinjam</div><?php endif; ?></td>
 										</tr>
 									<?php endforeach; ?>
 								</tbody>
@@ -195,11 +209,11 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 			<div class="container-xl">
 				<div class="public-request-panel">
 					<div>
-						<div class="section-kicker"><?= (int) $book['available_count'] > 0 ? 'Reservasi koleksi' : 'Request koleksi'; ?></div>
-						<h2><?= (int) $book['available_count'] > 0 ? 'Minta petugas menyiapkan buku ini.' : 'Ajukan permintaan buku ini.'; ?></h2>
-						<p class="text-secondary">Permintaan akan masuk ke panel admin untuk diproses. Jika eksemplar tersedia, sistem menandainya sebagai reservasi awal.</p>
+						<div class="section-kicker">Peminjaman koleksi</div>
+						<h2><?= $can_request_loan ? 'Minta petugas menyiapkan buku ini.' : 'Request peminjaman belum dapat dilakukan.'; ?></h2>
+						<p class="text-secondary"><?= $can_request_loan ? 'Permintaan masuk ke petugas sebagai reservasi awal. Buku dipinjamkan setelah diserahkan oleh petugas.' : ((int) ($book['loaned_count'] ?? 0) > 0 ? 'Seluruh eksemplar yang dapat dipinjam sedang dipinjam. Silakan cek kembali setelah buku dikembalikan.' : ((int) ($book['reserved_count'] ?? 0) > 0 ? 'Eksemplar yang tersedia sedang direservasi untuk member lain. Silakan cek kembali nanti.' : (! $loan_enabled ? 'Layanan peminjaman fisik sedang ditutup.' : 'Masuk sebagai member aktif untuk mengajukan peminjaman.'))); ?></p>
 					</div>
-					<?= form_open('katalog/request/' . (int) $book['id'], ['class' => 'public-request-form']); ?>
+					<?php if ($can_request_loan): ?><?= form_open('katalog/request/' . (int) $book['id'], ['class' => 'public-request-form']); ?>
 						<div class="row g-2">
 							<div class="col-md-6">
 								<label class="form-label">Nama</label>
@@ -223,7 +237,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 								</button>
 							</div>
 						</div>
-					<?= form_close(); ?>
+					<?= form_close(); ?><?php endif; ?>
 				</div>
 			</div>
 		</section>

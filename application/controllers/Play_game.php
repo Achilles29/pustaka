@@ -3,14 +3,30 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
  * Play_game — controller publik untuk memainkan mini game.
- * Extends CI_Controller (bukan MY_Controller) karena bisa dimainkan
- * oleh pengunjung yang belum login, meski fitur poin hanya untuk user login.
+ * Extends CI_Controller because member pages use their standalone layout.
+ * Authentication is enforced centrally in the constructor for every route.
  */
 class Play_game extends CI_Controller
 {
     public function __construct()
     {
         parent::__construct();
+
+        $user = $this->session->userdata('auth_user');
+        if (empty($user['id'])) {
+            if ($this->input->is_ajax_request()) {
+                $this->output
+                    ->set_status_header(401)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['ok' => false, 'message' => 'Silakan login untuk mengakses Arena Belajar.']));
+                $this->output->_display();
+                exit;
+            }
+            $this->session->set_flashdata('redirect_after_login', uri_string());
+            redirect('login');
+            return;
+        }
+
         $this->load->model('Learn_games_model');
         $this->load->model('Learn_points_model');
         $this->load->model('Learn_rewards_model');
@@ -19,6 +35,7 @@ class Play_game extends CI_Controller
         $this->load->model('Learn_notifications_model');
         $this->load->model('Learn_battle_model');
         $this->load->model('Learn_report_model');
+        $this->load->model('Learn_english_rpg_model');
         $this->load->model('Member_model');
         $this->load->model('Quiz_config_model');
     }
@@ -35,6 +52,99 @@ class Play_game extends CI_Controller
             'user'         => $user,
             'unread_notif' => $user ? $this->Learn_notifications_model->unread_count($user['id']) : 0,
         ]);
+    }
+
+    // ── English Quest RPG ───────────────────────────────────────────────────
+
+    public function english_quest()
+    {
+        $user = $this->_current_user();
+        $profile=$this->Learn_english_rpg_model->get_profile((int)$user['id'],$this->_display_name($user));
+        $episodes=$this->Learn_english_rpg_model->episodes(true,(int)$user['id']);if(!empty($user['is_superadmin']))foreach($episodes as &$row)$row['is_unlocked']=true;unset($row);
+        $this->load->view('game/english_rpg_list',['title'=>'English Quest','user'=>$user,'episodes'=>$episodes,'inventory'=>$this->Learn_english_rpg_model->get_inventory((int)$user['id']),'profile'=>$profile,'daily_quests'=>$this->Learn_english_rpg_model->daily_quests((int)$user['id'])]);
+    }
+
+    public function english_quest_play($code)
+    {
+        $user = $this->_current_user();
+        $episode = $this->Learn_english_rpg_model->episode($code);
+        if (! $episode) { show_404(); return; }
+        $map = $this->Learn_english_rpg_model->episodes(true, (int) $user['id']);
+        $entry = null;
+        foreach ($map as $row) {
+            if ($row['code'] === $code) $entry = $row;
+        }
+        if (empty($user['is_superadmin']) && (! $entry || empty($entry['is_unlocked']))) {
+            $this->session->set_flashdata('error', 'Selesaikan chapter sebelumnya untuk membuka petualangan ini.');
+            redirect('belajar/english-quest');
+            return;
+        }
+        $progress = $this->Learn_english_rpg_model->get_progress((int)$user['id'],$code);
+        $scenes = $this->Learn_english_rpg_model->scenes($code,(int)$user['id']);if(!$scenes){$this->session->set_flashdata('error','Episode ini belum memiliki adegan.');redirect('belajar/english-quest');return;}
+        $hero_profile=$this->Learn_english_rpg_model->get_profile((int)$user['id'],$this->_display_name($user));if(isset($scenes[14])&&(int)$hero_profile['reputation']>=4){$scenes[14]['text']='Your kindness and courage are known across the realm. The people welcome you as a trusted hero. '.$scenes[14]['text'];$scenes[14]['translation']='Kebaikan dan keberanianmu dikenal di seluruh negeri. Penduduk menyambutmu sebagai pahlawan tepercaya. '.$scenes[14]['translation'];}
+        $this->load->view('game/english_rpg', [
+            'title' => 'English Quest — '.$episode['title'],'user' => $user,'episode' => $episode,
+            'progress' => $progress,
+            'scenes' => $scenes,'inventory'=>$this->Learn_english_rpg_model->get_inventory((int)$user['id']),'hero_profile'=>$hero_profile,
+        ]);
+    }
+
+    public function english_quest_answer()
+    {
+        if (! $this->input->is_ajax_request()) return $this->_json(['ok'=>false,'message'=>'Permintaan tidak valid.'],400);
+        $user = $this->_current_user();
+        $code=(string)$this->input->post('episode_code',true);$episode=$this->Learn_english_rpg_model->episode($code);if(!$episode)return $this->_json(['ok'=>false,'message'=>'Episode tidak ditemukan.'],404);
+        $result = $this->Learn_english_rpg_model->answer((int)$user['id'],(int)$this->input->post('scene'),(int)$this->input->post('choice'),$code);
+        if (!empty($result['completed'])) {
+            $points = $this->Learn_points_model->award_points((int)$user['id'],'game.complete','english_rpg',(int)$result['progress']['id'],'Menyelesaikan English Quest: '.$episode['title']);
+            $result['points_earned'] = (int)$points;
+        }
+        return $this->_json($result,$result['ok']?200:409);
+    }
+
+    public function english_quest_sentence()
+    {
+        if(!$this->input->is_ajax_request())return $this->_json(['ok'=>false,'message'=>'Permintaan tidak valid.'],400);$user=$this->_current_user();$code=(string)$this->input->post('episode_code',true);if(!$this->Learn_english_rpg_model->episode($code))return $this->_json(['ok'=>false,'message'=>'Episode tidak ditemukan.'],404);$result=$this->Learn_english_rpg_model->answer_sentence((int)$user['id'],(int)$this->input->post('scene'),(string)$this->input->post('sentence'),$code);return $this->_json($result,$result['ok']?200:409);
+    }
+
+    public function english_quest_hero()
+    {
+        $user=$this->_current_user();$this->load->view('game/english_rpg_hero',['title'=>'Hero Profile','user'=>$user,'profile'=>$this->Learn_english_rpg_model->get_profile((int)$user['id'],$this->_display_name($user)),'inventory'=>$this->Learn_english_rpg_model->get_inventory((int)$user['id']),'weak_words'=>$this->Learn_english_rpg_model->weakest_words((int)$user['id'])]);
+    }
+
+    public function english_quest_story()
+    {
+        if(!$this->input->is_ajax_request())return $this->_json(['ok'=>false,'message'=>'Permintaan tidak valid.'],400);$user=$this->_current_user();$result=$this->Learn_english_rpg_model->answer_story((int)$user['id'],(int)$this->input->post('scene'),(int)$this->input->post('choice'),(string)$this->input->post('episode_code',true));return $this->_json($result,$result['ok']?200:409);
+    }
+
+    public function english_quest_hero_save()
+    {
+        $user=$this->_current_user();$this->Learn_english_rpg_model->get_profile((int)$user['id'],$this->_display_name($user));$this->Learn_english_rpg_model->save_profile((int)$user['id'],$this->input->post());$this->session->set_flashdata('success','Hero berhasil diperbarui.');redirect('belajar/english-quest/hero');
+    }
+
+    public function english_quest_quests()
+    {
+        $user=$this->_current_user();$this->load->view('game/english_rpg_quests',['title'=>'Side Quests','user'=>$user,'quests'=>$this->Learn_english_rpg_model->side_quests((int)$user['id']),'profile'=>$this->Learn_english_rpg_model->get_profile((int)$user['id'],$this->_display_name($user))]);
+    }
+
+    public function english_quest_claim($id)
+    {
+        $user=$this->_current_user();$reward=$this->Learn_english_rpg_model->claim_side_quest((int)$user['id'],$id);$this->session->set_flashdata($reward?'success':'error',$reward?'Hadiah '.$reward['reward_item_name'].' masuk ke inventory.':'Quest belum selesai atau hadiah sudah diambil.');redirect('belajar/english-quest/quests');
+    }
+
+    public function english_quest_review(){ $u=$this->_current_user();$this->load->view('game/english_rpg_review',['title'=>'Review Camp','user'=>$u,'words'=>$this->Learn_english_rpg_model->review_words((int)$u['id'])]); }
+    public function english_quest_review_submit(){if(!$this->input->is_ajax_request())return $this->_json(['ok'=>false],400);$u=$this->_current_user();return $this->_json($this->Learn_english_rpg_model->submit_review((int)$u['id'],$this->input->post('word',true),$this->input->post('answer',true),$this->input->post('mode',true)==='speaking'?'speaking':'choice'));}
+    public function english_quest_dictionary(){ $u=$this->_current_user();$this->load->view('game/english_rpg_dictionary',['title'=>'Adventure Dictionary','user'=>$u,'words'=>$this->Learn_english_rpg_model->review_words((int)$u['id'],200)]); }
+    public function english_quest_equipment(){ $u=$this->_current_user();$this->load->view('game/english_rpg_equipment',['title'=>'Hero Equipment','user'=>$u,'inventory'=>$this->Learn_english_rpg_model->get_inventory((int)$u['id'])]); }
+    public function english_quest_equip($id){$u=$this->_current_user();$this->Learn_english_rpg_model->equip_item((int)$u['id'],$id);redirect('belajar/english-quest/equipment');}
+    public function english_quest_potion(){ $u=$this->_current_user();$code=$this->input->post('episode_code',true);$ok=$this->Learn_english_rpg_model->use_potion((int)$u['id'],$code);$this->session->set_flashdata($ok?'success':'error',$ok?'Nyawa dipulihkan.':'Potion tidak tersedia.');redirect('belajar/english-quest/'.$code); }
+    public function english_quest_daily(){ $u=$this->_current_user();$qty=$this->Learn_english_rpg_model->claim_daily_reward((int)$u['id']);$this->session->set_flashdata($qty?'success':'error',$qty?'Daily reward: '.$qty.' Heart Potion.':'Hadiah hari ini sudah diambil.');redirect('belajar/english-quest'); }
+    public function english_quest_report(){ $u=$this->_current_user();$this->load->view('game/english_rpg_report',['title'=>'Raport English RPG','user'=>$u,'report'=>$this->Learn_english_rpg_model->user_report((int)$u['id'])]); }
+
+    public function english_quest_reset()
+    {
+        $user=$this->_current_user();$code=(string)$this->input->post('episode_code',true);$this->Learn_english_rpg_model->reset((int)$user['id'],$code);
+        $this->session->set_flashdata('success','Petualangan dimulai kembali dari awal.');redirect('belajar/english-quest/'.$code);
     }
 
     // ── Latihan Soal (daftar sesi latihan untuk member) ───────────────────────
@@ -155,6 +265,8 @@ class Play_game extends CI_Controller
         }
 
         $categories = $this->Learn_games_model->get_categories((int) $game_type['id'], true);
+        $all_categories=$categories;$filters=['subject_id'=>(int)$this->input->get('subject_id',true),'grade_level_id'=>(int)$this->input->get('grade_level_id',true)];
+        if(in_array($game_code,['word_scramble','memory_match'],true))$categories=array_values(array_filter($categories,function($c)use($filters){return (!$filters['subject_id']||(int)$c['subject_id']===$filters['subject_id'])&&(!$filters['grade_level_id']||(int)$c['grade_level_id']===$filters['grade_level_id']);}));
 
         // Load sets for each category
         foreach ($categories as &$cat) {
@@ -169,6 +281,7 @@ class Play_game extends CI_Controller
             'game_type'  => $game_type,
             'categories' => $categories,
             'user'       => $user,
+            'filters'=>$filters,'all_categories'=>$all_categories,
         ]);
     }
 
@@ -185,6 +298,13 @@ class Play_game extends CI_Controller
         $user    = $this->_current_user();
         $content = [];
 
+        if($game_code==='speed_math'){
+            $levels=$this->_speed_math_levels();$level=(int)$this->input->get('level');
+            if(!isset($levels[$level])){$this->load->view('game/speed_math_levels',['title'=>'Pilih Level Hitung Cepat','user'=>$user,'levels'=>$levels]);return;}
+            $config=$levels[$level];$config['level']=$level;
+            $this->load->view('game/speed_math',['title'=>'Hitung Cepat: '.$config['name'],'game_type'=>$game_type,'config'=>$config,'user'=>$user,'next_level'=>$levels[$level+1]??null,'next_game'=>$this->Learn_games_model->recommended_other_game($user?(int)$user['id']:0,$game_code)]);return;
+        }
+
         if ($game_type['needs_content']) {
             if (!$set_id) {
                 redirect('belajar/pilih/' . $game_code);
@@ -193,8 +313,11 @@ class Play_game extends CI_Controller
             if (!$set || !$set['is_active']) show_404();
 
             $config_schema = json_decode($game_type['config_schema'] ?? '{}', true);
-            $pairs_config  = $config_schema['pairs']['default'] ?? 6;
-            $content = $this->Learn_games_model->get_game_content($set_id, $pairs_config);
+            $game_config = $this->_parse_game_config($game_type);
+            $content_limit = $game_type['code'] === 'word_scramble'
+                ? ($game_config['word_count'] ?? ($config_schema['word_count']['default'] ?? 10))
+                : ($game_config['pairs'] ?? ($config_schema['pairs']['default'] ?? 6));
+            $content = $this->Learn_games_model->get_game_content($set_id, (int) $content_limit);
 
             if (empty($content)) {
                 redirect('belajar/pilih/' . $game_code . '?empty=1');
@@ -205,7 +328,9 @@ class Play_game extends CI_Controller
                 'game_type' => $game_type,
                 'set'       => $set,
                 'content'   => $content,
+				'config'    => $game_config,
                 'user'      => $user,
+                'next_game' => $this->Learn_games_model->recommended_other_game($user?(int)$user['id']:0,$game_code),
             ]);
         } else {
             // Speed Math dan sejenisnya: baca config dari GET
@@ -234,6 +359,7 @@ class Play_game extends CI_Controller
         $score      = (int) $this->input->post('score');
         $max_score  = (int) $this->input->post('max_score');
         $duration   = (int) $this->input->post('duration_seconds');
+        $level      = max(0,(int)$this->input->post('level'));
         $user       = $this->_current_user();
 
         $game_type = $this->Learn_games_model->get_game_type_by_code($game_code);
@@ -246,7 +372,7 @@ class Play_game extends CI_Controller
             $game_type['id'],
             $user ? $user['id'] : null,
             $set_id,
-            ['score_at_start' => 0]
+            ['score_at_start' => 0, 'level'=>$level]
         );
         $this->Learn_games_model->finish_session($session_id, $score, $max_score, $duration);
 
@@ -354,14 +480,21 @@ class Play_game extends CI_Controller
     public function flashcard()
     {
         $user  = $this->_current_user();
-        $decks = $this->Learn_flashcards_model->get_decks(true);
+        $filters = ['q'=>trim((string)$this->input->get('q',true)),'subject_id'=>(int)$this->input->get('subject_id',true),'grade_level_id'=>(int)$this->input->get('grade_level_id',true)];
+        $decks = $this->Learn_flashcards_model->get_decks(true, $filters);
+        $all_decks = $this->Learn_flashcards_model->get_decks(true);
         $known = $user ? $this->Learn_flashcards_model->known_counts_for_user($user['id']) : [];
+        $daily = $all_decks ? $all_decks[((int)date('z')) % count($all_decks)] : null;
 
         $this->load->view('game/flashcard_list', [
             'title' => 'Flashcard',
             'user'  => $user,
             'decks' => $decks,
             'known' => $known,
+            'filters' => $filters,
+            'filter_options' => $this->Learn_flashcards_model->catalog_filters(),
+            'daily' => $daily,
+            'catalog_stats' => ['decks'=>count($all_decks),'cards'=>array_sum(array_map(function($d){return (int)$d['card_count'];},$all_decks)),'known'=>array_sum($known)],
         ]);
     }
 
@@ -375,6 +508,7 @@ class Play_game extends CI_Controller
         $cards = $this->Learn_flashcards_model->get_deck_cards_with_progress(
             (int) $deck['id'], $user ? (int) $user['id'] : null
         );
+        if ($this->input->get('shuffle')) shuffle($cards);
 
         if (empty($cards)) {
             redirect('belajar/flashcard?empty=1');
@@ -434,7 +568,9 @@ class Play_game extends CI_Controller
     public function cerita()
     {
         $user     = $this->_current_user();
-        $passages = $this->Learn_story_model->get_passages(true);
+        $filters=['q'=>trim((string)$this->input->get('q',true)),'subject_id'=>(int)$this->input->get('subject_id',true),'grade_level_id'=>(int)$this->input->get('grade_level_id',true)];
+        $passages = $this->Learn_story_model->get_passages(true,$filters);
+        $all_passages=$this->Learn_story_model->get_passages(true);
         $best     = $user ? $this->Learn_story_model->best_scores_for_user($user['id']) : [];
 
         $this->load->view('game/story_list', [
@@ -442,6 +578,9 @@ class Play_game extends CI_Controller
             'user'     => $user,
             'passages' => $passages,
             'best'     => $best,
+            'filters'=>$filters,'filter_options'=>$this->Learn_story_model->catalog_filters(),
+            'daily'=>$this->Learn_story_model->recommended_passage($user?(int)$user['id']:0,$all_passages),
+            'catalog_stats'=>['stories'=>count($all_passages),'questions'=>array_sum(array_map(function($p){return (int)$p['question_count'];},$all_passages)),'perfect'=>count(array_filter($best,function($v){return $v>=100;}))],
         ]);
     }
 
@@ -526,6 +665,7 @@ class Play_game extends CI_Controller
             'title'          => 'Mode Battle',
             'user'           => $user,
             'pool_ready'     => $this->Learn_battle_model->count_active_questions() >= 3,
+            'battle_sessions'=> $this->Learn_battle_model->get_sessions(true),
         ]);
     }
 
@@ -535,7 +675,7 @@ class Play_game extends CI_Controller
         if (! $user) { redirect('login'); return; }
 
         $res = $this->Learn_battle_model->create_room(
-            (int) $user['id'], $this->_display_name($user), (int) $this->input->post('question_count')
+            (int) $user['id'], $this->_display_name($user), (int) $this->input->post('battle_session_id')
         );
         if (! $res['ok']) {
             $this->session->set_flashdata('error', $res['message']);
@@ -558,6 +698,14 @@ class Play_game extends CI_Controller
             return;
         }
         redirect('belajar/battle/room/' . $res['code']);
+    }
+
+    public function battle_start()
+    {
+        $user=$this->_current_user();
+        if(!$user || !$this->input->is_ajax_request()) return $this->_json(['ok'=>false],401);
+        $res=$this->Learn_battle_model->start_room(strtoupper(trim((string)$this->input->post('code',true))),(int)$user['id']);
+        return $this->_json($res,$res['ok']?200:400);
     }
 
     /** Halaman ruang battle */
@@ -583,6 +731,7 @@ class Play_game extends CI_Controller
             'room'      => $room,
             'role'      => $role,
             'questions' => $this->Learn_battle_model->get_room_questions($room),
+            'participant' => $this->Learn_battle_model->get_participant((int)$room['id'],(int)$user['id']),
         ]);
     }
 
@@ -672,6 +821,20 @@ class Play_game extends CI_Controller
             $config[$key] = $get_val !== null ? $get_val : ($field['default'] ?? null);
         }
         return $config;
+    }
+
+    private function _speed_math_levels()
+    {
+        return [
+            1=>['name'=>'Pemanasan','subtitle'=>'Penjumlahan sampai 10','duration'=>60,'operators'=>['+'],'max_num'=>10,'color'=>'#22c55e'],
+            2=>['name'=>'Pelari Angka','subtitle'=>'Tambah dan kurang sampai 20','duration'=>60,'operators'=>['+','-'],'max_num'=>20,'color'=>'#14b8a6'],
+            3=>['name'=>'Penakluk Puluhan','subtitle'=>'Tambah dan kurang sampai 50','duration'=>60,'operators'=>['+','-'],'max_num'=>50,'color'=>'#0ea5e9'],
+            4=>['name'=>'Master Perkalian','subtitle'=>'Perkalian 1 sampai 10','duration'=>60,'operators'=>['×'],'max_num'=>10,'color'=>'#6366f1'],
+            5=>['name'=>'Pembagi Andal','subtitle'=>'Pembagian dengan hasil bulat','duration'=>65,'operators'=>['÷'],'max_num'=>100,'color'=>'#8b5cf6'],
+            6=>['name'=>'Operasi Campuran','subtitle'=>'Empat operasi sampai 50','duration'=>75,'operators'=>['+','-','×','÷'],'max_num'=>50,'color'=>'#d946ef'],
+            7=>['name'=>'Arena Ratusan','subtitle'=>'Tambah dan kurang sampai 500','duration'=>75,'operators'=>['+','-'],'max_num'=>500,'color'=>'#f97316'],
+            8=>['name'=>'Grandmaster','subtitle'=>'Empat operasi, angka lebih menantang','duration'=>90,'operators'=>['+','-','×','÷'],'max_num'=>1000,'color'=>'#ef4444'],
+        ];
     }
 
     private function _new_badges_for_user($user_id)

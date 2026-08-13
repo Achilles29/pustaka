@@ -41,7 +41,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810f'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812b'); ?>">
 </head>
 <body class="public-page public-catalog-page">
 	<header class="public-nav">
@@ -233,8 +233,8 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 									<?php if (! empty($book['collection_types'])): ?>
 										<span class="badge bg-purple-lt"><i class="ti ti-category me-1"></i><?= html_escape($book['collection_types']); ?></span>
 									<?php endif; ?>
-									<span class="badge <?= (int) $book['available_count'] > 0 ? 'bg-green-lt' : 'bg-secondary-lt'; ?>">
-										<?= (int) $book['available_count'] > 0 ? number_format((int) $book['available_count'], 0, ',', '.') . ' tersedia' : 'Cek ketersediaan'; ?>
+									<span class="badge <?= (int) $book['available_count'] > 0 ? 'bg-green-lt' : ((int) ($book['loaned_count'] ?? 0) > 0 ? 'bg-yellow-lt' : ((int) ($book['reserved_count'] ?? 0) > 0 ? 'bg-blue-lt' : 'bg-secondary-lt')); ?>">
+										<?= (int) $book['available_count'] > 0 ? number_format((int) $book['available_count'], 0, ',', '.') . ' tersedia' : ((int) ($book['loaned_count'] ?? 0) > 0 ? 'Sedang dipinjam' : ((int) ($book['reserved_count'] ?? 0) > 0 ? 'Direservasi' : 'Tidak tersedia')); ?>
 									</span>
 									<?php if ((int) ($book['digital_asset_count'] ?? 0) > 0): ?>
 										<span class="badge bg-cyan-lt"><i class="ti ti-file-type-pdf me-1"></i>Buku Digital</span>

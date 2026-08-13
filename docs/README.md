@@ -15,6 +15,7 @@ Dokumentasi ini menjadi catatan kerja utama untuk proyek perpustakaan digital te
 - [SCAN_SUMMARY.md](SCAN_SUMMARY.md) - hasil scan ulang folder aplikasi INLISLite, database, aset, dan kesiapan CodeIgniter.
 - [THEME_REFERENCES.md](THEME_REFERENCES.md) - kandidat theme/admin template gratis untuk aplikasi.
 - [PROGRESS.md](PROGRESS.md) - catatan progress harian.
+- [ENGLISH_RPG_DEVELOPMENT_PLAN.md](ENGLISH_RPG_DEVELOPMENT_PLAN.md) - baseline, roadmap lengkap, quality gate, dan rencana pengembangan lanjutan English Quest RPG.
 
 ## Struktur Dokumentasi
 

@@ -48,7 +48,8 @@ class Learn_games_model extends CI_Model
     public function get_categories($game_type_id = null, $active_only = false)
     {
         $this->db
-            ->select('gc.*, gt.name AS game_type_name, gl.label AS grade_label, qs.name AS subject_name')
+            // quiz_grade_levels memakai kolom `name`, bukan `label`.
+            ->select('gc.*, gt.name AS game_type_name, gl.name AS grade_label, qs.name AS subject_name')
             ->from('learn_game_categories gc')
             ->join('learn_game_types gt', 'gt.id = gc.game_type_id', 'left')
             ->join('quiz_grade_levels gl', 'gl.id = gc.grade_level_id', 'left')
@@ -266,6 +267,15 @@ class Learn_games_model extends CI_Model
         }
         $row = $this->db->get('learn_game_sessions')->row_array();
         return (int) ($row['score'] ?? 0);
+    }
+
+    public function recommended_other_game($user_id, $exclude_code)
+    {
+        $games=$this->db->where('is_active',1)->where('code !=',$exclude_code)->order_by('sort_order,id')->get('learn_game_types')->result_array();
+        if(!$games)return null;$played=[];
+        if($user_id)foreach($this->db->select('game_type_id,MAX(played_at) last_played')->where(['user_id'=>(int)$user_id,'completed'=>1])->group_by('game_type_id')->get('learn_game_sessions')->result_array() as $r)$played[(int)$r['game_type_id']]=$r['last_played'];
+        usort($games,function($a,$b)use($played){return strcmp($played[(int)$a['id']]??'', $played[(int)$b['id']]??'');});
+        $game=$games[0];$game['url']=$game['needs_content']?'belajar/pilih/'.$game['code']:'belajar/play/'.$game['code'];return $game;
     }
 
     public function get_stats()

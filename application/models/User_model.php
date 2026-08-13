@@ -47,7 +47,7 @@ class User_model extends CI_Model
 		return [
 			'total' => $this->count_users($base_filters),
 			'active' => $this->count_users(array_merge($base_filters, ['status' => 'active'])),
-			'inactive' => $this->count_users(array_merge($base_filters, ['status' => 'inactive'])),
+			'inactive' => $this->count_users(array_merge($base_filters, ['status' => 'inactive_only'])),
 			'suspended' => $this->count_users(array_merge($base_filters, ['status' => 'suspended'])),
 		];
 	}
@@ -197,7 +197,12 @@ class User_model extends CI_Model
 		}
 
 		$status = trim((string) ($filters['status'] ?? ''));
-		if (in_array($status, ['active', 'inactive', 'suspended'], true)) {
+		if ($status === 'inactive') {
+			// Tab Nonaktif mencakup akun yang dinonaktifkan dan ditangguhkan.
+			$this->db->where_in('u.status', ['inactive', 'suspended']);
+		} elseif ($status === 'inactive_only') {
+			$this->db->where('u.status', 'inactive');
+		} elseif (in_array($status, ['active', 'suspended'], true)) {
 			$this->db->where('u.status', $status);
 		}
 

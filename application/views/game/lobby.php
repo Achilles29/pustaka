@@ -117,6 +117,11 @@
                 <p>Aktivitas singkat yang bisa kamu ulangi setiap hari.</p>
             </div>
             <div class="learning-arena-activity-grid">
+                <a href="<?= base_url('belajar/english-quest'); ?>" class="learning-arena-activity-card">
+                    <span class="learning-arena-activity-icon is-violet"><i class="ti ti-sword"></i></span>
+                    <span><h3>English Quest</h3><p>Jelajahi dunia RPG, berbicara dengan karakter, dan kuasai bahasa Inggris dari cerita.</p></span>
+                    <b>RPG <i class="ti ti-sparkles"></i></b>
+                </a>
                 <a href="<?= base_url('belajar/flashcard'); ?>" class="learning-arena-activity-card">
                     <span class="learning-arena-activity-icon is-violet"><i class="ti ti-cards"></i></span>
                     <span><h3>Flashcard</h3><p>Balik kartu, ingat istilah, dan tandai yang sudah dikuasai.</p></span>

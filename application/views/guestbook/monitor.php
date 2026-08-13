@@ -117,7 +117,7 @@ $purpose_options = [
 							<div class="row g-3">
 								<div class="col-md-7">
 									<label class="form-label">Cari NIK / Nomor Anggota / Nama</label>
-									<input type="text" class="form-control" name="identifier" id="guestbook-member-search" required autocomplete="off" placeholder="Ketik minimal 2 karakter">
+					<input type="text" class="form-control" name="identifier" id="guestbook-member-search" required autocomplete="off" placeholder="Ketik minimal 4 karakter">
 									<div class="guestbook-search-state" id="guestbook-member-search-state">Pilih member dari hasil pencarian.</div>
 								</div>
 								<div class="col-md-5">
@@ -236,9 +236,9 @@ $purpose_options = [
 
 		function searchMembers(keyword) {
 			clearMemberSelection();
-			if (! memberResults || keyword.length < 2) {
+			if (! memberResults || keyword.length < 4) {
 				if (memberResults) memberResults.innerHTML = '';
-				setMemberState('Ketik minimal 2 karakter untuk mencari.');
+				setMemberState('Ketik minimal 4 karakter untuk mencari.');
 				return;
 			}
 
@@ -281,7 +281,7 @@ $purpose_options = [
 
 		if (memberSubmit) {
 			memberSubmit.closest('form').addEventListener('submit', function (event) {
-				if (! memberId.value && memberSearch.value.trim().length < 2) {
+				if (! memberId.value && memberSearch.value.trim().length < 4) {
 					event.preventDefault();
 					setMemberState('Cari dan pilih member terlebih dahulu.');
 				}

@@ -21,11 +21,14 @@ class User_dashboard extends CI_Controller
 
 		$this->load->model('Catalog_model');
 		$this->load->model('Member_model');
+		$this->load->model('Loan_model');
 		$this->load->model('Reading_point_model');
 		$this->load->model('Visit_model');
 		$this->load->model('Event_model');
 		$this->load->model('Learn_points_model');
 		$this->load->model('Learn_games_model');
+		$this->load->model('Digital_donation_model');
+		$this->load->model('Patron_feedback_model');
 		$member = $this->Member_model->get_member_by_auth_user_id((int) ($user['id'] ?? 0));
 		if ($member) {
 			$this->Visit_model->record_member_dashboard_visit($member, $user);
@@ -53,7 +56,8 @@ class User_dashboard extends CI_Controller
 			'catalog_count' => $this->Catalog_model->count_public_books(['availability' => 'with_items']),
 			'catalog_total_count' => $this->Catalog_model->count_public_books(),
 			'catalog_digital_count' => $this->Catalog_model->count_public_books(['availability' => 'digital']),
-			'recent_loans' => $member ? $this->Member_model->get_member_loans((int) $member['id'], 5) : [],
+			'recent_loans' => $member ? $this->Loan_model->get_member_loans((int) $member['id'], 5) : [],
+			'loan_summary' => $member ? $this->Loan_model->get_member_summary((int) $member['id']) : ['active' => 0, 'overdue' => 0, 'total' => 0, 'next_due_date' => null],
 			'recent_visits' => $member ? $this->Member_model->get_member_visits((int) $member['id'], 5) : [],
 			'renewal_requests' => $member ? $this->Member_model->get_member_renewal_requests((int) $member['id'], 5) : [],
 			'book_requests' => $member ? $this->Catalog_model->get_member_book_requests((int) $member['id'], 5) : [],
@@ -71,6 +75,8 @@ class User_dashboard extends CI_Controller
 			'learn_badges'       => $user_id ? $this->Learn_points_model->get_user_badges($user_id) : [],
 			'learn_points_log'   => $user_id ? $this->Learn_points_model->get_user_points_log($user_id, 5) : [],
 			'learn_game_history' => $user_id ? $this->Learn_games_model->get_user_game_history($user_id, 5) : [],
+			'digital_donations' => $user_id ? $this->Digital_donation_model->get_member_submissions($user_id, 5) : [],
+			'patron_feedback_items' => $user_id ? $this->Patron_feedback_model->get_member_items($user_id, 5) : [],
 		]);
 	}
 
@@ -89,9 +95,28 @@ class User_dashboard extends CI_Controller
 			'current_user' => $user,
 			'member' => $member,
 			'active_token' => $this->Reading_point_model->get_member_active_token((int) $member['id']),
-			'points' => $this->Reading_point_model->get_active_points(200),
+			'locations' => $this->Reading_point_model->get_free_access_locations(500),
 			'tokens' => $this->Reading_point_model->get_member_tokens((int) $member['id'], 8),
+			'token_settings' => $this->Reading_point_model->get_token_settings(),
 			'token_request' => $this->Reading_point_model->get_member_pending_token_request((int) $member['id']),
+		]);
+	}
+
+	public function member_card()
+	{
+		$user = $this->require_member_user();
+		$this->load->model('Member_model');
+		$member = $this->Member_model->get_member_by_auth_user_id((int) ($user['id'] ?? 0));
+		if (! $member) {
+			$this->session->set_flashdata('error', 'Data kartu anggota belum terhubung dengan akun login ini.');
+			redirect('user/dashboard');
+		}
+
+		$this->load->view('user/member_card', [
+			'title' => 'Kartu Anggota Digital',
+			'current_user' => $user,
+			'member' => $member,
+			'verify_url' => base_url('membership/verify/' . (int) $member['id'] . '/' . $this->Member_model->digital_card_token($member)),
 		]);
 	}
 
@@ -195,7 +220,7 @@ class User_dashboard extends CI_Controller
 				$this->input->post('latitude', true),
 				$this->input->post('longitude', true)
 			);
-			$message = $result['is_new'] ? 'Check-in berhasil. Token baca harian diterbitkan.' : 'Anda masih memiliki token aktif yang dapat digunakan.';
+			$message = 'Lokasi berhasil diverifikasi. Anda berada di zona baca gratis dan dapat membaca buku online tanpa token.';
 			$this->session->set_flashdata('success', $message);
 		} catch (Throwable $e) {
 			$this->session->set_flashdata('error', $e->getMessage());

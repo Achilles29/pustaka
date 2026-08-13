@@ -8,6 +8,7 @@ class Public_catalog extends CI_Controller
 		parent::__construct();
 		$this->load->model('Catalog_model');
 		$this->load->model('Member_model');
+		$this->load->model('Loan_model');
 	}
 
 	public function index()
@@ -77,18 +78,22 @@ class Public_catalog extends CI_Controller
 			'items' => $this->Catalog_model->get_public_book_items((int) $id, 80),
 			'digital_assets' => $this->Catalog_model->get_public_digital_assets((int) $id),
 			'current_member' => $this->current_member(),
+			'loan_settings' => $this->Loan_model->get_settings(),
 		]);
 	}
 
 	public function request($id)
 	{
 		try {
+			$member = $this->current_member();
+			if (! $member) throw new RuntimeException('Silakan masuk sebagai member untuk mengajukan peminjaman buku fisik.');
+			if (empty($this->Loan_model->get_settings()['is_loan_enabled'])) throw new RuntimeException('Layanan peminjaman fisik sedang ditutup.');
 			$result = $this->Catalog_model->create_book_request((int) $id, [
 				'requester_name' => $this->input->post('requester_name', true),
 				'requester_email' => $this->input->post('requester_email', true),
 				'requester_phone' => $this->input->post('requester_phone', true),
 				'message' => $this->input->post('message', true),
-			], $this->current_member());
+			], $member);
 			$this->session->set_flashdata('success', 'Request buku berhasil dikirim. Kode: ' . $result['code']);
 		} catch (Throwable $e) {
 			$this->session->set_flashdata('error', $e->getMessage());

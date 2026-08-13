@@ -1,0 +1,146 @@
+-- Ekspansi katalog Flashcard: 11 deck, jenjang/mapel, 115 kartu total.
+-- Idempotent: deck memakai code unik dan kartu memakai (deck_id, front).
+
+UPDATE learn_flashcard_decks SET subject_id=4,grade_level_id=7,name='Sains Kelas 5 — Alam dan Energi',description='Istilah penting makhluk hidup, materi, bumi, dan energi.',icon='ti-atom',color='#7c3aed' WHERE code='ipa_dasar';
+
+INSERT INTO learn_flashcard_decks(code,name,description,subject_id,grade_level_id,icon,color,sort_order,is_active) VALUES
+('mtk_sd1_angka','Matematika Kelas 1 — Angka Ceria','Kenali bilangan, bentuk, dan operasi hitung paling dasar.',1,3,'ti-numbers','#f97316',10,1),
+('bindo_sd1_kata','Bahasa Indonesia Kelas 1 — Kata Pertamaku','Kosakata sehari-hari, suku kata, dan lawan kata sederhana.',2,3,'ti-book-2','#ec4899',20,1),
+('english_sd2_daily','English Kelas 2 — My Daily World','Kosakata Inggris tentang rumah, sekolah, warna, dan aktivitas.',3,4,'ti-language','#2563eb',30,1),
+('ipas_sd3_makhluk','IPAS Kelas 3 — Makhluk Hidup','Ciri, kebutuhan, pertumbuhan, dan lingkungan makhluk hidup.',39,5,'ti-leaf','#16a34a',40,1),
+('mtk_sd4_pecahan','Matematika Kelas 4 — Pecahan Explorer','Pahami pecahan, pembilang, penyebut, dan bentuk senilai.',1,6,'ti-chart-pie','#eab308',50,1),
+('bindo_sd4_bahasa','Bahasa Indonesia Kelas 4 — Detektif Bahasa','Gagasan pokok, kalimat, imbuhan, sinonim, dan antonim.',2,6,'ti-spellcheck','#db2777',60,1),
+('english_sd5_adventure','English Kelas 5 — Adventure Words','Kata kerja, arah, cuaca, perasaan, dan percakapan petualangan.',3,7,'ti-compass','#0891b2',70,1),
+('pancasila_sd5','Pancasila Kelas 5 — Warga Hebat','Nilai Pancasila, hak, kewajiban, musyawarah, dan keberagaman.',6,7,'ti-users','#dc2626',80,1),
+('mtk_sd6_geometri','Matematika Kelas 6 — Geometri Quest','Bangun datar, bangun ruang, luas, volume, dan koordinat.',1,8,'ti-shape','#7c3aed',90,1),
+('informatika_sd6','Informatika Kelas 6 — Digital Explorer','Algoritma, data, internet aman, perangkat, dan berpikir komputasional.',10,8,'ti-device-laptop','#0f766e',100,1)
+ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),subject_id=VALUES(subject_id),grade_level_id=VALUES(grade_level_id),icon=VALUES(icon),color=VALUES(color),is_active=1;
+
+DROP TEMPORARY TABLE IF EXISTS tmp_flashcards_20260813;
+CREATE TEMPORARY TABLE tmp_flashcards_20260813(code VARCHAR(60),front VARCHAR(300),back VARCHAR(1000),hint VARCHAR(300),sort_order INT) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO tmp_flashcards_20260813 VALUES
+('ipa_dasar','Rantai makanan','Urutan perpindahan energi melalui proses makan dan dimakan antarmakhluk hidup.','Contoh: rumput → belalang → katak',6),
+('ipa_dasar','Konduktor','Bahan yang dapat menghantarkan panas atau listrik dengan baik.','Contohnya logam',7),
+('ipa_dasar','Isolator','Bahan yang sulit menghantarkan panas atau listrik.','Contohnya kayu dan plastik',8),
+('ipa_dasar','Evaporasi','Perubahan zat cair menjadi gas atau proses menguap.','Air terkena panas matahari',9),
+('ipa_dasar','Adaptasi','Penyesuaian makhluk hidup terhadap lingkungannya agar bertahan hidup.','Kaktus memiliki daun berbentuk duri',10),
+('ipa_dasar','Organ','Bagian tubuh yang memiliki fungsi khusus, seperti jantung atau paru-paru.','Tersusun dari beberapa jaringan',11),
+('ipa_dasar','Energi kinetik','Energi yang dimiliki benda karena bergerak.','Makin cepat bergerak, makin besar energinya',12),
+('ipa_dasar','Energi potensial','Energi yang tersimpan karena posisi atau keadaan benda.','Buah di atas pohon',13),
+('ipa_dasar','Siklus air','Peredaran air terus-menerus dari bumi ke atmosfer dan kembali lagi.','Menguap, mengembun, turun sebagai hujan',14),
+('ipa_dasar','Habitat','Tempat alami makhluk hidup tinggal dan berkembang.','Ikan hidup di habitat perairan',15),
+
+('mtk_sd1_angka','Bilangan 0','Bilangan yang menunjukkan tidak ada benda.','Keranjang kosong berisi nol apel',1),
+('mtk_sd1_angka','Bilangan 10','Bilangan setelah sembilan, terdiri dari satu puluhan dan nol satuan.','Dua tangan memiliki sepuluh jari',2),
+('mtk_sd1_angka','Lebih besar','Nilai yang jumlahnya lebih banyak.','8 lebih besar daripada 5',3),
+('mtk_sd1_angka','Lebih kecil','Nilai yang jumlahnya lebih sedikit.','3 lebih kecil daripada 7',4),
+('mtk_sd1_angka','Penjumlahan','Menggabungkan dua kelompok benda atau lebih.','2 + 3 = 5',5),
+('mtk_sd1_angka','Pengurangan','Mengambil sebagian dari suatu jumlah.','5 - 2 = 3',6),
+('mtk_sd1_angka','Lingkaran','Bangun datar bundar yang tidak memiliki sudut.','Bentuk jam dinding',7),
+('mtk_sd1_angka','Segitiga','Bangun datar dengan tiga sisi dan tiga sudut.','Atap rumah sering berbentuk segitiga',8),
+('mtk_sd1_angka','Persegi','Bangun datar dengan empat sisi sama panjang.','Ubin berbentuk persegi',9),
+('mtk_sd1_angka','Pola','Susunan yang berulang menurut aturan tertentu.','Merah-biru-merah-biru',10),
+
+('bindo_sd1_kata','Ibu','Orang tua perempuan dalam keluarga.','I-bu terdiri dari dua suku kata',1),
+('bindo_sd1_kata','Buku','Kumpulan lembar berisi tulisan atau gambar untuk dibaca.','Bu-ku',2),
+('bindo_sd1_kata','Sekolah','Tempat murid belajar bersama guru.','Se-ko-lah',3),
+('bindo_sd1_kata','Rajin','Suka bekerja atau belajar dengan sungguh-sungguh.','Lawan katanya malas',4),
+('bindo_sd1_kata','Tinggi','Memiliki jarak jauh dari bawah ke atas.','Lawan katanya rendah',5),
+('bindo_sd1_kata','Cepat','Bergerak atau berlangsung dalam waktu singkat.','Lawan katanya lambat',6),
+('bindo_sd1_kata','Kalimat','Susunan kata yang memiliki arti lengkap.','Dia membaca buku.',7),
+('bindo_sd1_kata','Huruf vokal','Huruf a, i, u, e, dan o.','Ada lima huruf vokal',8),
+('bindo_sd1_kata','Tanda titik','Tanda baca yang dipakai pada akhir kalimat berita.','Bentuknya .',9),
+('bindo_sd1_kata','Bertanya','Meminta keterangan atau jawaban.','Kalimat tanya berakhir dengan ?',10),
+
+('english_sd2_daily','House','Rumah.','A place where a family lives',1),
+('english_sd2_daily','School','Sekolah.','A place to learn',2),
+('english_sd2_daily','Teacher','Guru.','A person who teaches students',3),
+('english_sd2_daily','Blue','Biru.','The color of a clear sky',4),
+('english_sd2_daily','Breakfast','Sarapan.','The first meal of the day',5),
+('english_sd2_daily','Read','Membaca.','You do this with a book',6),
+('english_sd2_daily','Write','Menulis.','You do this with a pencil',7),
+('english_sd2_daily','Happy','Senang atau bahagia.','You smile when you feel this',8),
+('english_sd2_daily','Please','Tolong; kata sopan saat meminta sesuatu.','A polite word',9),
+('english_sd2_daily','Thank you','Terima kasih.','Say it after receiving help',10),
+
+('ipas_sd3_makhluk','Bernapas','Proses mengambil oksigen dan mengeluarkan karbon dioksida.','Salah satu ciri makhluk hidup',1),
+('ipas_sd3_makhluk','Tumbuh','Bertambah ukuran, tinggi, atau berat.','Biji berkembang menjadi tanaman',2),
+('ipas_sd3_makhluk','Berkembang biak','Menghasilkan keturunan untuk menjaga kelestarian jenis.','Ayam bertelur',3),
+('ipas_sd3_makhluk','Herbivora','Hewan pemakan tumbuhan.','Contoh: sapi',4),
+('ipas_sd3_makhluk','Karnivora','Hewan pemakan daging.','Contoh: harimau',5),
+('ipas_sd3_makhluk','Omnivora','Hewan pemakan tumbuhan dan daging.','Contoh: ayam',6),
+('ipas_sd3_makhluk','Akar','Bagian tumbuhan yang menyerap air dan menambatkan tumbuhan.','Biasanya berada di dalam tanah',7),
+('ipas_sd3_makhluk','Batang','Bagian tumbuhan yang menopang dan mengangkut air.','Menghubungkan akar dan daun',8),
+('ipas_sd3_makhluk','Penyerbukan','Peristiwa jatuhnya serbuk sari ke kepala putik.','Membantu perkembangbiakan tumbuhan',9),
+('ipas_sd3_makhluk','Lingkungan','Segala sesuatu di sekitar makhluk hidup.','Terdiri dari unsur hidup dan tak hidup',10),
+
+('mtk_sd4_pecahan','Pembilang','Angka di atas garis pecahan yang menunjukkan bagian yang dipilih.','Pada 3/4, pembilangnya 3',1),
+('mtk_sd4_pecahan','Penyebut','Angka di bawah garis pecahan yang menunjukkan seluruh bagian sama besar.','Pada 3/4, penyebutnya 4',2),
+('mtk_sd4_pecahan','Pecahan senilai','Pecahan berbeda yang mempunyai nilai sama.','1/2 = 2/4',3),
+('mtk_sd4_pecahan','Pecahan biasa','Pecahan yang ditulis sebagai pembilang per penyebut.','Contoh 3/5',4),
+('mtk_sd4_pecahan','Pecahan campuran','Gabungan bilangan bulat dan pecahan biasa.','Contoh 1 1/2',5),
+('mtk_sd4_pecahan','Desimal','Cara menulis bagian bilangan menggunakan tanda koma.','1/2 = 0,5',6),
+('mtk_sd4_pecahan','Persen','Pecahan dengan penyebut seratus.','50% = 50/100',7),
+('mtk_sd4_pecahan','Seperempat','Satu dari empat bagian sama besar.','Ditulis 1/4',8),
+('mtk_sd4_pecahan','Setengah','Satu dari dua bagian sama besar.','Ditulis 1/2',9),
+('mtk_sd4_pecahan','Garis bilangan','Garis yang menunjukkan urutan dan posisi bilangan.','Pecahan dapat diletakkan di antara 0 dan 1',10),
+
+('bindo_sd4_bahasa','Gagasan pokok','Ide utama yang dibahas dalam sebuah paragraf.','Dapat berada di awal atau akhir paragraf',1),
+('bindo_sd4_bahasa','Kalimat utama','Kalimat yang memuat gagasan pokok paragraf.','Dijelaskan oleh kalimat penjelas',2),
+('bindo_sd4_bahasa','Kalimat penjelas','Kalimat yang merinci atau mendukung kalimat utama.','Berisi contoh atau alasan',3),
+('bindo_sd4_bahasa','Sinonim','Kata yang memiliki arti sama atau mirip.','Bahagia bersinonim dengan senang',4),
+('bindo_sd4_bahasa','Antonim','Kata yang berlawanan makna.','Panjang berantonim dengan pendek',5),
+('bindo_sd4_bahasa','Imbuhan me-','Awalan yang umumnya membentuk kata kerja aktif.','Baca menjadi membaca',6),
+('bindo_sd4_bahasa','Kata baku','Kata yang penulisannya sesuai kaidah bahasa Indonesia.','Aktivitas adalah bentuk baku',7),
+('bindo_sd4_bahasa','Wawancara','Kegiatan tanya jawab untuk memperoleh informasi.','Dilakukan pewawancara dan narasumber',8),
+('bindo_sd4_bahasa','Majas personifikasi','Gaya bahasa yang memberi sifat manusia kepada benda.','Angin bernyanyi',9),
+('bindo_sd4_bahasa','Ringkasan','Penyajian singkat yang memuat inti sebuah teks.','Ditulis dengan bahasa sendiri',10),
+
+('english_sd5_adventure','Explore','Menjelajah untuk mengetahui suatu tempat.','We explore the hidden forest',1),
+('english_sd5_adventure','Courage','Keberanian.','A hero needs courage',2),
+('english_sd5_adventure','Turn left','Belok kiri.','A direction',3),
+('english_sd5_adventure','Across from','Di seberang.','The inn is across from the market',4),
+('english_sd5_adventure','Cloudy','Berawan.','The sky has many clouds',5),
+('english_sd5_adventure','Excited','Bersemangat atau sangat gembira.','How you feel before an adventure',6),
+('english_sd5_adventure','Careful','Berhati-hati.','Be careful near the cliff',7),
+('english_sd5_adventure','Borrow','Meminjam sesuatu untuk dikembalikan.','May I borrow your map?',8),
+('english_sd5_adventure','Return','Mengembalikan atau kembali.','Return the key to its owner',9),
+('english_sd5_adventure','I agree','Saya setuju.','Use it when accepting an idea',10),
+
+('pancasila_sd5','Gotong royong','Bekerja bersama secara sukarela untuk tujuan bersama.','Membuat pekerjaan berat menjadi ringan',1),
+('pancasila_sd5','Musyawarah','Membahas masalah bersama untuk mencapai kesepakatan.','Mengutamakan kepentingan bersama',2),
+('pancasila_sd5','Hak','Sesuatu yang patut diterima seseorang.','Anak berhak mendapat pendidikan',3),
+('pancasila_sd5','Kewajiban','Sesuatu yang harus dilakukan dengan tanggung jawab.','Menjaga kebersihan kelas',4),
+('pancasila_sd5','Toleransi','Menghargai perbedaan orang lain.','Tetap rukun dalam keberagaman',5),
+('pancasila_sd5','Bhinneka Tunggal Ika','Berbeda-beda tetapi tetap satu.','Semboyan bangsa Indonesia',6),
+('pancasila_sd5','Keadilan','Memperlakukan orang sesuai hak dan kebutuhannya.','Tidak pilih kasih',7),
+('pancasila_sd5','Tanggung jawab','Kesediaan menanggung akibat dan menyelesaikan kewajiban.','Mengembalikan barang pinjaman',8),
+('pancasila_sd5','Norma','Aturan atau pedoman perilaku dalam masyarakat.','Membantu kehidupan menjadi tertib',9),
+('pancasila_sd5','Keberagaman','Keadaan masyarakat yang memiliki berbagai perbedaan.','Berbeda suku, bahasa, budaya, dan agama',10),
+
+('mtk_sd6_geometri','Keliling','Jumlah panjang seluruh sisi bangun datar.','Keliling persegi = 4 × sisi',1),
+('mtk_sd6_geometri','Luas','Ukuran daerah yang ditempati bangun datar.','Luas persegi = sisi × sisi',2),
+('mtk_sd6_geometri','Volume','Ukuran ruang yang dapat ditempati dalam bangun ruang.','Volume kubus = sisi³',3),
+('mtk_sd6_geometri','Kubus','Bangun ruang dengan enam sisi berbentuk persegi sama besar.','Memiliki 12 rusuk',4),
+('mtk_sd6_geometri','Balok','Bangun ruang dengan enam sisi berbentuk persegi panjang.','Bentuk kotak sepatu',5),
+('mtk_sd6_geometri','Jari-jari','Jarak dari titik pusat lingkaran ke tepinya.','Setengah diameter',6),
+('mtk_sd6_geometri','Diameter','Garis melalui pusat yang menghubungkan dua titik pada lingkaran.','Dua kali jari-jari',7),
+('mtk_sd6_geometri','Koordinat','Pasangan bilangan yang menunjukkan posisi titik.','Ditulis (x, y)',8),
+('mtk_sd6_geometri','Prisma','Bangun ruang dengan dua bidang alas yang sejajar dan sama bentuk.','Prisma segitiga memiliki alas segitiga',9),
+('mtk_sd6_geometri','Skala','Perbandingan jarak pada gambar dengan jarak sebenarnya.','Digunakan pada peta',10),
+
+('informatika_sd6','Algoritma','Urutan langkah logis dan sistematis untuk menyelesaikan masalah.','Seperti langkah membuat minuman',1),
+('informatika_sd6','Data','Fakta atau keterangan yang dapat diolah menjadi informasi.','Angka, teks, gambar, atau suara',2),
+('informatika_sd6','Perangkat keras','Bagian fisik komputer yang dapat dilihat dan disentuh.','Keyboard dan monitor',3),
+('informatika_sd6','Perangkat lunak','Program yang memberi instruksi kepada komputer.','Aplikasi pengolah kata',4),
+('informatika_sd6','Internet','Jaringan global yang menghubungkan banyak perangkat.','Digunakan untuk bertukar informasi',5),
+('informatika_sd6','Kata sandi kuat','Kata sandi panjang dan unik dengan kombinasi karakter.','Jangan memakai tanggal lahir',6),
+('informatika_sd6','Phishing','Upaya penipuan untuk mencuri data melalui pesan atau situs palsu.','Jangan klik tautan mencurigakan',7),
+('informatika_sd6','Dekomposisi','Memecah masalah besar menjadi bagian-bagian kecil.','Salah satu cara berpikir komputasional',8),
+('informatika_sd6','Pola','Kesamaan atau keteraturan yang dapat dikenali pada data.','Membantu membuat solusi lebih cepat',9),
+('informatika_sd6','Debugging','Mencari dan memperbaiki kesalahan pada program atau langkah.','Memeriksa mengapa program tidak berjalan',10);
+
+INSERT INTO learn_flashcard_cards(deck_id,front,back,hint,sort_order,is_active)
+SELECT d.id,t.front,t.back,t.hint,t.sort_order,1 FROM tmp_flashcards_20260813 t JOIN learn_flashcard_decks d ON d.code=t.code
+ON DUPLICATE KEY UPDATE back=VALUES(back),hint=VALUES(hint),sort_order=VALUES(sort_order),is_active=1;
+DROP TEMPORARY TABLE tmp_flashcards_20260813;

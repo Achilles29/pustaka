@@ -22,7 +22,7 @@ class Quiz_play_model extends CI_Model
             ->select('a.*, s.title AS session_title, s.type AS session_type, s.time_limit_minutes,
                       s.instructions, s.shuffle_options, s.show_result_immediately, s.allow_review, s.passing_score,
                       s.fraud_detect_tab_switch, s.fraud_max_tab_switches, s.fraud_action, s.fraud_detect_time_anomaly,
-                      p.full_name AS participant_name')
+                      p.full_name AS participant_name, p.user_id AS participant_user_id')
             ->from('quiz_attempts a')
             ->join('quiz_sessions s', 's.id = a.session_id')
             ->join('quiz_participants p', 'p.id = a.participant_id')
@@ -160,9 +160,12 @@ class Quiz_play_model extends CI_Model
     public function submit_attempt($attempt_id, $time_spent_seconds)
     {
         $attempt = $this->db->get_where('quiz_attempts', ['id' => (int) $attempt_id])->row_array();
-        if (! $attempt || $attempt['status'] !== 'in_progress') {
+        $is_unscored_timeout = $attempt && $attempt['status'] === 'timed_out' && $attempt['percentage'] === null;
+        if (! $attempt || ($attempt['status'] !== 'in_progress' && ! $is_unscored_timeout)) {
             return null;
         }
+
+        $final_status = $attempt['status'] === 'timed_out' ? 'timed_out' : 'submitted';
 
         $answers = $this->db->where('attempt_id', (int) $attempt_id)->get('quiz_attempt_answers')->result_array();
         $questions = $this->get_questions_for_scoring($attempt['question_order']);
@@ -200,8 +203,8 @@ class Quiz_play_model extends CI_Model
         $passing = (float) ($session['passing_score'] ?? 60);
 
         $this->db->update('quiz_attempts', [
-            'status'            => 'submitted',
-            'submitted_at'      => date('Y-m-d H:i:s'),
+            'status'            => $final_status,
+            'submitted_at'      => $attempt['submitted_at'] ?: date('Y-m-d H:i:s'),
             'time_spent_seconds'=> max(0, (int) $time_spent_seconds),
             'total_score'       => $total,
             'max_possible_score'=> $max,
@@ -229,9 +232,34 @@ class Quiz_play_model extends CI_Model
             'submitted_at' => date('Y-m-d H:i:s'),
         ], ['id' => (int) $attempt_id, 'status' => 'in_progress']);
         if ($this->db->affected_rows()) {
-            return $this->submit_attempt($attempt_id, 0);
+            $attempt = $this->db->select('started_at, submitted_at')->get_where('quiz_attempts', ['id' => (int) $attempt_id])->row_array();
+            $elapsed = $attempt ? max(0, strtotime($attempt['submitted_at']) - strtotime($attempt['started_at'])) : 0;
+            return $this->submit_attempt($attempt_id, $elapsed);
         }
         return null;
+    }
+
+    public function get_result_summary($attempt_id)
+    {
+        $rows = $this->db
+            ->select('aa.selected_option, aa.essay_answer, aa.is_correct, aa.score_earned, q.type, q.score_weight')
+            ->from('quiz_attempt_answers aa')
+            ->join('quiz_questions q', 'q.id = aa.question_id')
+            ->where('aa.attempt_id', (int) $attempt_id)
+            ->get()->result_array();
+
+        $summary = ['total'=>count($rows), 'answered'=>0, 'correct'=>0, 'wrong'=>0, 'unanswered'=>0, 'pending'=>0, 'earned'=>0.0, 'possible'=>0.0];
+        foreach ($rows as $row) {
+            $answered = $row['type'] === 'multiple_choice' ? $row['selected_option'] !== null : trim((string) $row['essay_answer']) !== '';
+            $summary['possible'] += (float) $row['score_weight'];
+            $summary['earned'] += (float) ($row['score_earned'] ?? 0);
+            if (! $answered) { $summary['unanswered']++; continue; }
+            $summary['answered']++;
+            if ($row['is_correct'] === null) $summary['pending']++;
+            elseif ((int) $row['is_correct'] === 1) $summary['correct']++;
+            else $summary['wrong']++;
+        }
+        return $summary;
     }
 
     // ── Anti-Fraud ────────────────────────────────────────────────────────────
@@ -290,7 +318,7 @@ class Quiz_play_model extends CI_Model
     public function get_review_data($attempt_id)
     {
         $attempt = $this->db
-            ->select('a.*, s.allow_review, s.show_result_immediately, s.title AS session_title, p.full_name')
+            ->select('a.*, s.allow_review, s.show_result_immediately, s.title AS session_title, p.full_name, p.user_id')
             ->from('quiz_attempts a')
             ->join('quiz_sessions s', 's.id = a.session_id')
             ->join('quiz_participants p', 'p.id = a.participant_id')

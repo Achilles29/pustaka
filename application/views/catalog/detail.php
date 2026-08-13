@@ -8,6 +8,7 @@ $status_labels = [
 ];
 $item_status_labels = [
 	'available' => 'Tersedia',
+	'reserved' => 'Direservasi',
 	'loaned' => 'Dipinjam',
 	'missing' => 'Hilang',
 	'damaged' => 'Rusak',
@@ -15,6 +16,7 @@ $item_status_labels = [
 ];
 $item_status_badges = [
 	'available' => 'bg-green-lt',
+	'reserved' => 'bg-blue-lt',
 	'loaned' => 'bg-yellow-lt',
 	'missing' => 'bg-red-lt',
 	'damaged' => 'bg-orange-lt',
@@ -240,6 +242,7 @@ if (! empty($book['cover_local_path'])) {
 										<td>
 											<span class="badge <?= html_escape($item_status_badges[$item['status']] ?? 'bg-secondary-lt'); ?>"><?= html_escape($item_status_labels[$item['status']] ?? ucfirst($item['status'])); ?></span>
 											<div class="text-secondary small"><?= html_escape($item['status_label'] ?: '-'); ?></div>
+											<div class="text-secondary small"><?= (int) ($item['is_loanable'] ?? 0) === 1 ? 'Boleh dipinjam fisik' : 'Tidak dipinjamkan'; ?></div>
 										</td>
 										<td>
 											<span class="badge <?= (int) ($item['is_public'] ?? 0) === 1 ? 'bg-blue-lt' : 'bg-secondary-lt'; ?>">

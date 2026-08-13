@@ -14,6 +14,7 @@ $status_badges = [
 	'revoked' => 'bg-red-lt',
 ];
 $unit_labels = ['minutes' => 'menit (legacy)', 'pages' => 'halaman (legacy)', 'books' => 'sesi baca'];
+$token_settings = $token_settings ?? ['request_default_quota' => 3, 'request_valid_days' => 7];
 $query_base = $_GET;
 unset($query_base['page']);
 $page_url = function ($page) use ($query_base) {
@@ -28,6 +29,7 @@ $page_url = function ($page) use ($query_base) {
 				<h1 class="page-title">Monitoring Token Baca</h1>
 			</div>
 			<div class="col-auto ms-auto">
+				<a href="<?= base_url('reading-points/token-settings'); ?>" class="btn btn-primary"><i class="ti ti-adjustments me-1"></i>Pengaturan Token</a>
 				<a href="<?= base_url('reading-points'); ?>" class="btn btn-outline-primary"><i class="ti ti-map-pin me-1"></i>Titik Baca</a>
 			</div>
 		</div>
@@ -45,7 +47,7 @@ $page_url = function ($page) use ($query_base) {
 				<h2>Pantau token aktif, sisa kuota, dan akses member dari luar lokasi.</h2>
 				<p>Token bisa dipakai dari mana saja. Kuota hanya berkurang saat akses dari luar Pojok Baca atau luar radius perpustakaan.</p>
 			</div>
-			<a href="<?= base_url('reader/assets'); ?>" class="btn btn-outline-primary"><i class="ti ti-file-lock me-1"></i>Reader</a>
+			<a href="<?= base_url('reader/assets'); ?>" class="btn btn-outline-primary"><i class="ti ti-file-description me-1"></i>Reader</a>
 		</div>
 
 		<?php if (! empty($pending_requests)): ?>
@@ -64,7 +66,7 @@ $page_url = function ($page) use ($query_base) {
 										<div class="btn-list flex-nowrap">
 											<?= form_open('reading-points/tokens/approve-request/' . (int) $request['id'], ['class' => 'd-inline']); ?>
 												<input type="hidden" name="review_note" value="Disetujui melalui monitoring token">
-												<button class="btn btn-sm btn-primary" onclick="return confirm('Setujui dan terbitkan token 3 sesi selama 7 hari?')"><i class="ti ti-check me-1"></i>Setujui</button>
+											<button class="btn btn-sm btn-primary" onclick="return confirm('Setujui dan terbitkan token <?= (int) $token_settings['request_default_quota']; ?> sesi selama <?= (int) $token_settings['request_valid_days']; ?> hari?')"><i class="ti ti-check me-1"></i>Setujui</button>
 											<?= form_close(); ?>
 											<?= form_open('reading-points/tokens/reject-request/' . (int) $request['id'], ['class' => 'd-inline']); ?>
 												<input type="hidden" name="review_note" value="Ditolak melalui monitoring token">

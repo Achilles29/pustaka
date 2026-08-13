@@ -5,13 +5,13 @@ class Quiz_bank_model extends CI_Model
 {
     public function stats()
     {
-        $base = $this->db->where('deleted_at IS NULL', null, false);
+        $base = $this->db->where('deleted_at IS NULL', null, false)->where('is_session_only', 0);
         $total = (int) $this->db->count_all_results('quiz_questions');
-        $mc    = (int) $this->db->where('deleted_at IS NULL', null, false)->where('type', 'multiple_choice')->count_all_results('quiz_questions');
-        $essay = (int) $this->db->where('deleted_at IS NULL', null, false)->where('type', 'essay')->count_all_results('quiz_questions');
-        $easy  = (int) $this->db->where('deleted_at IS NULL', null, false)->where('difficulty', 'easy')->count_all_results('quiz_questions');
-        $med   = (int) $this->db->where('deleted_at IS NULL', null, false)->where('difficulty', 'medium')->count_all_results('quiz_questions');
-        $hard  = (int) $this->db->where('deleted_at IS NULL', null, false)->where('difficulty', 'hard')->count_all_results('quiz_questions');
+        $mc    = (int) $this->db->where('deleted_at IS NULL', null, false)->where('is_session_only', 0)->where('type', 'multiple_choice')->count_all_results('quiz_questions');
+        $essay = (int) $this->db->where('deleted_at IS NULL', null, false)->where('is_session_only', 0)->where('type', 'essay')->count_all_results('quiz_questions');
+        $easy  = (int) $this->db->where('deleted_at IS NULL', null, false)->where('is_session_only', 0)->where('difficulty', 'easy')->count_all_results('quiz_questions');
+        $med   = (int) $this->db->where('deleted_at IS NULL', null, false)->where('is_session_only', 0)->where('difficulty', 'medium')->count_all_results('quiz_questions');
+        $hard  = (int) $this->db->where('deleted_at IS NULL', null, false)->where('is_session_only', 0)->where('difficulty', 'hard')->count_all_results('quiz_questions');
         return compact('total', 'mc', 'essay', 'easy', 'med', 'hard');
     }
 
@@ -268,7 +268,7 @@ class Quiz_bank_model extends CI_Model
      * Parse + validasi file import menjadi daftar soal ternormalisasi untuk di-review.
      * $format: csv|xlsx|txt. $default_subject_id/$default_grade_id dipakai untuk TXT
      * (dan sebagai fallback bila kode mapel/jenjang di baris tidak ditemukan).
-     * @return array ['questions'=>[...], 'summary'=>['total','valid','invalid']]
+     * @return array ['questions'=>[...], 'summary'=>['total','valid','ready','warnings','invalid']]
      */
     public function analyze_import($filepath, $format, $default_subject_id = null, $default_grade_id = null)
     {
@@ -282,29 +282,45 @@ class Quiz_bank_model extends CI_Model
             default: throw new RuntimeException('Format tidak didukung.');
         }
         $valid = 0;
+        $warnings = 0;
         foreach ($questions as &$q) {
             if ($q['status'] === 'ok' && ! $this->scope_is_enabled($q['subject_id'], $q['grade_id'])) {
-                $q['status'] = 'error';
-                $q['issues'][] = 'Kombinasi mapel dan jenjang belum diizinkan dalam matriks Kurikulum Merdeka.';
+                // Matriks kurikulum adalah pagar mutu, bukan kesalahan struktur
+                // file. Admin dapat secara sadar meng-override pada tahap commit,
+                // misalnya untuk soal pengayaan/level yang lebih lanjut.
+                $q['warnings'][] = 'Kombinasi mapel dan jenjang belum tercakup dalam matriks Kurikulum Merdeka.';
+                $q['has_curriculum_warning'] = true;
+                $warnings++;
             }
             if ($q['status'] === 'ok') $valid++;
         }
         unset($q);
         return [
             'questions' => $questions,
-            'summary'   => ['total' => count($questions), 'valid' => $valid, 'invalid' => count($questions) - $valid],
+            'summary'   => [
+                'total'    => count($questions),
+                'valid'    => $valid,
+                'ready'    => $valid - $warnings,
+                'warnings' => $warnings,
+                'invalid'  => count($questions) - $valid,
+            ],
         ];
     }
 
-    /** Commit hasil analisa (hanya soal berstatus ok) ke bank soal. */
-    public function commit_import(array $questions, $user_id, $filename, $format)
+    /** Commit hasil analisa. Override hanya berlaku untuk peringatan cakupan kurikulum. */
+    public function commit_import(array $questions, $user_id, $filename, $format, $allow_curriculum_override = false, $session_scope_id = null)
     {
-        $batch_id = $this->create_import_batch($filename, $format, 'bank', null, $user_id);
+        $session_scope_id = $session_scope_id ? (int) $session_scope_id : null;
+        $batch_id = $this->create_import_batch($filename, $format, $session_scope_id ? 'session' : 'bank', $session_scope_id, $user_id);
         $imported = 0; $skipped = 0;
+        $question_ids = [];
 
         foreach ($questions as $q) {
             if (($q['status'] ?? '') !== 'ok') { $skipped++; continue; }
-            if (! $this->scope_is_enabled($q['subject_id'], $q['grade_id'])) { $skipped++; continue; }
+            if (! $this->scope_is_enabled($q['subject_id'], $q['grade_id']) && ! $allow_curriculum_override) {
+                $skipped++;
+                continue;
+            }
 
             $this->db->insert('quiz_questions', [
                 'subject_id'           => (int) $q['subject_id'],
@@ -314,12 +330,15 @@ class Quiz_bank_model extends CI_Model
                 'question_text'        => $q['question_text'],
                 'explanation'          => $q['explanation'] ?? '',
                 'correct_option_index' => $q['type'] === 'multiple_choice' ? (int) $q['correct_index'] : null,
-                // Hasil import masuk sebagai draft. Admin meninjau lalu mengaktifkannya satu per satu.
-                'is_active'            => 0,
+                // Bank umum tetap draft; soal khusus sesi sudah direview pada pratinjau import.
+                'is_active'            => $session_scope_id ? 1 : 0,
+                'is_session_only'      => $session_scope_id ? 1 : 0,
+                'session_scope_id'     => $session_scope_id,
                 'import_batch_id'      => $batch_id,
                 'created_by'           => $user_id,
             ]);
             $q_id = (int) $this->db->insert_id();
+            $question_ids[] = $q_id;
 
             if ($q['type'] === 'multiple_choice') {
                 foreach ($q['options'] as $idx => $opt) {
@@ -346,7 +365,7 @@ class Quiz_bank_model extends CI_Model
             'errors'     => 0,
         ], ['id' => $batch_id]);
 
-        return ['batch_id' => $batch_id, 'imported' => $imported, 'skipped' => $skipped];
+        return ['batch_id' => $batch_id, 'imported' => $imported, 'skipped' => $skipped, 'question_ids' => $question_ids];
     }
 
     // ── Pembaca file ───────────────────────────────────────────────────────────
@@ -662,6 +681,7 @@ class Quiz_bank_model extends CI_Model
     private function apply_filters(array $filters)
     {
         $this->db->where('q.deleted_at IS NULL', null, false);
+        $this->db->where('q.is_session_only', 0);
 
         if (! empty($filters['subject_id'])) {
             $this->db->where('q.subject_id', (int) $filters['subject_id']);
@@ -828,7 +848,7 @@ class Quiz_bank_model extends CI_Model
     // Draw random questions for a practice session
     public function draw_random($subject_id, $grade_level_id, $difficulty, $count)
     {
-        $this->db->where('q.deleted_at IS NULL', null, false)->where('q.is_active', 1);
+        $this->db->where('q.deleted_at IS NULL', null, false)->where('q.is_active', 1)->where('q.is_session_only', 0);
         if ($subject_id) {
             $this->db->where('q.subject_id', (int) $subject_id);
         }

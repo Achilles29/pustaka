@@ -1,73 +1,8 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
-<!doctype html>
-<html lang="id">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= html_escape($title); ?> — Pustaka Digital Rembang</title>
-    <link rel="icon" href="<?= base_url('img/favicon.ico'); ?>">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-    <style>
-        body { font-family:'Plus Jakarta Sans',sans-serif; background:#f4f6fb; }
-        .st-hero { background:linear-gradient(135deg,#0891b2 0%,#0ea5e9 100%); color:#fff; padding:52px 0 90px; text-align:center; }
-        .st-hero h1 { font-size:2.4rem; font-weight:900; }
-        .st-hero p { opacity:.9; }
-        .st-wrap { max-width:1040px; margin:-56px auto 0; padding:0 16px 60px; }
-        .st-card { background:#fff; border-radius:20px; padding:24px; box-shadow:0 4px 20px rgba(0,0,0,.07); transition:transform .15s,box-shadow .15s; display:flex; flex-direction:column; height:100%; text-decoration:none; color:inherit; }
-        .st-card:hover { transform:translateY(-4px); box-shadow:0 12px 32px rgba(0,0,0,.12); }
-        .st-icon { width:60px; height:60px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:1.7rem; margin-bottom:14px; }
-        .back-btn { position:fixed; top:16px; left:16px; z-index:10; }
-        .st-meta { display:flex; gap:10px; font-size:.8rem; color:#64748b; }
-    </style>
-</head>
-<body>
-    <a href="<?= base_url('belajar'); ?>" class="btn btn-sm btn-white back-btn"><i class="ti ti-arrow-left me-1"></i>Arena Belajar</a>
-
-    <div class="st-hero">
-        <div class="container">
-            <div style="font-size:3rem;margin-bottom:8px">📖</div>
-            <h1>Story Quiz</h1>
-            <p>Baca ceritanya, jawab pertanyaannya, uji pemahamanmu!</p>
-            <?php if (!$user): ?>
-            <a href="<?= base_url('login'); ?>" class="btn btn-white mt-2"><i class="ti ti-login me-1"></i>Login untuk simpan nilai & poin</a>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <div class="st-wrap">
-        <div class="row g-3">
-            <?php foreach ($passages as $p):
-                $score = $user && isset($best[$p['id']]) ? (float)$best[$p['id']] : null;
-            ?>
-            <div class="col-12 col-sm-6 col-lg-4">
-                <a href="<?= base_url('belajar/cerita/'.$p['code']); ?>" class="st-card">
-                    <div class="st-icon" style="background:<?= html_escape($p['color']); ?>1a;color:<?= html_escape($p['color']); ?>">
-                        <i class="ti <?= html_escape($p['icon']); ?>"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1"><?= html_escape($p['title']); ?></h4>
-                    <p class="text-secondary mb-3" style="font-size:.88rem;flex:1"><?= html_escape($p['summary'] ?? ''); ?></p>
-                    <div class="st-meta mb-2">
-                        <span><i class="ti ti-clock me-1"></i><?= (int)$p['estimated_minutes']; ?> mnt</span>
-                        <span><i class="ti ti-help-circle me-1"></i><?= (int)$p['question_count']; ?> soal</span>
-                    </div>
-                    <?php if ($score !== null): ?>
-                    <span class="badge <?= $score >= 100 ? 'bg-success text-white' : 'bg-cyan-lt text-cyan'; ?>">
-                        <i class="ti ti-<?= $score >= 100 ? 'star-filled' : 'target-arrow'; ?> me-1"></i>Nilai terbaik: <?= (int)$score; ?>%
-                    </span>
-                    <?php else: ?>
-                    <span class="badge bg-cyan-lt text-cyan"><i class="ti ti-player-play me-1"></i>Mulai baca</span>
-                    <?php endif; ?>
-                </a>
-            </div>
-            <?php endforeach; ?>
-            <?php if (empty($passages)): ?>
-            <div class="col-12 text-center text-secondary py-5"><i class="ti ti-book-off fs-1 d-block mb-2"></i>Belum ada bacaan tersedia.</div>
-            <?php endif; ?>
-        </div>
-    </div>
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
-</body>
-</html>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= html_escape($title); ?> — Pustaka Digital Rembang</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>:root{--ink:#12304a}*{box-sizing:border-box}body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4fbfc;color:var(--ink)}.hero{position:relative;overflow:hidden;background:radial-gradient(circle at 82% 5%,#67e8f9 0,transparent 28%),linear-gradient(125deg,#083344,#0369a1 58%,#0891b2);color:#fff;padding:20px 0 112px}.hero:after{content:'“';position:absolute;right:7%;bottom:-150px;font:28rem Georgia;color:#ffffff12}.navx{display:flex;justify-content:space-between;align-items:center}.navx a{color:#fff;border:1px solid #ffffff55;border-radius:12px;padding:8px 13px;text-decoration:none;font-weight:700}.copy{max-width:760px;margin-top:48px}.eyebrow{font-size:.72rem;letter-spacing:.16em;font-weight:900;color:#a5f3fc}.hero h1{font-size:clamp(2.15rem,5vw,4rem);line-height:1.04;letter-spacing:-.055em;margin:12px 0 16px}.hero p{max-width:650px;color:#cffafe;line-height:1.72}.wrap{max-width:1160px;margin:-62px auto 0;padding:0 16px 70px;position:relative}.daily{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;background:#fff;border:1px solid #bae6fd;border-radius:24px;padding:25px;box-shadow:0 18px 45px #07598520}.daily .orb{width:76px;height:76px;display:grid;place-items:center;border-radius:50% 45% 50% 42%;background:linear-gradient(135deg,#22d3ee,#3b82f6);font-size:2.2rem;animation:float 2.6s infinite}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.stat{background:#fff;border:1px solid #dbeafe;border-radius:17px;padding:15px;text-align:center}.stat b{display:block;font-size:1.45rem;color:#0e7490}.filters{background:#fff;border:1px solid #dbeafe;border-radius:20px;padding:18px}.filters form{display:grid;grid-template-columns:minmax(240px,2fr) minmax(180px,1fr) minmax(180px,1fr) auto;gap:10px}.filters label{font-size:.78rem;font-weight:800;color:#475569}.titlebar{margin:28px 0 14px}.story{--story:#0891b2;position:relative;overflow:hidden;display:flex;flex-direction:column;height:100%;background:#fff;border:1px solid #dbeafe;border-radius:22px;padding:20px;text-decoration:none;color:inherit;box-shadow:0 7px 20px #0759850c;transition:.22s}.story:before{content:'';position:absolute;inset:0 0 auto;height:5px;background:var(--story)}.story:hover{transform:translateY(-6px);box-shadow:0 20px 36px #07598520;color:inherit}.icon{width:56px;height:56px;display:grid;place-items:center;border-radius:17px;background:#ecfeff;color:var(--story);font-size:1.7rem}.tags{display:flex;gap:6px;flex-wrap:wrap}.tag{font-size:.68rem;padding:4px 8px;border-radius:99px;background:#f1f5f9;font-weight:800;color:#475569}.meta{display:flex;gap:14px;color:#64748b;font-size:.78rem}.empty{text-align:center;background:#fff;border:2px dashed #67e8f9;border-radius:22px;padding:50px}@keyframes float{50%{transform:translateY(-7px) rotate(5deg)}}@media(max-width:900px){.filters form{grid-template-columns:1fr 1fr}.filters form>div:first-child{grid-column:1/-1}}@media(max-width:767px){.hero{padding-bottom:85px}.copy{margin-top:32px}.hero h1{font-size:2.35rem}.wrap{margin-top:-48px}.daily{grid-template-columns:1fr;padding:20px}.orb{display:none!important}.filters form{grid-template-columns:1fr}.filters form>div:first-child{grid-column:auto}}</style></head>
+<body><header class="hero"><div class="container"><nav class="navx"><a href="<?= base_url('belajar'); ?>">← Arena Belajar</a><b>📖 STORY EXPLORER</b></nav><div class="copy"><div class="eyebrow">BACA · TEMUKAN · PAHAMI</div><h1>Setiap bacaan menyimpan sebuah penemuan.</h1><p>Jelajahi fabel, sains, sejarah, budaya, dan literasi kritis sesuai jenjangmu. Baca dengan fokus, dengarkan narasinya, lalu buktikan pemahamanmu.</p></div></div></header>
+<main class="wrap"><?php if($daily): ?><section class="daily"><div><span class="badge bg-cyan-lt text-cyan">🌊 <?= $user?'REKOMENDASI BELUM DIKERJAKAN':'PILIHAN CERITA HARI INI'; ?></span><h2 class="mt-2 mb-1"><?= html_escape($daily['title']); ?></h2><p class="text-secondary"><?= html_escape($daily['summary']); ?></p><a class="btn btn-cyan" href="<?= base_url('belajar/cerita/'.$daily['code']); ?>">Buka cerita pilihan <i class="ti ti-arrow-right"></i></a></div><div class="orb">🔖</div></section><?php endif; ?>
+<section class="stats"><div class="stat"><b><?= (int)$catalog_stats['stories']; ?></b><span>Bacaan aktif</span></div><div class="stat"><b><?= (int)$catalog_stats['questions']; ?></b><span>Soal pemahaman</span></div><div class="stat"><b><?= (int)$catalog_stats['perfect']; ?></b><span>Nilai sempurna</span></div></section>
+<section class="filters"><form method="get"><div><label class="form-label">Cari bacaan</label><input class="form-control" name="q" value="<?= html_escape($filters['q']); ?>" placeholder="Judul, tema, atau mata pelajaran"></div><div><label class="form-label">Mata pelajaran</label><select class="form-select" name="subject_id"><option value="">Semua mapel</option><?php foreach($filter_options['subjects'] as $s): ?><option value="<?= (int)$s['id']; ?>" <?= (int)$filters['subject_id']===(int)$s['id']?'selected':''; ?>><?= html_escape($s['name']); ?> (<?= (int)$s['deck_count']; ?>)</option><?php endforeach; ?></select></div><div><label class="form-label">Jenjang</label><select class="form-select" name="grade_level_id"><option value="">Semua jenjang</option><?php foreach($filter_options['grades'] as $g): ?><option value="<?= (int)$g['id']; ?>" <?= (int)$filters['grade_level_id']===(int)$g['id']?'selected':''; ?>><?= html_escape($g['name']); ?> (<?= (int)$g['deck_count']; ?>)</option><?php endforeach; ?></select></div><div class="d-flex align-items-end gap-2"><button class="btn btn-cyan">Tampilkan</button><a class="btn btn-outline-secondary" href="<?= base_url('belajar/cerita'); ?>">↻</a></div></form></section>
+<div class="titlebar"><small class="text-cyan fw-bold">PERPUSTAKAAN CERITA</small><h2 class="h3 m-0"><?= count($passages); ?> bacaan ditemukan</h2></div><div class="row g-3"><?php foreach($passages as $p):$score=$user&&isset($best[$p['id']])?(float)$best[$p['id']]:null; ?><div class="col-12 col-sm-6 col-lg-4"><a class="story" style="--story:<?= html_escape($p['color']); ?>" href="<?= base_url('belajar/cerita/'.$p['code']); ?>"><div class="d-flex justify-content-between mb-3"><div class="icon"><i class="ti <?= html_escape($p['icon']); ?>"></i></div><?php if($score!==null): ?><span class="badge <?= $score>=100?'bg-success text-white':'bg-cyan-lt text-cyan'; ?>">Terbaik <?= (int)$score; ?>%</span><?php endif; ?></div><div class="tags mb-2"><?php if($p['subject_name']): ?><span class="tag">📘 <?= html_escape($p['subject_name']); ?></span><?php endif; ?><?php if($p['grade_name']): ?><span class="tag">🎓 <?= html_escape($p['grade_name']); ?></span><?php endif; ?></div><h3 class="h4"><?= html_escape($p['title']); ?></h3><p class="text-secondary small flex-fill"><?= html_escape($p['summary']); ?></p><div class="meta"><span>⏱ <?= (int)$p['estimated_minutes']; ?> menit</span><span>❓ <?= (int)$p['question_count']; ?> soal</span></div></a></div><?php endforeach; ?><?php if(!$passages): ?><div class="col-12"><div class="empty"><div class="display-4">🔎</div><h3>Bacaan tidak ditemukan</h3><a class="btn btn-cyan" href="<?= base_url('belajar/cerita'); ?>">Lihat semua</a></div></div><?php endif; ?></div></main></body></html>

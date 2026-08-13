@@ -148,11 +148,19 @@ class Quiz_bank extends MY_Controller
     public function import()
     {
         $this->require_permission('quiz_bank.index', 'create');
+        $session_scope = null;
+        $session_id = (int) $this->input->get('session_id', true);
+        if ($session_id > 0) {
+            $this->load->model('Quiz_session_model');
+            $session_scope = $this->Quiz_session_model->get_session($session_id);
+            if (! $session_scope || $session_scope['type'] !== 'practice') { show_404(); return; }
+        }
         $this->render('quiz/bank/import', [
             'title'    => 'Import Bank Soal',
             'subjects' => $this->Quiz_config_model->get_subjects(true),
             'grades'   => $this->Quiz_config_model->get_grade_levels(true),
             'batches'  => $this->Quiz_bank_model->get_import_batches(),
+            'session_scope' => $session_scope,
         ]);
     }
 
@@ -163,6 +171,19 @@ class Quiz_bank extends MY_Controller
 
         $subject_id = (int) $this->input->post('subject_id') ?: null;
         $grade_id   = (int) $this->input->post('grade_level_id') ?: null;
+        $session_scope_id = (int) $this->input->post('session_scope_id') ?: null;
+        $session_scope = null;
+        if ($session_scope_id) {
+            $this->load->model('Quiz_session_model');
+            $session_scope = $this->Quiz_session_model->get_session($session_scope_id);
+            if (! $session_scope || $session_scope['type'] !== 'practice') {
+                $this->session->set_flashdata('error', 'Sesi latihan tujuan tidak ditemukan.');
+                redirect('quiz-bank/import');
+                return;
+            }
+            $subject_id = $subject_id ?: (int) $session_scope['subject_id'];
+            $grade_id = $grade_id ?: (int) $session_scope['grade_level_id'];
+        }
 
         if (empty($_FILES['import_file']['name']) || (int) $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
             $this->session->set_flashdata('error', 'Silakan pilih file untuk dianalisa.');
@@ -207,14 +228,17 @@ class Quiz_bank extends MY_Controller
             'questions' => $result['questions'],
             'filename'  => $orig,
             'format'    => $ext,
+            'session_scope_id' => $session_scope_id,
         ]);
 
         $this->render('quiz/bank/import_preview', [
-            'title'     => 'Analisa Import',
-            'questions' => $result['questions'],
-            'summary'   => $result['summary'],
-            'filename'  => $orig,
-            'format'    => $ext,
+            'title'                    => 'Analisa Import',
+            'questions'                => $result['questions'],
+            'summary'                  => $result['summary'],
+            'filename'                 => $orig,
+            'format'                   => $ext,
+            'can_curriculum_override' => $this->can('quiz_bank.index', 'edit'),
+            'session_scope'            => $session_scope,
         ]);
     }
 
@@ -230,14 +254,31 @@ class Quiz_bank extends MY_Controller
             return;
         }
 
+        $allow_curriculum_override = $this->input->post('override_curriculum_scope') === '1';
+        if ($allow_curriculum_override && ! $this->can('quiz_bank.index', 'edit')) {
+            $this->session->set_flashdata('error', 'Anda tidak memiliki izin untuk melakukan override matriks kurikulum.');
+            redirect('quiz-bank/import');
+            return;
+        }
+        $session_scope_id = (int) ($data['session_scope_id'] ?? 0) ?: null;
         $res = $this->Quiz_bank_model->commit_import(
-            $data['questions'], (int) $this->current_user['id'], $data['filename'], $data['format']
+            $data['questions'], (int) $this->current_user['id'], $data['filename'], $data['format'], $allow_curriculum_override, $session_scope_id
         );
-        $this->audit_event('quiz.bank.import', 'quiz_import_batches', $res['batch_id'], null, $res);
+        if ($session_scope_id) {
+            $this->load->model('Quiz_session_model');
+            $this->Quiz_session_model->add_session_only_questions($session_scope_id, $res['question_ids'] ?? []);
+        }
+        $this->audit_event('quiz.bank.import', 'quiz_import_batches', $res['batch_id'], null, array_merge($res, [
+            'curriculum_override' => $allow_curriculum_override,
+        ]));
         $this->session->unset_userdata('quiz_import');
 
-        $this->session->set_flashdata('success', "Import selesai: {$res['imported']} soal masuk" . ($res['skipped'] ? ", {$res['skipped']} dilewati (bermasalah)" : '') . '.');
-        redirect('quiz-bank');
+        $message = "Import selesai: {$res['imported']} soal masuk" . ($res['skipped'] ? ", {$res['skipped']} dilewati (bermasalah atau di luar matriks)" : '') . '.';
+        if ($allow_curriculum_override) {
+            $message .= ' Override matriks kurikulum dicatat pada audit log.';
+        }
+        $this->session->set_flashdata('success', $message);
+        redirect($session_scope_id ? 'quiz-sessions/edit/' . $session_scope_id . '?tab=questions' : 'quiz-bank');
     }
 
     public function template($format = 'csv')

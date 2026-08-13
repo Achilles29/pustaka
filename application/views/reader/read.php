@@ -55,7 +55,7 @@ $page_url_base = (string) ($page_url_base ?? '');
 					</div>
 				<?php else: ?>
 					<div class="secure-reader-empty">
-						<i class="ti ti-file-lock"></i>
+						<i class="ti ti-file-description"></i>
 						<h3>Renderer halaman PDF siap disambungkan.</h3>
 						<p>Aset sudah melewati gerbang login dan sesi baca tercatat. Tahap berikutnya adalah endpoint render per halaman agar file asli tidak berada di URL publik.</p>
 					</div>

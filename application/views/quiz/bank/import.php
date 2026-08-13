@@ -1,9 +1,9 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<?php defined('BASEPATH') OR exit('No direct script access allowed'); $session_scope = $session_scope ?? null; ?>
 <div class="page-header d-print-none">
     <div class="container-xl">
         <div class="row align-items-center">
             <div class="col-auto"><a href="<?= base_url('quiz-bank'); ?>" class="btn btn-outline-secondary btn-sm"><i class="ti ti-arrow-left me-1"></i>Kembali</a></div>
-            <div class="col"><div class="page-pretitle">Bank Soal</div><h1 class="page-title">Import Bank Soal</h1></div>
+            <div class="col"><div class="page-pretitle"><?= $session_scope ? 'Sesi Latihan · Soal Khusus' : 'Bank Soal'; ?></div><h1 class="page-title"><?= $session_scope ? 'Import Soal Khusus Sesi' : 'Import Bank Soal'; ?></h1></div>
         </div>
     </div>
 </div>
@@ -18,6 +18,7 @@
                     <div class="card-header"><h3 class="card-title"><i class="ti ti-file-import me-1"></i>Unggah File</h3></div>
                     <div class="card-body">
                         <?= form_open_multipart('quiz-bank/analyze'); ?>
+                        <?php if ($session_scope): ?><input type="hidden" name="session_scope_id" value="<?= (int) $session_scope['id']; ?>"><div class="alert alert-warning py-2"><i class="ti ti-lock-square-rounded me-1"></i>Soal dari file ini hanya digunakan pada sesi <strong><?= html_escape($session_scope['title']); ?></strong>, bukan bank soal umum.</div><?php endif; ?>
                         <div class="mb-3">
                             <label class="form-label required">File Soal</label>
                             <input type="file" name="import_file" class="form-control" accept=".csv,.txt,.xlsx" required>

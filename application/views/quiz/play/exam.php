@@ -136,7 +136,7 @@
             </div>
             <div class="modal-footer border-0">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Periksa Lagi</button>
-                <button type="button" class="btn btn-danger fw-bold" onclick="doSubmit()"><i class="ti ti-send me-1"></i>Kumpulkan</button>
+                <button type="button" class="btn btn-danger fw-bold" id="btn-submit-confirm" onclick="doSubmit()"><i class="ti ti-send me-1"></i>Kumpulkan</button>
             </div>
         </div>
     </div>
@@ -308,11 +308,21 @@ async function logFraud(eventType, qid = null, detail = null) {
 // ── Submit ────────────────────────────────────────────────────────────────
 function confirmSubmit() {
     document.getElementById('confirm-count').textContent = Object.keys(answered).length;
-    new bootstrap.Modal(document.getElementById('modal-submit')).show();
+    const Modal = window.bootstrap?.Modal || window.tabler?.Modal;
+    if (!Modal) {
+        alert('Dialog konfirmasi gagal dimuat. Muat ulang halaman lalu coba lagi.');
+        return;
+    }
+    Modal.getOrCreateInstance(document.getElementById('modal-submit')).show();
 }
 async function doSubmit(auto = false) {
     if (submitInProgress) return;
     submitInProgress = true;
+    const submitButton = document.getElementById('btn-submit-confirm');
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Mengumpulkan...';
+    }
     const fd = new FormData();
     fd.append('token', TOKEN);
     fd.append('time_spent', elapsedSec);
@@ -320,13 +330,16 @@ async function doSubmit(auto = false) {
     try {
         const r = await fetch(BASE + 'quiz/submit', {method:'POST', body:fd});
         const d = await r.json();
-        if (d.ok) {
-            window.onbeforeunload = null;
-            location.href = d.redirect;
-        }
+        if (!r.ok || !d.ok) throw new Error(d.message || 'Gagal mengumpulkan jawaban.');
+        window.onbeforeunload = null;
+        location.href = d.redirect;
     } catch(e) {
         submitInProgress = false;
-        if (!auto) alert('Gagal mengumpulkan. Coba lagi.');
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="ti ti-send me-1"></i>Kumpulkan';
+        }
+        if (!auto) alert(e.message || 'Gagal mengumpulkan. Coba lagi.');
     }
 }
 

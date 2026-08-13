@@ -1,72 +1,10 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
-<!doctype html>
-<html lang="id">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= html_escape($title); ?> — Pustaka Digital Rembang</title>
-    <link rel="icon" href="<?= base_url('img/favicon.ico'); ?>">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-    <style>
-        body { font-family:'Plus Jakarta Sans',sans-serif; background:#f4f6fb; }
-        .fc-hero { background:linear-gradient(135deg,#7c3aed 0%,#8b5cf6 100%); color:#fff; padding:52px 0 90px; text-align:center; }
-        .fc-hero h1 { font-size:2.4rem; font-weight:900; }
-        .fc-hero p { opacity:.9; }
-        .fc-wrap { max-width:1040px; margin:-56px auto 0; padding:0 16px 60px; }
-        .fc-deck { background:#fff; border-radius:20px; padding:24px; box-shadow:0 4px 20px rgba(0,0,0,.07); transition:transform .15s,box-shadow .15s; display:flex; flex-direction:column; height:100%; text-decoration:none; color:inherit; }
-        .fc-deck:hover { transform:translateY(-4px); box-shadow:0 12px 32px rgba(0,0,0,.12); }
-        .fc-deck-icon { width:60px; height:60px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:1.7rem; margin-bottom:14px; }
-        .back-btn { position:fixed; top:16px; left:16px; z-index:10; }
-        .fc-progress { height:6px; border-radius:3px; background:#ede9fe; overflow:hidden; }
-        .fc-progress > div { height:100%; background:#8b5cf6; }
-    </style>
-</head>
-<body>
-    <a href="<?= base_url('belajar'); ?>" class="btn btn-sm btn-white back-btn"><i class="ti ti-arrow-left me-1"></i>Arena Belajar</a>
-
-    <div class="fc-hero">
-        <div class="container">
-            <div style="font-size:3rem;margin-bottom:8px">🃏</div>
-            <h1>Flashcard</h1>
-            <p>Belajar mandiri dengan kartu bolak-balik. Balik, ingat, kuasai!</p>
-            <?php if (!$user): ?>
-            <a href="<?= base_url('login'); ?>" class="btn btn-white mt-2"><i class="ti ti-login me-1"></i>Login untuk simpan progress & poin</a>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <div class="fc-wrap">
-        <div class="row g-3">
-            <?php foreach ($decks as $d):
-                $total = (int)$d['card_count'];
-                $done  = (int)($known[$d['id']] ?? 0);
-                $pct   = $total > 0 ? round($done / $total * 100) : 0;
-            ?>
-            <div class="col-12 col-sm-6 col-lg-4">
-                <a href="<?= base_url('belajar/flashcard/'.$d['code']); ?>" class="fc-deck">
-                    <div class="fc-deck-icon" style="background:<?= html_escape($d['color']); ?>1a;color:<?= html_escape($d['color']); ?>">
-                        <i class="ti <?= html_escape($d['icon']); ?>"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1"><?= html_escape($d['name']); ?></h4>
-                    <p class="text-secondary mb-3" style="font-size:.88rem;flex:1"><?= html_escape($d['description'] ?? ''); ?></p>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="badge bg-purple-lt text-purple"><?= $total; ?> kartu</span>
-                        <?php if ($user): ?><span class="text-secondary small"><?= $done; ?>/<?= $total; ?> hafal</span><?php endif; ?>
-                    </div>
-                    <?php if ($user): ?>
-                    <div class="fc-progress"><div style="width:<?= $pct; ?>%"></div></div>
-                    <?php endif; ?>
-                </a>
-            </div>
-            <?php endforeach; ?>
-            <?php if (empty($decks)): ?>
-            <div class="col-12 text-center text-secondary py-5"><i class="ti ti-cards fs-1 d-block mb-2"></i>Belum ada deck flashcard tersedia.</div>
-            <?php endif; ?>
-        </div>
-    </div>
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
-</body>
-</html>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= html_escape($title); ?> — Pustaka Digital Rembang</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>:root{--ink:#172554;--violet:#6d28d9}*{box-sizing:border-box}body{font-family:'Plus Jakarta Sans',sans-serif;background:#f7f7ff;color:var(--ink);min-height:100vh}.hero{position:relative;overflow:hidden;background:radial-gradient(circle at 82% 8%,#c084fc 0,transparent 29%),linear-gradient(125deg,#312e81,#6d28d9 58%,#9333ea);color:#fff;padding:20px 0 112px}.hero:after{content:'✦  ·  ✧  ·  ✦';position:absolute;right:6%;bottom:25px;font-size:2rem;color:#ffffff55;letter-spacing:14px}.navx{display:flex;justify-content:space-between;align-items:center}.navx a{color:#fff;border:1px solid #ffffff50;border-radius:12px;padding:8px 13px;text-decoration:none;font-weight:700}.hero-copy{max-width:760px;margin-top:48px}.eyebrow{font-size:.72rem;letter-spacing:.16em;font-weight:900;color:#ddd6fe}.hero h1{max-width:720px;font-size:clamp(2.15rem,5vw,4rem);line-height:1.04;letter-spacing:-.055em;margin:12px 0 16px}.hero p{color:#ede9fe;max-width:650px;font-size:1rem;line-height:1.72;margin:0}.wrap{max-width:1160px;margin:-62px auto 0;padding:0 16px 70px;position:relative}.mission{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;background:linear-gradient(110deg,#fff,#faf5ff);border:1px solid #e9d5ff;border-radius:24px;padding:25px;box-shadow:0 18px 45px #4c1d9520}.mission h2{line-height:1.25}.mission .orb{width:74px;height:74px;display:grid;place-items:center;border-radius:22px;background:linear-gradient(135deg,#fbbf24,#fb7185);font-size:2.2rem;box-shadow:0 10px 25px #f59e0b40;animation:float 2.6s ease-in-out infinite}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.stat{background:#fff;border:1px solid #e8e7f4;border-radius:17px;padding:15px;text-align:center}.stat b{display:block;font-size:1.45rem;color:#5b21b6}.filters{background:#fff;border:1px solid #e8e7f4;border-radius:20px;padding:18px;margin-bottom:20px;box-shadow:0 8px 24px #312e8108}.filters form{display:grid;grid-template-columns:minmax(240px,2fr) minmax(180px,1fr) minmax(180px,1fr) auto;gap:10px}.filters label{font-size:.78rem;font-weight:800;color:#475569}.deck{position:relative;display:flex;flex-direction:column;height:100%;overflow:hidden;background:#fff;border:1px solid #e8e7f4;border-radius:22px;padding:20px;text-decoration:none;color:inherit;box-shadow:0 7px 20px #312e810a;transition:.22s}.deck:before{content:'';position:absolute;inset:0 0 auto;height:5px;background:var(--deck)}.deck:hover{transform:translateY(-6px) rotate(-.3deg);box-shadow:0 20px 36px #312e8120;border-color:#c4b5fd;color:inherit}.icon{width:56px;height:56px;display:grid;place-items:center;border-radius:17px;background:#f3f0ff;color:var(--deck);font-size:1.7rem}.tags{display:flex;gap:6px;flex-wrap:wrap}.tag{font-size:.68rem;padding:4px 8px;border-radius:99px;background:#f1f5f9;color:#475569;font-weight:800}.progressx{height:7px;background:#ede9fe;border-radius:99px;overflow:hidden}.progressx i{display:block;height:100%;background:linear-gradient(90deg,var(--deck),#c084fc);border-radius:inherit}.empty{background:#fff;border:2px dashed #c4b5fd;border-radius:24px;text-align:center;padding:55px 20px}.section-title{display:flex;justify-content:space-between;align-items:end;margin:28px 0 14px}.section-title h2{margin:0;font-size:1.35rem}@keyframes float{50%{transform:translateY(-7px) rotate(4deg)}}@media(max-width:900px){.filters form{grid-template-columns:1fr 1fr}.filters form>div:first-child{grid-column:1/-1}}@media(max-width:767px){.hero{padding-bottom:85px}.hero-copy{margin-top:32px}.hero h1{font-size:2.35rem;line-height:1.08}.hero p{font-size:.9rem}.wrap{margin-top:-48px}.mission{grid-template-columns:1fr;padding:20px}.mission .orb{display:none}.filters form{grid-template-columns:1fr}.filters form>div:first-child{grid-column:auto}.stats{grid-template-columns:repeat(3,1fr)}.stat{padding:11px 5px}.stat b{font-size:1.15rem}}</style></head>
+<body><header class="hero"><div class="container"><nav class="navx"><a href="<?= base_url('belajar'); ?>"><i class="ti ti-arrow-left"></i> Arena Belajar</a><b>🃏 FLASH LAB</b></nav><div class="hero-copy"><div class="eyebrow">BELAJAR · INGAT · KUASAI</div><h1>Temukan kekuatan ingatanmu.</h1><p>Pilih mata pelajaran dan jenjangmu. Balik kartu, dengarkan, acak tantangan, lalu bangun koleksi pengetahuan yang benar-benar kamu kuasai.</p></div></div></header>
+<main class="wrap"><?php if($daily): ?><section class="mission"><div><span class="badge bg-yellow-lt text-yellow">✨ MISI KILAT HARI INI</span><h2 class="mt-2 mb-1"><?= html_escape($daily['name']); ?></h2><p class="text-secondary mb-3"><?= html_escape($daily['description']); ?></p><a class="btn btn-primary" href="<?= base_url('belajar/flashcard/'.$daily['code'].'?shuffle=1'); ?>"><i class="ti ti-bolt"></i> Mulai tantangan acak</a></div><div class="orb">⚡</div></section><?php endif; ?>
+<section class="stats"><div class="stat"><b><?= (int)$catalog_stats['decks']; ?></b><span>Deck aktif</span></div><div class="stat"><b><?= (int)$catalog_stats['cards']; ?></b><span>Kartu belajar</span></div><div class="stat"><b><?= (int)$catalog_stats['known']; ?></b><span>Sudah dikuasai</span></div></section>
+<section class="filters"><form method="get"><div><label class="form-label">Cari materi</label><div class="input-icon"><span class="input-icon-addon"><i class="ti ti-search"></i></span><input class="form-control" name="q" value="<?= html_escape($filters['q']); ?>" placeholder="Contoh: pecahan, hewan, bahasa Inggris"></div></div><div><label class="form-label">Mata pelajaran</label><select class="form-select" name="subject_id"><option value="">Semua mapel</option><?php foreach($filter_options['subjects'] as $s): ?><option value="<?= (int)$s['id']; ?>" <?= (int)$filters['subject_id']===(int)$s['id']?'selected':''; ?>><?= html_escape($s['name']); ?> (<?= (int)$s['deck_count']; ?>)</option><?php endforeach; ?></select></div><div><label class="form-label">Jenjang</label><select class="form-select" name="grade_level_id"><option value="">Semua jenjang</option><?php foreach($filter_options['grades'] as $g): ?><option value="<?= (int)$g['id']; ?>" <?= (int)$filters['grade_level_id']===(int)$g['id']?'selected':''; ?>><?= html_escape($g['name']); ?> (<?= (int)$g['deck_count']; ?>)</option><?php endforeach; ?></select></div><div class="d-flex align-items-end gap-2"><button class="btn btn-primary">Tampilkan</button><a class="btn btn-outline-secondary" href="<?= base_url('belajar/flashcard'); ?>" title="Bersihkan filter"><i class="ti ti-refresh"></i></a></div></form></section>
+<div class="section-title"><div><small class="text-purple fw-bold">PERPUSTAKAAN DECK</small><h2><?= count($decks); ?> pilihan belajar ditemukan</h2></div><?php if(!$user): ?><a class="btn btn-outline-primary btn-sm" href="<?= base_url('login'); ?>">Login untuk simpan progres</a><?php endif; ?></div>
+<div class="row g-3"><?php foreach($decks as $d):$total=(int)$d['card_count'];$done=(int)($known[$d['id']]??0);$pct=$total?round($done/$total*100):0; ?><div class="col-12 col-sm-6 col-lg-4"><a class="deck" style="--deck:<?= html_escape($d['color']); ?>" href="<?= base_url('belajar/flashcard/'.$d['code']); ?>"><div class="d-flex justify-content-between align-items-start mb-3"><div class="icon"><i class="ti <?= html_escape($d['icon']); ?>"></i></div><span class="badge bg-purple-lt text-purple"><?= $total; ?> kartu</span></div><div class="tags mb-2"><?php if($d['subject_name']): ?><span class="tag">📘 <?= html_escape($d['subject_name']); ?></span><?php endif; ?><?php if($d['grade_name']): ?><span class="tag">🎓 <?= html_escape($d['grade_name']); ?></span><?php endif; ?></div><h3 class="h4 mb-2"><?= html_escape($d['name']); ?></h3><p class="text-secondary small flex-fill"><?= html_escape($d['description']); ?></p><?php if($user): ?><div class="d-flex justify-content-between small mb-1"><b><?= $pct; ?>% dikuasai</b><span><?= $done; ?>/<?= $total; ?></span></div><div class="progressx"><i style="width:<?= $pct; ?>%"></i></div><?php else: ?><b style="color:var(--deck)">Mulai belajar →</b><?php endif; ?></a></div><?php endforeach; ?><?php if(!$decks): ?><div class="col-12"><div class="empty"><div class="display-4">🔎</div><h3>Deck belum ditemukan</h3><p class="text-secondary">Coba ubah kata pencarian atau bersihkan filter.</p><a class="btn btn-primary" href="<?= base_url('belajar/flashcard'); ?>">Lihat semua deck</a></div></div><?php endif; ?></div></main></body></html>

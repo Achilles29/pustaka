@@ -12,10 +12,13 @@ $status_labels = [
 ];
 $request_status_labels = [
 	'pending' => 'Menunggu',
-	'approved' => 'Disetujui',
+	'approved' => 'Disiapkan',
 	'rejected' => 'Ditolak',
 	'fulfilled' => 'Selesai',
 	'cancelled' => 'Dibatalkan',
+	'active' => 'Dipinjam',
+	'returned' => 'Dikembalikan',
+	'completed_legacy' => 'Selesai (riwayat lama)',
 ];
 $event_registration_labels = [
 	'pending' => 'Menunggu verifikasi',
@@ -32,7 +35,7 @@ $highlight_type_labels = [
 ];
 $highlight_books = $highlight_books ?? [];
 $highlight_categories = $highlight_categories ?? [];
-$book_shelves = $book_shelves ?? ['catalog' => [], 'digital' => []];
+$book_shelves = $book_shelves ?? ['catalog' => [], 'digital' => [], 'textbooks' => []];
 $dashboard_highlight_books = $highlight_books;
 if (empty($dashboard_highlight_books) && ! empty($digital_books)) {
 	foreach (array_slice($digital_books, 0, 4) as $asset) {
@@ -82,6 +85,14 @@ $member_status = $member ? ($status_labels[$member['status']] ?? ucfirst($member
 $card_status_label = $card_status === 'blocked' ? 'Kartu Diblokir' : $member_status;
 $token_short = $verify_url ? strtoupper(substr(basename((string) $verify_url), 0, 8)) : '-';
 $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
+$loan_summary = $loan_summary ?? ['active' => 0, 'overdue' => 0, 'total' => 0, 'next_due_date' => null];
+$loan_state_labels = ['active' => 'Sedang dipinjam', 'overdue' => 'Terlambat', 'returned' => 'Sudah dikembalikan', 'history' => 'Riwayat'];
+$digital_donations = $digital_donations ?? [];
+$donation_status_labels = ['pending' => 'Menunggu verifikasi', 'reviewing' => 'Sedang ditinjau', 'accepted' => 'Diterima', 'revision_requested' => 'Perlu perbaikan', 'rejected' => 'Belum dapat diterima'];
+$donation_type_labels = ['book' => 'Buku digital', 'manuscript' => 'Naskah', 'research' => 'Hasil riset', 'scientific_paper' => 'Karya ilmiah', 'thesis' => 'Skripsi', 'dissertation' => 'Tesis / disertasi', 'teaching_material' => 'Materi pembelajaran', 'other' => 'Karya digital'];
+$patron_feedback_items = $patron_feedback_items ?? [];
+$patron_feedback_type_labels = ['service_review' => 'Ulasan layanan', 'book_request' => 'Usul buku', 'digital_content' => 'Usul konten digital', 'facility' => 'Fasilitas / pojok baca', 'feature' => 'Usul fitur', 'complaint' => 'Keluhan', 'other' => 'Pesan'];
+$patron_feedback_status_labels = ['pending' => 'Menunggu', 'reviewing' => 'Ditinjau', 'planned' => 'Direncanakan', 'resolved' => 'Selesai', 'declined' => 'Tidak ditindaklanjuti'];
 ?>
 <!doctype html>
 <html lang="id">
@@ -96,7 +107,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810h'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812h'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -122,6 +133,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 		<a href="<?= base_url('user/dashboard'); ?>" class="active"><i class="ti ti-id"></i><span>Dashboard</span></a>
 		<a href="<?= base_url('user/reading-checkin'); ?>"><i class="ti ti-map-pin-check"></i><span>Pojok</span></a>
 		<a href="<?= base_url('user/account'); ?>"><i class="ti ti-user-cog"></i><span>Akun</span></a>
+		<a href="<?= base_url('logout'); ?>"><i class="ti ti-logout"></i><span>Keluar</span></a>
 	</nav>
 
 	<main class="user-dashboard user-dashboard-v2">
@@ -196,17 +208,23 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 							<i class="ti ti-search"></i>
 							<span>Cari Buku</span>
 						</a>
+						<a href="<?= base_url('naskah-kuno'); ?>" class="member-action">
+							<i class="ti ti-feather"></i>
+							<span>Naskah Kuno</span>
+						</a>
+						<a href="<?= base_url('donasi-digital'); ?>" class="member-action">
+							<i class="ti ti-gift"></i>
+							<span>Donasi Karya</span>
+						</a>
 						<a href="<?= base_url('agenda'); ?>" class="member-action">
 							<i class="ti ti-calendar-event"></i>
 							<span>Agenda</span>
 							<?php if (! empty($upcoming_event_count)): ?><em><?= number_format((int) $upcoming_event_count, 0, ',', '.'); ?></em><?php endif; ?>
 						</a>
-						<?php if ($verify_url): ?>
-							<a href="<?= html_escape($verify_url); ?>" class="member-action">
-								<i class="ti ti-shield-check"></i>
-								<span>Verifikasi</span>
-							</a>
-						<?php endif; ?>
+						<a href="<?= base_url('user/member-card'); ?>" class="member-action">
+							<i class="ti ti-id-badge-2"></i>
+							<span>Kartu Anggota</span>
+						</a>
 						<a href="#membership-renewal" class="member-action">
 							<i class="ti ti-id-badge-2"></i>
 							<span>Perpanjang</span>
@@ -223,6 +241,10 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 							<i class="ti ti-user-cog"></i>
 							<span>Akun Login</span>
 						</a>
+						<a href="<?= base_url('suara-pemustaka'); ?>" class="member-action">
+							<i class="ti ti-message-heart"></i>
+							<span>Suara Pemustaka</span>
+						</a>
 					</div>
 					<div class="member-status-stack">
 						<div class="member-status-card">
@@ -235,7 +257,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 						</div>
 						<div class="member-status-card">
 							<i class="ti ti-receipt-2"></i>
-							<div><span>Riwayat pinjam</span><strong><?= number_format(count($recent_loans), 0, ',', '.'); ?></strong></div>
+						<div><span>Sedang dipinjam</span><strong><?= number_format((int) ($loan_summary['active'] ?? 0), 0, ',', '.'); ?></strong></div>
 						</div>
 						<div class="member-status-card">
 							<i class="ti ti-door-enter"></i>
@@ -250,6 +272,12 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 						<i class="ti ti-current-location"></i>
 						<span>Baca online cukup klik buku lalu nyalakan GPS. Jika berada di Pojok Baca atau perpustakaan terdaftar, kuota tidak berkurang; di luar zona, sistem memakai token baca.</span>
 					</div>
+					<?php if ((int) ($loan_summary['active'] ?? 0) > 0): ?>
+						<div class="member-alert-soft <?= (int) ($loan_summary['overdue'] ?? 0) > 0 ? '' : 'member-alert-gps'; ?>" id="loan-history">
+							<i class="ti <?= (int) ($loan_summary['overdue'] ?? 0) > 0 ? 'ti-alert-triangle' : 'ti-books'; ?>"></i>
+							<span><?= (int) ($loan_summary['overdue'] ?? 0) > 0 ? 'Ada ' . (int) $loan_summary['overdue'] . ' buku terlambat dikembalikan. Segera hubungi petugas atau kembalikan buku.' : 'Anda sedang meminjam ' . (int) $loan_summary['active'] . ' buku' . (! empty($loan_summary['next_due_date']) ? '; jatuh tempo terdekat ' . date('d M Y', strtotime($loan_summary['next_due_date'])) . '.' : '.'); ?></span>
+						</div>
+					<?php endif; ?>
 					<?php if ($card_status === 'blocked'): ?>
 						<div class="member-alert-soft">
 							<i class="ti ti-lock"></i>
@@ -341,11 +369,12 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 				];
 				$shelf_groups = [
 					'catalog' => ['kicker' => 'Katalog untukmu', 'title' => 'Temukan bacaan berikutnya', 'url' => base_url('katalog'), 'button' => 'Jelajahi Katalog', 'digital' => false],
+					'textbooks' => ['kicker' => 'Rak Buku Pelajaran', 'title' => 'Belajar sesuai kelas dan mapel', 'url' => base_url('buku-pelajaran'), 'button' => 'Buka Buku Pelajaran', 'digital' => false, 'textbook' => true],
 					'digital' => ['kicker' => 'Rak Digital', 'title' => 'Baca online sesuai minatmu', 'url' => base_url('katalog?availability=digital'), 'button' => 'Lihat Buku Digital', 'digital' => true],
 				];
 			?>
 			<?php foreach ($shelf_groups as $group_key => $group): ?>
-				<section class="member-book-shelves<?= $group['digital'] ? ' is-digital' : ''; ?>">
+				<section class="member-book-shelves<?= $group['digital'] ? ' is-digital' : ''; ?><?= ! empty($group['textbook']) ? ' is-textbook' : ''; ?>">
 					<div class="member-section-head">
 						<div>
 							<div class="section-kicker"><?= html_escape($group['kicker']); ?></div>
@@ -378,7 +407,7 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 											<span class="member-shelf-copy">
 												<strong><?= html_escape($shelf_book['title']); ?></strong>
 												<small><?= html_escape($shelf_book['statement_responsibility'] ?: ($shelf_book['publisher'] ?: 'Koleksi Pustaka')); ?></small>
-												<em><?= $shelf_key === 'popular' ? number_format($read_count, 0, ',', '.') . ' kali dibaca' : html_escape($shelf_book['content_category_name'] ?: ($shelf_is_digital ? 'Buku digital' : 'Katalog')); ?></em>
+											<em><?= $shelf_key === 'popular' ? number_format($read_count, 0, ',', '.') . ' kali dibaca' : (! empty($group['textbook']) ? 'Buku pelajaran' : html_escape($shelf_book['content_category_name'] ?: ($shelf_is_digital ? 'Buku digital' : 'Katalog'))); ?></em>
 											</span>
 											<i class="ti <?= $group['digital'] ? 'ti-book-reader' : 'ti-chevron-right'; ?> member-shelf-arrow"></i>
 										</a>
@@ -470,13 +499,56 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 							<div class="member-mini-empty">Belum ada request buku. Buka katalog publik untuk mengajukan.</div>
 						<?php endif; ?>
 						<?php foreach ($book_requests as $request): ?>
-							<div class="member-mini-item">
+							<a class="member-mini-item" href="<?= base_url('katalog/detail/' . (int) $request['book_id'] . '#request-buku'); ?>" aria-label="Lihat request <?= html_escape($request['title'] ?: ('Katalog #' . $request['book_id'])); ?>">
 								<div>
 									<strong><?= html_escape($request['title'] ?: 'Katalog #' . $request['book_id']); ?></strong>
-									<span><?= html_escape($request['request_code']); ?> - <?= html_escape($request_status_labels[$request['status']] ?? $request['status']); ?></span>
+									<span><?= html_escape($request['request_code']); ?> - <?= html_escape($request_status_labels[$request['display_status'] ?? $request['status']] ?? ($request['display_status'] ?? $request['status'])); ?></span>
 								</div>
 								<i class="ti ti-chevron-right"></i>
+							</a>
+						<?php endforeach; ?>
+					</div>
+				</div>
+
+				<div class="member-panel" id="digital-donations">
+					<div class="member-panel-head">
+						<div>
+							<div class="section-kicker">Donasi Digital</div>
+							<h3>Usulan Karyaku</h3>
+						</div>
+						<a class="btn btn-sm btn-outline-primary" href="<?= base_url('donasi-digital'); ?>"><i class="ti ti-plus me-1"></i>Donasi</a>
+					</div>
+					<div class="member-mini-list">
+						<?php if (empty($digital_donations)): ?>
+							<div class="member-mini-empty">Belum ada donasi dari akun ini. Karya berlisensi terbuka dapat Anda usulkan untuk diverifikasi petugas.</div>
+						<?php endif; ?>
+						<?php foreach ($digital_donations as $donation): ?>
+							<div class="member-mini-item">
+								<div>
+									<strong><?= html_escape($donation['title']); ?></strong>
+									<span><?= html_escape($donation_type_labels[$donation['contribution_type']] ?? 'Karya digital'); ?> · <?= html_escape($donation_status_labels[$donation['status']] ?? $donation['status']); ?></span>
+									<?php if (! empty($donation['admin_note'])): ?><span class="text-secondary">Catatan: <?= html_escape($donation['admin_note']); ?></span><?php endif; ?>
+								</div>
+								<i class="ti ti-gift"></i>
 							</div>
+						<?php endforeach; ?>
+					</div>
+				</div>
+
+				<div class="member-panel" id="patron-feedback">
+					<div class="member-panel-head">
+						<div>
+							<div class="section-kicker">Suara Pemustaka</div>
+							<h3>Masukan &amp; Usulanku</h3>
+						</div>
+						<a class="btn btn-sm btn-outline-primary" href="<?= base_url('suara-pemustaka'); ?>"><i class="ti ti-plus me-1"></i>Tulis</a>
+					</div>
+					<div class="member-mini-list">
+						<?php if (empty($patron_feedback_items)): ?>
+							<div class="member-mini-empty">Punya usul buku, konten, atau masukan layanan? Sampaikan langsung kepada pustaka.</div>
+						<?php endif; ?>
+						<?php foreach ($patron_feedback_items as $feedback): ?>
+							<div class="member-mini-item"><div><strong><?= html_escape($feedback['subject']); ?></strong><span><?= html_escape($patron_feedback_type_labels[$feedback['feedback_type']] ?? 'Pesan'); ?> · <?= html_escape($patron_feedback_status_labels[$feedback['status']] ?? $feedback['status']); ?></span><?php if (! empty($feedback['admin_note'])): ?><span class="text-secondary">Catatan: <?= html_escape($feedback['admin_note']); ?></span><?php endif; ?></div><i class="ti ti-message-heart"></i></div>
 						<?php endforeach; ?>
 					</div>
 				</div>
@@ -486,18 +558,18 @@ $latest_renewal = ! empty($renewal_requests) ? $renewal_requests[0] : null;
 				<div class="member-panel">
 					<div class="member-panel-head">
 						<div>
-							<div class="section-kicker">Aktivitas</div>
-							<h3>Riwayat Pinjam</h3>
+							<div class="section-kicker">Peminjaman Fisik</div>
+							<h3>Pinjaman &amp; Riwayat</h3>
 						</div>
 						<i class="ti ti-books"></i>
 					</div>
 					<div class="member-mini-list">
-						<?php if (empty($recent_loans)): ?><div class="member-mini-empty">Belum ada riwayat pinjam yang terhubung.</div><?php endif; ?>
+						<?php if (empty($recent_loans)): ?><div class="member-mini-empty">Belum ada transaksi peminjaman pada akun ini.</div><?php endif; ?>
 						<?php foreach ($recent_loans as $loan): ?>
 							<div class="member-mini-item">
 								<div>
 									<strong><?= html_escape($loan['title'] ?: ('Koleksi #' . $loan['source_collection_id'])); ?></strong>
-									<span><?= html_escape($loan['loan_date'] ?: '-'); ?> - <?= html_escape($loan['loan_status'] ?: '-'); ?></span>
+									<span><?= ! empty($loan['loan_date']) ? date('d M Y', strtotime($loan['loan_date'])) : '-'; ?> · <?= html_escape($loan_state_labels[$loan['circulation_status'] ?? 'history'] ?? 'Riwayat'); ?><?= ! empty($loan['due_date']) && in_array(($loan['circulation_status'] ?? ''), ['active', 'overdue'], true) ? ' · Tempo ' . date('d M Y', strtotime($loan['due_date'])) : ''; ?></span>
 								</div>
 								<code><?= html_escape($loan['barcode'] ?: '-'); ?></code>
 							</div>

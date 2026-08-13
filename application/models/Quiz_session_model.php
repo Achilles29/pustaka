@@ -15,9 +15,12 @@ class Quiz_session_model extends CI_Model
 
         $open  = (int) $this->db->where('deleted_at IS NULL', null, false)->where('type', $type ?: 'practice')->where('status', 'open')->count_all_results('quiz_sessions');
         $draft = (int) $this->db->where('deleted_at IS NULL', null, false)->where('type', $type ?: 'practice')->where('status', 'draft')->count_all_results('quiz_sessions');
+        $ongoing = (int) $this->db->where('deleted_at IS NULL', null, false)->where('type', $type ?: 'practice')->where('status', 'ongoing')->count_all_results('quiz_sessions');
+        $closed = (int) $this->db->where('deleted_at IS NULL', null, false)->where('type', $type ?: 'practice')->where('status', 'closed')->count_all_results('quiz_sessions');
+        $archived = (int) $this->db->where('deleted_at IS NULL', null, false)->where('type', $type ?: 'practice')->where('status', 'archived')->count_all_results('quiz_sessions');
 
         $attempts = (int) $this->db->count_all('quiz_attempts');
-        return compact('total', 'open', 'draft', 'attempts');
+        return compact('total', 'open', 'draft', 'ongoing', 'closed', 'archived', 'attempts');
     }
 
     public function count_sessions(array $filters = [], $type = null)
@@ -104,7 +107,7 @@ class Quiz_session_model extends CI_Model
     public function get_competition_questions($session_id)
     {
         return $this->db
-            ->select('sq.*, q.question_text, q.type, q.difficulty, s.name AS subject_name, g.name AS grade_name')
+            ->select('sq.*, q.question_text, q.type, q.difficulty, q.is_session_only, q.session_scope_id, s.name AS subject_name, g.name AS grade_name')
             ->from('quiz_session_questions sq')
             ->join('quiz_questions q', 'q.id = sq.question_id')
             ->join('quiz_subjects s', 's.id = q.subject_id', 'left')
@@ -148,6 +151,68 @@ class Quiz_session_model extends CI_Model
             }
         }
         return $added;
+    }
+
+    /** Bank umum yang dapat dipilih untuk sesi, tanpa soal khusus sesi lain. */
+    public function get_bank_questions_for_session(array $session, $limit = 100)
+    {
+        $this->db->select('q.id, q.question_text, q.type, q.difficulty, q.is_active, s.name AS subject_name, g.name AS grade_name')
+            ->from('quiz_questions q')->join('quiz_subjects s', 's.id = q.subject_id', 'left')->join('quiz_grade_levels g', 'g.id = q.grade_level_id', 'left')
+            ->where('q.deleted_at IS NULL', null, false)->where('q.is_session_only', 0)->where('q.is_active', 1);
+        if (! empty($session['subject_id'])) $this->db->where('q.subject_id', (int) $session['subject_id']);
+        if (! empty($session['grade_level_id'])) $this->db->where('q.grade_level_id', (int) $session['grade_level_id']);
+        if (($session['difficulty_filter'] ?? 'mixed') !== 'mixed') $this->db->where('q.difficulty', $session['difficulty_filter']);
+        return $this->db->order_by('q.id', 'DESC')->limit(max(1, min(200, (int) $limit)))->get()->result_array();
+    }
+
+    public function set_question_source($session_id, $source, array $question_ids = [])
+    {
+        if (! in_array($source, ['bank_all', 'selected', 'session_only'], true)) throw new InvalidArgumentException('Sumber soal tidak valid.');
+        $this->db->trans_start();
+        $this->db->where('id', (int) $session_id)->update('quiz_sessions', ['question_source' => $source]);
+        if ($source === 'bank_all') {
+            $this->db->where('session_id', (int) $session_id)->delete('quiz_session_questions');
+        } elseif ($source === 'selected') {
+            $ids = array_values(array_unique(array_filter(array_map('intval', $question_ids))));
+            $this->db->where('session_id', (int) $session_id)->delete('quiz_session_questions');
+            foreach ($ids as $index => $question_id) {
+                $valid = (bool) $this->db->where('id', $question_id)->where('deleted_at IS NULL', null, false)->where('is_session_only', 0)->where('is_active', 1)->count_all_results('quiz_questions');
+                if ($valid) $this->db->insert('quiz_session_questions', ['session_id' => (int) $session_id, 'question_id' => $question_id, 'sort_order' => $index + 1]);
+            }
+        }
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    public function add_session_only_questions($session_id, array $question_ids)
+    {
+        $max = (int) (($this->db->select_max('sort_order')->where('session_id', (int) $session_id)->get('quiz_session_questions')->row_array()['sort_order'] ?? 0));
+        $added = 0;
+        foreach (array_values(array_unique(array_filter(array_map('intval', $question_ids)))) as $question_id) {
+            $valid = (bool) $this->db->where('id', $question_id)->where('is_session_only', 1)->where('session_scope_id', (int) $session_id)->count_all_results('quiz_questions');
+            if (! $valid) continue;
+            $exists = (bool) $this->db->where('session_id', (int) $session_id)->where('question_id', $question_id)->count_all_results('quiz_session_questions');
+            if (! $exists) { $this->db->insert('quiz_session_questions', ['session_id' => (int) $session_id, 'question_id' => $question_id, 'sort_order' => ++$max]); $added++; }
+        }
+        return $added;
+    }
+
+    public function count_session_only_questions($session_id)
+    {
+        return (int) $this->db->from('quiz_session_questions sq')->join('quiz_questions q', 'q.id = sq.question_id')
+            ->where('sq.session_id', (int) $session_id)->where('q.is_session_only', 1)->where('q.session_scope_id', (int) $session_id)
+            ->where('q.deleted_at IS NULL', null, false)->where('q.is_active', 1)->count_all_results();
+    }
+
+    public function draw_session_questions(array $session)
+    {
+        $source = $session['question_source'] ?? 'bank_all';
+        if ($source === 'bank_all') return [];
+        $this->db->select('q.id')->from('quiz_session_questions sq')->join('quiz_questions q', 'q.id = sq.question_id')
+            ->where('sq.session_id', (int) $session['id'])->where('q.deleted_at IS NULL', null, false)->where('q.is_active', 1);
+        if ($source === 'session_only') $this->db->where('q.is_session_only', 1)->where('q.session_scope_id', (int) $session['id']);
+        else $this->db->where('q.is_session_only', 0);
+        return $this->db->order_by('sq.sort_order', 'ASC')->limit(max(1, (int) $session['question_count']))->get()->result_array();
     }
 
     // ── Participants ──────────────────────────────────────────────────────────
@@ -393,6 +458,7 @@ class Quiz_session_model extends CI_Model
             'grade_level_id'           => ! empty($data['grade_level_id']) ? (int) $data['grade_level_id'] : null,
             'difficulty_filter'        => in_array($data['difficulty_filter'] ?? '', ['easy','medium','hard','mixed']) ? $data['difficulty_filter'] : 'mixed',
             'question_count'           => max(1, (int) ($data['question_count'] ?? 10)),
+            'question_source'          => in_array($data['question_source'] ?? '', ['bank_all','selected','session_only'], true) ? $data['question_source'] : 'bank_all',
             'time_limit_minutes'       => max(0, (int) ($data['time_limit_minutes'] ?? 30)),
             'shuffle_questions'        => (int) (bool) ($data['shuffle_questions'] ?? true),
             'shuffle_options'          => (int) (bool) ($data['shuffle_options'] ?? true),

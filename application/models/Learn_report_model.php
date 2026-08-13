@@ -104,7 +104,7 @@ class Learn_report_model extends CI_Model
         if (! $this->db->table_exists('quiz_attempts')) return $summary;
 
         $rows = $this->db
-            ->select('qa.percentage, qa.is_passed, qa.status, qa.submitted_at, qs.title, qs.type')
+            ->select('qa.id AS attempt_id, qa.percentage, qa.is_passed, qa.status, qa.submitted_at, qa.essay_graded, qs.title, qs.type, qs.allow_review, qs.show_result_immediately')
             ->from('quiz_attempts qa')
             ->join('quiz_participants qp', 'qp.id = qa.participant_id')
             ->join('quiz_sessions qs', 'qs.id = qa.session_id', 'left')
@@ -120,7 +120,8 @@ class Learn_report_model extends CI_Model
             if ((int) $r['is_passed'] === 1) $summary['passed']++;
         }
         $summary['avg']    = $summary['attempts'] ? round($sum / $summary['attempts'], 1) : 0;
-        $summary['recent'] = array_slice($rows, 0, 8);
+        // Keep the complete quiz history so old result and review links remain available.
+        $summary['recent'] = $rows;
         return $summary;
     }
 
@@ -184,10 +185,11 @@ class Learn_report_model extends CI_Model
         $summary = ['played' => 0, 'won' => 0];
         if (! $this->db->table_exists('learn_battle_rooms')) return $summary;
 
-        $summary['played'] = (int) $this->db
-            ->where('status', 'finished')
-            ->group_start()->where('host_user_id', $user_id)->or_where('guest_user_id', $user_id)->group_end()
-            ->count_all_results('learn_battle_rooms');
+        if ($this->db->table_exists('learn_battle_participants')) {
+            $summary['played'] = (int) $this->db->from('learn_battle_participants bp')->join('learn_battle_rooms br','br.id=bp.room_id')->where('br.status','finished')->where('bp.user_id',$user_id)->count_all_results();
+        } else {
+            $summary['played'] = (int) $this->db->where('status','finished')->group_start()->where('host_user_id',$user_id)->or_where('guest_user_id',$user_id)->group_end()->count_all_results('learn_battle_rooms');
+        }
         $summary['won'] = (int) $this->db
             ->where('status', 'finished')->where('winner_user_id', $user_id)
             ->count_all_results('learn_battle_rooms');

@@ -25,6 +25,7 @@ class Learn_games extends MY_Controller
             'stats'       => $stats,
             'grades'      => $this->Quiz_config_model->get_grade_levels(false),
             'subjects'    => $this->Quiz_config_model->get_subjects(false),
+            'can_manage'  => $this->can('learn_games.index', 'create'),
         ]);
     }
 
@@ -124,6 +125,7 @@ class Learn_games extends MY_Controller
             'active_menu' => 'learn_games',
             'category'    => $cat,
             'sets'        => $sets,
+            'can_manage'  => $this->can('learn_games.index', 'create'),
         ]);
     }
 
@@ -194,6 +196,7 @@ class Learn_games extends MY_Controller
             'active_menu' => 'learn_games',
             'set'         => $set,
             'items'       => $items,
+            'can_manage'  => $this->can('learn_games.index', 'create'),
         ]);
     }
 

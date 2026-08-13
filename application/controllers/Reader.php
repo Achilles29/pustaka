@@ -220,7 +220,7 @@ class Reader extends MY_Controller
 
 			$this->load->model('Reading_point_model');
 			try {
-				$context = $this->Reading_point_model->consume_reader_token((int) $member['id'], $lat, $lng, 1);
+				$context = $this->Reading_point_model->consume_reader_token((int) $member['id'], $lat, $lng);
 			} catch (Throwable $e) {
 				$this->load->view('reader/location_gate', [
 					'title' => 'Validasi Lokasi Baca',

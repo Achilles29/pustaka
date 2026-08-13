@@ -45,7 +45,7 @@ $page_url = function ($page) use ($query_base) {
 				<h2>Titik GPS, radius, mitra, jam aktif, dan kuota baca.</h2>
 				<p>Tambahkan titik layanan seperti Namua, pojok baca desa, sekolah, atau mitra lain. Token/check-in akan memakai radius dan kuota dari data ini.</p>
 			</div>
-			<a href="<?= base_url('reader/assets'); ?>" class="btn btn-outline-primary"><i class="ti ti-file-lock me-1"></i>Atur PDF</a>
+			<a href="<?= base_url('reader/assets'); ?>" class="btn btn-outline-primary"><i class="ti ti-file-description me-1"></i>Atur PDF</a>
 		</div>
 
 		<div class="metric-ribbon service-metric-ribbon">

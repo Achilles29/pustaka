@@ -129,6 +129,15 @@ Catat:
 - Penerbitan token kuota.
 - Perubahan data anggota sensitif.
 
+## Monitor Akses Aplikasi
+
+`/access-monitor` mencatat akses route aplikasi dinamis dari tamu, member, dan petugas untuk kebutuhan operasional serta investigasi insiden. Data yang dicatat adalah waktu, tipe pengunjung, nama/nomor anggota atau username bila telah login, route, metode, status respons, IP, perangkat, browser, sistem operasi, referrer, dan kode negara kasar bila diberikan CDN/proxy.
+
+- Halaman monitor dibatasi oleh permission `access_monitor.index`.
+- NIK, alamat, tanggal lahir, nomor telepon, GPS presisi, dan parameter query tidak disalin ke log ini.
+- Negara berbasis IP bersifat perkiraan; tidak ada panggilan layanan geolokasi pihak ketiga dan tidak ada permintaan lokasi browser.
+- Log harus ditinjau berkala dan diberi kebijakan retensi sesuai kebutuhan operasional serta ketentuan perlindungan data yang berlaku.
+
 ## Header dan Konfigurasi Web
 
 Rekomendasi awal:

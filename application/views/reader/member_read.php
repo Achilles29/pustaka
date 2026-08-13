@@ -108,7 +108,7 @@ $watermark = trim('PDR | ' . mb_substr((string) ($member['full_name'] ?? 'Member
 						</div>
 					<?php else: ?>
 						<div class="secure-reader-empty">
-							<i class="ti ti-file-lock"></i>
+							<i class="ti ti-file-description"></i>
 							<h3>PDF dikunci dari browser.</h3>
 							<p>Sesi baca sudah tercatat, tetapi file PDF utuh tidak dikirim ke perangkat untuk aset non-downloadable. Mode baca halaman aman membutuhkan renderer server-side agar tiap halaman dikirim sebagai gambar ber-watermark.</p>
 							<?php if (! empty($reader_context['location_label'])): ?>

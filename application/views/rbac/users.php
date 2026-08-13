@@ -26,6 +26,12 @@ $page_url = function ($page) use ($base_route, $filters, $clean_query) {
 	$params['page'] = $page;
 	return base_url($base_route . '?' . http_build_query($params));
 };
+$status_tab_url = function ($status) use ($base_route, $filters, $clean_query) {
+	$params = $filters;
+	$params['status'] = $status;
+	unset($params['page']);
+	return base_url($base_route . '?' . http_build_query($clean_query($params)));
+};
 $initials = function ($name) {
 	$name = trim((string) $name);
 	return strtoupper(substr($name !== '' ? $name : 'AD', 0, 2));
@@ -77,6 +83,12 @@ $initials = function ($name) {
 			</div>
 		</div>
 
+		<div class="status-tabs" role="tablist" aria-label="Filter status admin">
+			<a href="<?= $status_tab_url(''); ?>" class="status-tab <?= empty($filters['status']) ? 'active' : ''; ?>"><i class="ti ti-users"></i>Semua <span><?= number_format((int) $stats['total'], 0, ',', '.'); ?></span></a>
+			<a href="<?= $status_tab_url('active'); ?>" class="status-tab <?= ($filters['status'] ?? '') === 'active' ? 'active' : ''; ?>"><i class="ti ti-user-check"></i>Aktif <span><?= number_format((int) $stats['active'], 0, ',', '.'); ?></span></a>
+			<a href="<?= $status_tab_url('inactive'); ?>" class="status-tab <?= ($filters['status'] ?? '') === 'inactive' ? 'active' : ''; ?>"><i class="ti ti-user-pause"></i>Nonaktif <span><?= number_format((int) $stats['inactive'] + (int) $stats['suspended'], 0, ',', '.'); ?></span></a>
+		</div>
+
 		<div class="card admin-card data-workspace">
 			<div class="card-header workspace-header">
 				<div>
@@ -86,10 +98,10 @@ $initials = function ($name) {
 			</div>
 
 			<div class="card-body workspace-filter">
-				<?= form_open($base_route, ['method' => 'get', 'class' => 'row g-2 align-items-end service-filter-form']); ?>
+				<?= form_open($base_route, ['method' => 'get', 'class' => 'row g-2 align-items-end service-filter-form admin-user-filter']); ?>
 					<div class="col-lg-3 col-md-6">
 						<label class="form-label">Cari</label>
-						<input type="text" class="form-control" name="q" value="<?= html_escape($filters['q'] ?? ''); ?>" placeholder="Nama, username, email, perpustakaan">
+						<input type="search" class="form-control" name="q" value="<?= html_escape($filters['q'] ?? ''); ?>" placeholder="Nama, username, email, perpustakaan" autocomplete="off">
 					</div>
 					<div class="col-lg-1 col-md-6">
 						<label class="form-label">Status</label>
@@ -148,6 +160,7 @@ $initials = function ($name) {
 					<thead>
 						<tr>
 							<th>Admin</th>
+							<th>Username</th>
 							<th>Role</th>
 							<th>Scope</th>
 							<th>Sumber</th>
@@ -158,7 +171,7 @@ $initials = function ($name) {
 					</thead>
 					<tbody>
 						<?php if (empty($users)): ?>
-							<tr><td colspan="7" class="text-center text-secondary py-4">Belum ada admin sesuai filter.</td></tr>
+							<tr><td colspan="8" class="text-center text-secondary py-4">Belum ada admin sesuai filter.</td></tr>
 						<?php endif; ?>
 						<?php foreach ($users as $user): ?>
 							<?php
@@ -171,10 +184,11 @@ $initials = function ($name) {
 										<span class="avatar avatar-sm bg-blue-lt text-blue"><?= html_escape($initials($user['full_name'])); ?></span>
 										<div>
 											<div class="fw-semibold"><?= html_escape($user['full_name']); ?></div>
-											<div class="text-secondary small"><?= html_escape($user['username']); ?><?= $user['email'] ? ' - ' . html_escape($user['email']) : ''; ?></div>
+											<div class="text-secondary small"><?= $user['email'] ? html_escape($user['email']) : '-'; ?></div>
 										</div>
 									</div>
 								</td>
+								<td><code><?= html_escape($user['username']); ?></code></td>
 								<td>
 									<div class="chip-list">
 										<?php foreach ($user['roles'] as $role): ?>

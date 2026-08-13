@@ -11,6 +11,8 @@ $author_text = implode('; ', array_map(function ($row) {
 $subject_text = implode('; ', array_map(function ($row) {
 	return $row['subject'];
 }, $subjects ?? []));
+$textbook_grade_ids = array_map('intval', array_column(($textbook_tags['grades'] ?? []), 'id'));
+$textbook_subject_ids = array_map('intval', array_column(($textbook_tags['subjects'] ?? []), 'id'));
 $status_labels = [
 	'draft' => 'Draft',
 	'published' => 'Tayang',
@@ -164,6 +166,28 @@ $status_labels = [
 										<option value="<?= (int) $classification['id']; ?>" <?= (int) $field('content_classification_id') === (int) $classification['id'] ? 'selected' : ''; ?>><?= html_escape($classification['code'] . ' — ' . $classification['name']); ?></option>
 									<?php endforeach; ?>
 								</select>
+							</div>
+							<div class="mb-3 textbook-tag-fields">
+								<div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+									<div>
+										<label class="form-label mb-0">Tag Buku Pelajaran</label>
+										<div class="form-hint">Aktifkan jika katalog ini termasuk Buku Pelajaran. Satu judul dapat memiliki lebih dari satu tag.</div>
+									</div>
+									<span class="badge bg-azure-lt">Opsional</span>
+								</div>
+								<label class="form-label small">Jenjang / kelas</label>
+								<select class="form-select mb-2" name="textbook_grade_ids[]" multiple size="5" aria-label="Pilih jenjang atau kelas buku pelajaran">
+									<?php foreach (($textbook_grade_levels ?? []) as $grade): ?>
+										<option value="<?= (int) $grade['id']; ?>" <?= in_array((int) $grade['id'], $textbook_grade_ids, true) ? 'selected' : ''; ?>><?= html_escape($grade['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<label class="form-label small">Mata pelajaran</label>
+								<select class="form-select" name="textbook_subject_ids[]" multiple size="6" aria-label="Pilih mata pelajaran buku pelajaran">
+									<?php foreach (($textbook_subject_options ?? []) as $subject): ?>
+										<option value="<?= (int) $subject['id']; ?>" <?= in_array((int) $subject['id'], $textbook_subject_ids, true) ? 'selected' : ''; ?>><?= html_escape($subject['name']); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<div class="form-hint">Gunakan Ctrl/Cmd saat memilih beberapa pilihan. Tag ini menjadi filter pada halaman Buku Pelajaran.</div>
 							</div>
 							<div class="mb-3">
 								<label class="form-label">Nama File Cover</label>

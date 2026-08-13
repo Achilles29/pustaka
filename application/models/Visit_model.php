@@ -116,6 +116,42 @@ class Visit_model extends CI_Model
 		]);
 	}
 
+	/** Catat check-in GPS pada zona bebas tanpa mengikatnya pada token baca. */
+	public function record_free_zone_checkin(array $location, array $member, array $coordinate = [])
+	{
+		if (empty($member['id']) || ! $this->db->table_exists('member_visits')) {
+			return false;
+		}
+		$origin = ($location['origin'] ?? '') === 'library' ? 'library' : 'reading_point';
+		$location_id = $origin === 'library'
+			? (int) ($location['library_id'] ?? 0)
+			: (int) ($location['reading_point_id'] ?? 0);
+		return $this->insert_visit([
+			'source_system' => self::SOURCE_SYSTEM,
+			'source_id' => 'free_zone_checkin:' . (int) $member['id'] . ':' . $origin . ':' . $location_id . ':' . date('Ymd'),
+			'visit_channel' => 'reading_point',
+			'visit_origin' => $origin,
+			'member_id' => (int) $member['id'],
+			'library_id' => ! empty($location['library_id']) ? (int) $location['library_id'] : null,
+			'reading_point_id' => ! empty($location['reading_point_id']) ? (int) $location['reading_point_id'] : null,
+			'auth_user_id' => ! empty($member['auth_user_id']) ? (int) $member['auth_user_id'] : null,
+			'source_member_no' => $member['member_no'] ?? null,
+			'visitor_no' => $member['member_no'] ?? null,
+			'visitor_name' => $member['full_name'] ?? null,
+			'visitor_count' => 1,
+			'checkin_method' => 'member_gps',
+			'location_label' => $location['label'] ?? 'Zona baca gratis',
+			'purpose_label' => 'Verifikasi zona baca gratis',
+			'information' => 'Check-in GPS member pada zona bebas token.',
+			'visited_at' => date('Y-m-d H:i:s'),
+			'ip_address' => $this->input->ip_address(),
+			'user_agent' => substr((string) $this->input->user_agent(), 0, 255),
+			'latitude' => $coordinate['latitude'] ?? null,
+			'longitude' => $coordinate['longitude'] ?? null,
+			'metadata_json' => json_encode(['access_policy' => 'free_zone_no_token'], JSON_UNESCAPED_UNICODE),
+		]);
+	}
+
 	public function create_kiosk_qr_token($library_id = null, $created_by = null)
 	{
 		if (! $this->db->table_exists('visit_kiosk_qr_tokens')) {
@@ -187,7 +223,7 @@ class Visit_model extends CI_Model
 			->set('used_count', 'used_count + 1', false)
 			->update('visit_kiosk_qr_tokens');
 
-		return ['ok' => true, 'message' => 'Check-in kunjungan berhasil dicatat.'];
+		return ['ok' => true, 'message' => 'Check-in kunjungan berhasil dicatat.', 'library_id' => ! empty($row['library_id']) ? (int) $row['library_id'] : null];
 	}
 
 	public function record_guestbook_visit(array $data)
@@ -224,13 +260,21 @@ class Visit_model extends CI_Model
 		if (! $member) {
 			throw new RuntimeException('Data member tidak ditemukan.');
 		}
+		$library_id = (int) ($data['library_id'] ?? 0);
+		if ($library_id <= 0) {
+			$library_id = (int) $this->kiosk_setting('default_visit_library_id', 0);
+		}
+		if ($library_id <= 0) {
+			$central = $this->db->select('id')->from('libraries')->where('status', 'active')->where('code', '001')->limit(1)->get()->row_array();
+			$library_id = (int) ($central['id'] ?? 0);
+		}
 
-		return $this->insert_visit([
+		$recorded = $this->insert_visit([
 			'source_system' => self::SOURCE_SYSTEM,
 			'source_id' => 'member_search_checkin:' . (int) $member['id'] . ':' . date('YmdHis'),
 			'visit_channel' => 'service_monitor',
 			'visit_origin' => 'library',
-			'library_id' => ! empty($data['library_id']) ? (int) $data['library_id'] : null,
+			'library_id' => $library_id ?: null,
 			'member_id' => (int) $member['id'],
 			'auth_user_id' => ! empty($member['auth_user_id']) ? (int) $member['auth_user_id'] : null,
 			'source_member_no' => $member['member_no'] ?? null,
@@ -245,12 +289,14 @@ class Visit_model extends CI_Model
 			'ip_address' => $this->input->ip_address(),
 			'user_agent' => substr((string) $this->input->user_agent(), 0, 255),
 		]);
+
+		return ['recorded' => $recorded, 'member' => $member, 'library_id' => $library_id ?: null];
 	}
 
 	public function search_members_for_guestbook($keyword, $limit = 8)
 	{
 		$keyword = trim((string) $keyword);
-		if ($keyword === '' || strlen($keyword) < 2 || ! $this->db->table_exists('members')) {
+		if ($keyword === '' || strlen($keyword) < 4 || ! $this->db->table_exists('members')) {
 			return [];
 		}
 
@@ -270,10 +316,16 @@ class Visit_model extends CI_Model
 			->result_array();
 
 		return array_map(function ($member) {
+			$member_no = (string) ($member['member_no'] ?? '');
+			$display_member_no = preg_match('/^\d{12,}$/', $member_no)
+				? substr($member_no, 0, 4) . str_repeat('•', max(4, strlen($member_no) - 8)) . substr($member_no, -4)
+				: $member_no;
 			return [
 				'id' => (int) $member['id'],
-				'member_no' => (string) ($member['member_no'] ?? ''),
-				'identity_number' => (string) ($member['identity_number'] ?? ''),
+				'member_no' => $display_member_no,
+				// NIK may be used as an exact search input, but must never be
+				// returned by this unauthenticated kiosk endpoint.
+				'identity_number' => '',
 				'full_name' => (string) ($member['full_name'] ?? ''),
 				'status' => (string) ($member['status'] ?? 'unknown'),
 				'member_type' => (string) ($member['member_type_label'] ?? ''),

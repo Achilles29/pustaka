@@ -148,6 +148,16 @@ class MY_Controller extends CI_Controller
 				'url' => 'events?status=published',
 				'count' => $this->table_pending_count('event_registrations'),
 			],
+			[
+				'label' => 'Donasi Digital',
+				'url' => 'digital-donations',
+				'count' => $this->table_pending_count('digital_donation_submissions'),
+			],
+			[
+				'label' => 'Suara Pemustaka',
+				'url' => 'patron-feedback',
+				'count' => $this->table_pending_count('patron_feedback'),
+			],
 		];
 
 		$total = 0;

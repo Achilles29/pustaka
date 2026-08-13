@@ -1,5 +1,5 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
-<?php $can_manage = $this->can('learn_config.index', 'create'); ?>
+<?php $can_manage = ! empty($can_manage); ?>
 
 <div class="container-xl">
     <div class="page-header mb-3">

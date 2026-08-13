@@ -78,12 +78,16 @@ class Quiz_play extends CI_Controller
         }
 
         // Draw questions
-        $q_rows = $this->Quiz_bank_model->draw_random(
-            $quiz_session['subject_id'],
-            $quiz_session['grade_level_id'],
-            $quiz_session['difficulty_filter'],
-            $quiz_session['question_count']
-        );
+        $q_rows = ($quiz_session['question_source'] ?? 'bank_all') === 'bank_all'
+            ? $this->Quiz_bank_model->draw_random($quiz_session['subject_id'], $quiz_session['grade_level_id'], $quiz_session['difficulty_filter'], $quiz_session['question_count'])
+            : $this->Quiz_session_model->draw_session_questions($quiz_session);
+
+        // Recover gracefully from legacy/misconfigured sessions that are marked
+        // bank_all but already have valid session-only questions assigned.
+        if (empty($q_rows) && $this->Quiz_session_model->count_session_only_questions((int) $quiz_session['id']) > 0) {
+            $quiz_session['question_source'] = 'session_only';
+            $q_rows = $this->Quiz_session_model->draw_session_questions($quiz_session);
+        }
 
         if (empty($q_rows)) {
             show_error('Tidak ada soal yang tersedia untuk konfigurasi sesi ini.', 404);
@@ -329,6 +333,14 @@ class Quiz_play extends CI_Controller
 
         $result = $this->Quiz_play_model->submit_attempt($attempt['id'], $time_spent);
 
+        if (! $result) {
+            $this->output
+                ->set_status_header(409)
+                ->set_content_type('application/json')
+                ->set_output(json_encode(['ok' => false, 'message' => 'Jawaban sudah dikumpulkan atau sesi ujian telah berakhir.']));
+            return;
+        }
+
         // Clear active token from participant session
         $qp = $this->session->userdata('quiz_participant');
         if ($qp) {
@@ -346,7 +358,7 @@ class Quiz_play extends CI_Controller
     public function result($attempt_id)
     {
         $attempt = $this->db
-            ->select('a.*, s.title AS session_title, s.show_result_immediately, s.allow_review, s.passing_score, s.type AS session_type, p.full_name')
+            ->select('a.*, s.title AS session_title, s.code AS session_code, s.show_result_immediately, s.allow_review, s.passing_score, s.type AS session_type, p.full_name, p.user_id')
             ->from('quiz_attempts a')
             ->join('quiz_sessions s', 's.id = a.session_id')
             ->join('quiz_participants p', 'p.id = a.participant_id')
@@ -358,14 +370,31 @@ class Quiz_play extends CI_Controller
             return;
         }
 
+        if (! $this->can_view_attempt($attempt)) {
+            show_error('Anda tidak memiliki akses ke hasil ini.', 403);
+            return;
+        }
+
+        if ($attempt['status'] === 'timed_out' && $attempt['percentage'] === null) {
+            $elapsed = $attempt['submitted_at'] ? max(0, strtotime($attempt['submitted_at']) - strtotime($attempt['started_at'])) : 0;
+            $this->Quiz_play_model->submit_attempt((int) $attempt['id'], $elapsed);
+            $attempt = $this->db
+                ->select('a.*, s.title AS session_title, s.code AS session_code, s.show_result_immediately, s.allow_review, s.passing_score, s.type AS session_type, p.full_name, p.user_id')
+                ->from('quiz_attempts a')->join('quiz_sessions s', 's.id = a.session_id')->join('quiz_participants p', 'p.id = a.participant_id')
+                ->where('a.id', (int) $attempt_id)->get()->row_array();
+        }
+
+        $summary = $this->Quiz_play_model->get_result_summary((int) $attempt_id);
+
         if (! $attempt['show_result_immediately']) {
-            $this->load->view('quiz/play/result', ['title' => 'Hasil Quiz', 'attempt' => $attempt, 'hidden' => true]);
+            $this->load->view('quiz/play/result', ['title' => 'Hasil Quiz', 'attempt' => $attempt, 'summary' => $summary, 'hidden' => true]);
             return;
         }
 
         $this->load->view('quiz/play/result', [
             'title'   => 'Hasil — ' . $attempt['session_title'],
             'attempt' => $attempt,
+            'summary' => $summary,
             'hidden'  => false,
         ]);
     }
@@ -378,6 +407,10 @@ class Quiz_play extends CI_Controller
         if (! $data) { show_404(); return; }
 
         $attempt = $data['attempt'];
+        if (! $this->can_view_attempt($attempt)) {
+            show_error('Anda tidak memiliki akses ke pembahasan ini.', 403);
+            return;
+        }
         if (! $attempt['allow_review']) {
             show_error('Pembahasan tidak diaktifkan untuk sesi ini.', 403);
             return;
@@ -422,6 +455,30 @@ class Quiz_play extends CI_Controller
             return false;
         }
 
+        $owns_attempt = false;
+        if ($auth_user && ! empty($attempt['participant_user_id'])) {
+            $owns_attempt = (int) $auth_user['id'] === (int) $attempt['participant_user_id'];
+        }
+        if ($quiz_participant) {
+            $owns_attempt = $owns_attempt || (int) ($quiz_participant['id'] ?? 0) === (int) $attempt['participant_id'];
+        }
+        if (! $owns_attempt) {
+            if ($json) {
+                $this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(['ok' => false, 'message' => 'Token ujian bukan milik sesi ini.']));
+            } else {
+                show_error('Anda tidak memiliki akses ke ujian ini.', 403, 'Akses Ditolak');
+            }
+            return false;
+        }
+
         return true;
+    }
+
+    private function can_view_attempt(array $attempt)
+    {
+        $auth_user = $this->session->userdata('auth_user');
+        if ($auth_user && ! empty($attempt['user_id']) && (int) $auth_user['id'] === (int) $attempt['user_id']) return true;
+        $participant = $this->session->userdata('quiz_participant');
+        return $participant && (int) ($participant['id'] ?? 0) === (int) $attempt['participant_id'];
     }
 }

@@ -3,6 +3,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Reading_point_model extends CI_Model
 {
+	private $token_settings_cache = null;
+
 	public function stats()
 	{
 		return [
@@ -12,6 +14,65 @@ class Reading_point_model extends CI_Model
 			'active_tokens' => $this->count_where('reading_tokens', ['status' => 'active']),
 			'sessions' => $this->count_where('reading_sessions'),
 		];
+	}
+
+	public function get_token_settings()
+	{
+		$defaults = [
+			'library_checkin_quota' => 5,
+			'library_checkin_valid_days' => 0,
+			'library_checkin_daily_limit' => 1,
+			'request_default_quota' => 3,
+			'request_valid_days' => 7,
+			'outside_session_charge' => 1,
+		];
+		if ($this->token_settings_cache !== null) {
+			return $this->token_settings_cache;
+		}
+		if (! $this->db->table_exists('reading_token_settings')) {
+			return $this->token_settings_cache = $defaults;
+		}
+
+		$settings = $defaults;
+		foreach ($this->db->select('setting_key, setting_value')->from('reading_token_settings')->get()->result_array() as $row) {
+			if (array_key_exists($row['setting_key'], $settings)) {
+				$settings[$row['setting_key']] = (int) $row['setting_value'];
+			}
+		}
+		$settings['library_checkin_quota'] = max(1, min(1000, $settings['library_checkin_quota']));
+		$settings['library_checkin_valid_days'] = max(0, min(365, $settings['library_checkin_valid_days']));
+		$settings['library_checkin_daily_limit'] = max(1, min(20, $settings['library_checkin_daily_limit']));
+		$settings['request_default_quota'] = max(1, min(1000, $settings['request_default_quota']));
+		$settings['request_valid_days'] = max(1, min(365, $settings['request_valid_days']));
+		$settings['outside_session_charge'] = max(1, min(100, $settings['outside_session_charge']));
+		return $this->token_settings_cache = $settings;
+	}
+
+	public function update_token_settings(array $data, $updated_by = null)
+	{
+		if (! $this->db->table_exists('reading_token_settings')) {
+			throw new RuntimeException('Tabel pengaturan token belum diaktifkan. Jalankan migrasi pengaturan token terlebih dahulu.');
+		}
+		$settings = [
+			'library_checkin_quota' => max(1, min(1000, (int) ($data['library_checkin_quota'] ?? 5))),
+			'library_checkin_valid_days' => max(0, min(365, (int) ($data['library_checkin_valid_days'] ?? 0))),
+			'library_checkin_daily_limit' => max(1, min(20, (int) ($data['library_checkin_daily_limit'] ?? 1))),
+			'request_default_quota' => max(1, min(1000, (int) ($data['request_default_quota'] ?? 3))),
+			'request_valid_days' => max(1, min(365, (int) ($data['request_valid_days'] ?? 7))),
+			'outside_session_charge' => max(1, min(100, (int) ($data['outside_session_charge'] ?? 1))),
+		];
+		foreach ($settings as $key => $value) {
+			$payload = ['setting_value' => (string) $value, 'updated_by' => (int) $updated_by ?: null];
+			$exists = $this->db->from('reading_token_settings')->where('setting_key', $key)->count_all_results() > 0;
+			if ($exists) {
+				$this->db->where('setting_key', $key)->update('reading_token_settings', $payload);
+			} else {
+				$payload['setting_key'] = $key;
+				$this->db->insert('reading_token_settings', $payload);
+			}
+		}
+		$this->token_settings_cache = null;
+		return $this->get_token_settings();
 	}
 
 	public function get_points($limit = 25, $offset = 0, array $filters = [])
@@ -69,6 +130,60 @@ class Reading_point_model extends CI_Model
 			->result_array();
 	}
 
+	/**
+	 * Semua lokasi GIS yang membebaskan pemakaian token.  Pojok Baca adalah
+	 * titik tersendiri; perpustakaan terdaftar memakai koordinat GIS pada
+	 * master libraries.  Keduanya sengaja dikembalikan dalam format yang sama
+	 * agar halaman member tidak lagi hanya menampilkan Pojok Baca.
+	 */
+	public function get_free_access_locations($limit = 500)
+	{
+		$limit = max(1, min(500, (int) $limit));
+		$locations = [];
+
+		foreach ($this->get_active_points($limit) as $point) {
+			$locations[] = [
+				'type' => 'reading_point',
+				'name' => $point['name'],
+				'subtitle' => $point['partner_name'] ?: ($point['library_name'] ?: 'Pojok Baca Digital'),
+				'address' => $point['address'] ?? null,
+				'radius_meters' => (int) ($point['radius_meters'] ?? 0),
+				'quota_total' => (int) ($point['daily_quota'] ?? 0),
+				'quota_unit' => $point['quota_unit'] ?? 'books',
+			];
+		}
+
+		if ($this->db->table_exists('libraries')) {
+			$libraries = $this->db
+				->select('name, address, district, village, service_radius_meters, is_verified')
+				->from('libraries')
+				->where('status', 'active')
+				->where('latitude IS NOT NULL', null, false)
+				->where('longitude IS NOT NULL', null, false)
+				->order_by('name', 'ASC')
+				->limit($limit)
+				->get()
+				->result_array();
+			foreach ($libraries as $library) {
+				$area = array_filter([$library['village'] ?? null, $library['district'] ?? null]);
+				$locations[] = [
+					'type' => 'library',
+					'name' => $library['name'],
+					'subtitle' => ((int) ($library['is_verified'] ?? 0) === 1 ? 'Perpustakaan terverifikasi' : 'Perpustakaan terdaftar GIS'),
+					'address' => $library['address'] ?: implode(', ', $area),
+					'radius_meters' => (int) ($library['service_radius_meters'] ?? 100),
+					'quota_total' => 0,
+					'quota_unit' => 'books',
+				];
+			}
+		}
+
+		usort($locations, function ($a, $b) {
+			return strcmp((string) $a['name'], (string) $b['name']);
+		});
+		return $locations;
+	}
+
 	public function library_options()
 	{
 		if (! $this->db->table_exists('libraries')) {
@@ -109,7 +224,7 @@ class Reading_point_model extends CI_Model
 		}
 
 		return $this->db
-			->select('rt.*, m.full_name, m.member_no, rp.name AS point_name')
+			->select("rt.*, m.full_name, m.member_no, COALESCE(rp.name, CASE WHEN rt.token LIKE 'VIS-%' THEN 'Check-in Perpustakaan Daerah' ELSE NULL END) AS point_name", false)
 			->from('reading_tokens rt')
 			->join('members m', 'm.id = rt.member_id', 'left')
 			->join('reading_points rp', 'rp.id = rt.reading_point_id', 'left')
@@ -130,7 +245,7 @@ class Reading_point_model extends CI_Model
 		$this->apply_token_filters($filters);
 
 		return $this->db
-			->select('rt.*, m.full_name, m.member_no, m.identity_number, rp.name AS point_name, rp.partner_name')
+			->select("rt.*, m.full_name, m.member_no, m.identity_number, COALESCE(rp.name, CASE WHEN rt.token LIKE 'VIS-%' THEN 'Check-in Perpustakaan Daerah' ELSE NULL END) AS point_name, rp.partner_name", false)
 			->order_by("FIELD(rt.status, 'active', 'used', 'expired', 'revoked')", '', false)
 			->order_by('rt.id', 'DESC')
 			->limit(max(1, min(100, (int) $limit)), max(0, (int) $offset))
@@ -141,7 +256,7 @@ class Reading_point_model extends CI_Model
 	public function get_token($id)
 	{
 		return $this->db
-			->select('rt.*, m.full_name, m.member_no, rp.name AS point_name')
+			->select("rt.*, m.full_name, m.member_no, COALESCE(rp.name, CASE WHEN rt.token LIKE 'VIS-%' THEN 'Check-in Perpustakaan Daerah' ELSE NULL END) AS point_name", false)
 			->from('reading_tokens rt')
 			->join('members m', 'm.id = rt.member_id', 'left')
 			->join('reading_points rp', 'rp.id = rt.reading_point_id', 'left')
@@ -169,7 +284,7 @@ class Reading_point_model extends CI_Model
 		$this->expire_old_tokens();
 
 		return $this->db
-			->select('rt.*, rp.name AS point_name, rp.partner_name, rp.address AS point_address')
+			->select("rt.*, COALESCE(rp.name, CASE WHEN rt.token LIKE 'VIS-%' THEN 'Check-in Perpustakaan Daerah' ELSE NULL END) AS point_name, rp.partner_name, rp.address AS point_address", false)
 			->from('reading_tokens rt')
 			->join('reading_points rp', 'rp.id = rt.reading_point_id', 'left')
 			->where('rt.member_id', (int) $member_id)
@@ -182,12 +297,60 @@ class Reading_point_model extends CI_Model
 			->row_array();
 	}
 
+	/**
+	 * Token kunjungan fisik untuk Perpustakaan Daerah/pusat.
+	 * Kuota, masa berlaku, dan batas penerbitan per hari diambil dari modul
+	 * Pengaturan Token. Penerbitan ini terpisah dari check-in GPS Pojok Baca.
+	 */
+	public function issue_library_visit_token($member_id, $library_id = null)
+	{
+		if (! $this->db->table_exists('reading_tokens')) {
+			return ['issued' => false, 'message' => 'Modul token baca belum tersedia.'];
+		}
+		$member = $this->db->select('id, status, card_status')->from('members')->where('id', (int) $member_id)->limit(1)->get()->row_array();
+		if (! $member || ($member['status'] ?? '') !== 'active' || ($member['card_status'] ?? 'active') === 'blocked') {
+			return ['issued' => false, 'message' => 'Token kunjungan hanya diterbitkan untuk member aktif.'];
+		}
+		$central = $this->central_library();
+		if (! $central || ((int) $library_id > 0 && (int) $library_id !== (int) $central['id'])) {
+			return ['issued' => false, 'message' => 'Check-in tidak tercatat di Perpustakaan Daerah; token kunjungan tidak diterbitkan.'];
+		}
+
+		$settings = $this->get_token_settings();
+		$today = date('Y-m-d');
+		$issued_today = $this->db->from('reading_tokens')
+			->where('member_id', (int) $member_id)
+			->like('token', 'VIS-', 'after')
+			->where('issued_at >=', $today . ' 00:00:00')
+			->where('issued_at <=', $today . ' 23:59:59')
+			->count_all_results();
+		if ($issued_today >= (int) $settings['library_checkin_daily_limit']) {
+			$existing = $this->db->from('reading_tokens')->where('member_id', (int) $member_id)->like('token', 'VIS-', 'after')->where('issued_at >=', $today . ' 00:00:00')->order_by('id', 'DESC')->limit(1)->get()->row_array();
+			return ['issued' => false, 'token' => $existing, 'message' => 'Batas token check-in hari ini sudah tercapai.'];
+		}
+
+		$payload = [
+			'member_id' => (int) $member_id,
+			'reading_point_id' => null,
+			'token' => 'VIS-' . $this->new_token(),
+			'quota_total' => (int) $settings['library_checkin_quota'],
+			'quota_used' => 0,
+			'quota_unit' => 'books',
+			'expires_at' => $this->token_expiry_at((int) $settings['library_checkin_valid_days']),
+			'status' => 'active',
+			'issued_by' => null,
+		];
+		$this->db->insert('reading_tokens', $payload);
+		$payload['id'] = (int) $this->db->insert_id();
+		return ['issued' => true, 'token' => $payload, 'message' => 'Token kunjungan ' . (int) $settings['library_checkin_quota'] . ' sesi berhasil diterbitkan.'];
+	}
+
 	public function get_member_tokens($member_id, $limit = 8)
 	{
 		$this->expire_old_tokens();
 
 		return $this->db
-			->select('rt.*, rp.name AS point_name')
+			->select("rt.*, COALESCE(rp.name, CASE WHEN rt.token LIKE 'VIS-%' THEN 'Check-in Perpustakaan Daerah' ELSE NULL END) AS point_name", false)
 			->from('reading_tokens rt')
 			->join('reading_points rp', 'rp.id = rt.reading_point_id', 'left')
 			->where('rt.member_id', (int) $member_id)
@@ -226,9 +389,10 @@ class Reading_point_model extends CI_Model
 			throw new RuntimeException('Token aktif masih tersedia. Gunakan token tersebut terlebih dahulu.');
 		}
 
+		$settings = $this->get_token_settings();
 		$this->db->insert('reading_token_requests', [
 			'member_id' => (int) $member_id,
-			'requested_quota' => 3,
+			'requested_quota' => (int) $settings['request_default_quota'],
 			'quota_unit' => 'books',
 			'request_note' => $this->blank_to_null(substr(trim((string) $note), 0, 500)),
 			'status' => 'pending',
@@ -267,6 +431,7 @@ class Reading_point_model extends CI_Model
 				throw new RuntimeException('Member tidak aktif; permohonan tidak dapat disetujui.');
 			}
 
+			$settings = $this->get_token_settings();
 			$this->db->insert('reading_tokens', [
 				'member_id' => (int) $request['member_id'],
 				'reading_point_id' => null,
@@ -274,7 +439,7 @@ class Reading_point_model extends CI_Model
 				'quota_total' => max(1, (int) $request['requested_quota']),
 				'quota_used' => 0,
 				'quota_unit' => 'books',
-				'expires_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
+				'expires_at' => $this->token_expiry_at((int) $settings['request_valid_days']),
 				'status' => 'active',
 				'issued_by' => (int) $reviewer_id ?: null,
 			]);
@@ -326,69 +491,48 @@ class Reading_point_model extends CI_Model
 		if (($location['origin'] ?? 'external') === 'external') {
 			throw new RuntimeException('Lokasi Anda belum berada dalam radius Pojok Baca atau perpustakaan terdaftar.');
 		}
-		$point = ! empty($location['reading_point_id']) ? $this->get_point((int) $location['reading_point_id']) : null;
-		$quota_total = $point ? (int) $point['daily_quota'] : 5;
-		$point_label = $point['name'] ?? ($location['label'] ?? 'Perpustakaan terdaftar');
-
-		$existing = $this->get_member_active_token((int) $member_id);
-		if ($existing) {
-			return [
-				'token' => $existing,
-				'point' => $point ?: ['name' => $point_label, 'library_id' => $location['library_id'] ?? null],
-				'is_new' => false,
-			];
-		}
-
-		$expires_at = date('Y-m-d 23:59:59');
-		$payload = [
-			'member_id' => (int) $member_id,
-			'reading_point_id' => $point ? (int) $point['id'] : null,
-			'token' => $this->new_token(),
-			'quota_total' => max(0, $quota_total),
-			'quota_used' => 0,
-			'quota_unit' => 'books',
-			'expires_at' => $expires_at,
-			'status' => 'active',
-		];
-
-		$this->db->insert('reading_tokens', $payload);
-		$payload['id'] = (int) $this->db->insert_id();
-		$payload['point_name'] = $point_label;
 		$member = $this->db
 			->from('members')
 			->where('id', (int) $member_id)
 			->limit(1)
 			->get()
 			->row_array();
-		if ($member && $point) {
+		if (! $member || ($member['status'] ?? '') !== 'active' || ($member['card_status'] ?? 'active') === 'blocked') {
+			throw new RuntimeException('Check-in zona baca hanya tersedia untuk member aktif.');
+		}
+
+		// Pojok Baca dan perpustakaan GIS adalah zona bebas: check-in hanya
+		// mencatat kehadiran/lokasi, bukan menerbitkan token atau kuota sesi.
+		if ($member) {
 			$this->load->model('Visit_model');
-			$this->Visit_model->record_reading_point_checkin($payload, $point, $member, [
+			$this->Visit_model->record_free_zone_checkin($location, $member, [
 				'latitude' => $lat,
 				'longitude' => $lng,
 			]);
 		}
 
 		return [
-			'token' => $payload,
-			'point' => $point ?: ['name' => $point_label, 'library_id' => $location['library_id'] ?? null],
-			'is_new' => true,
+			'token' => null,
+			'location' => $location,
+			'free_access' => true,
+			'is_new' => false,
 		];
 	}
 
-	public function consume_reader_token($member_id, $latitude = null, $longitude = null, $amount = 1)
+	public function consume_reader_token($member_id, $latitude = null, $longitude = null, $amount = null)
 	{
 		$location = $this->free_access_location($latitude, $longitude);
-		$token = null;
 		if ($location['origin'] !== 'external') {
-			$token = $this->get_member_active_token((int) $member_id);
 			return [
-				'token' => $token ?: null,
+				// Zona layanan tidak menggunakan token sama sekali. Reader tetap
+				// membuat sesi aman untuk audit dan proteksi PDF, bukan sesi kuota.
+				'token' => null,
 				'origin' => $location['origin'],
 				'location_label' => $location['label'],
 				'reading_point_id' => $location['reading_point_id'] ?? null,
 				'library_id' => $location['library_id'] ?? null,
 				'quota_charged' => 0,
-				'quota_unit' => $token['quota_unit'] ?? null,
+				'quota_unit' => null,
 				'latitude' => $this->decimal_or_null($latitude),
 				'longitude' => $this->decimal_or_null($longitude),
 			];
@@ -399,7 +543,8 @@ class Reading_point_model extends CI_Model
 			throw new RuntimeException('Token baca luar zona tidak tersedia atau kuota sudah habis. Silakan login/update token di perpustakaan daerah, lalu coba baca kembali.');
 		}
 
-		$charge = ($location['origin'] === 'external' && (int) $token['quota_total'] > 0) ? max(1, (int) $amount) : 0;
+		$charge_amount = $amount === null ? (int) $this->get_token_settings()['outside_session_charge'] : max(1, (int) $amount);
+		$charge = ($location['origin'] === 'external' && (int) $token['quota_total'] > 0) ? $charge_amount : 0;
 
 		if ($charge > 0 && (int) $token['quota_total'] > 0) {
 			$new_used = min((int) $token['quota_total'], (int) $token['quota_used'] + $charge);
@@ -539,6 +684,20 @@ class Reading_point_model extends CI_Model
 		return $nearest;
 	}
 
+	private function central_library()
+	{
+		if (! $this->db->table_exists('libraries')) {
+			return null;
+		}
+		return $this->db->select('id, name, code')
+			->from('libraries')
+			->where('status', 'active')
+			->where('code', '001')
+			->limit(1)
+			->get()
+			->row_array();
+	}
+
 	private function distance_meters($lat1, $lng1, $lat2, $lng2)
 	{
 		$earth = 6371000;
@@ -567,6 +726,14 @@ class Reading_point_model extends CI_Model
 	private function new_token()
 	{
 		return strtoupper(substr(hash('sha256', uniqid('', true) . random_int(100000, 999999)), 0, 24));
+	}
+
+	private function token_expiry_at($days)
+	{
+		$days = max(0, (int) $days);
+		return $days === 0
+			? date('Y-m-d 23:59:59')
+			: date('Y-m-d 23:59:59', strtotime('+' . $days . ' days'));
 	}
 
 	private function apply_point_filters(array $filters = [])

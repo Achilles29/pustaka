@@ -48,7 +48,7 @@ $error_msg = trim((string) ($error_msg ?? ''));
 				<div class="reader-gps-icon"><i class="ti ti-current-location"></i></div>
 				<div class="section-kicker">Validasi Reader</div>
 				<h1>Nyalakan GPS untuk mulai baca</h1>
-				<p>Sistem akan mendeteksi posisi Anda otomatis. Jika berada di Pojok Baca atau perpustakaan terdaftar, buku langsung terbuka dan token tidak berkurang. Jika berada di luar zona, akses memakai token baca luar lokasi.</p>
+				<p>Sistem akan mendeteksi posisi Anda otomatis. Jika berada di Pojok Baca atau perpustakaan terdaftar, buku langsung terbuka tanpa token dan tanpa kuota sesi. Jika berada di luar zona, akses memakai token baca luar lokasi.</p>
 
 				<?php if ($error_msg !== ''): ?>
 					<div class="alert alert-danger reader-gps-alert">
@@ -69,7 +69,7 @@ $error_msg = trim((string) ($error_msg ?? ''));
 				</div>
 
 				<div class="reader-gps-flow">
-					<div><i class="ti ti-map-pin-check"></i><span>Di zona layanan</span><strong>Token aman</strong></div>
+					<div><i class="ti ti-map-pin-check"></i><span>Di zona layanan</span><strong>Bebas tanpa token</strong></div>
 					<div><i class="ti ti-route"></i><span>Di luar zona</span><strong>Token -1</strong></div>
 					<div><i class="ti ti-shield-lock"></i><span>PDF aman</span><strong>Tanpa file publik</strong></div>
 				</div>

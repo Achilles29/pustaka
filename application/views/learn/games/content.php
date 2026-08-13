@@ -1,6 +1,6 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
 <?php
-$can_manage = $this->can('learn_games.index', 'create');
+$can_manage = ! empty($can_manage);
 $difficulty_labels = ['easy' => 'Mudah', 'medium' => 'Sedang', 'hard' => 'Sulit'];
 $difficulty_colors = ['easy' => 'bg-success-lt text-success', 'medium' => 'bg-yellow-lt text-yellow', 'hard' => 'bg-red-lt text-red'];
 ?>

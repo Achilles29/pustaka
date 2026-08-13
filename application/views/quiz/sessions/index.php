@@ -1,6 +1,7 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
-$status_labels = ['draft'=>'Draft','open'=>'Buka','closed'=>'Ditutup'];
-$status_colors = ['draft'=>'bg-secondary','open'=>'bg-success','closed'=>'bg-warning'];
+$status_labels = ['draft'=>'Draft','open'=>'Buka','ongoing'=>'Berlangsung','closed'=>'Ditutup','archived'=>'Arsip'];
+$status_colors = ['draft'=>'bg-secondary-lt text-secondary','open'=>'bg-success-lt text-success','ongoing'=>'bg-blue-lt text-blue','closed'=>'bg-orange-lt text-orange','archived'=>'bg-dark-lt text-dark'];
+$status_icons = ['draft'=>'ti-pencil','open'=>'ti-lock-open','ongoing'=>'ti-player-play','closed'=>'ti-lock','archived'=>'ti-archive'];
 $difficulty_labels = ['easy'=>'Mudah','medium'=>'Sedang','hard'=>'Sulit','mixed'=>'Campuran'];
 $page_url = function($p) use ($filters) { return base_url('quiz-sessions?'.http_build_query(array_merge($filters,['page'=>$p]))); };
 ?>
@@ -25,6 +26,14 @@ $page_url = function($p) use ($filters) { return base_url('quiz-sessions?'.http_
                 <span class="metric-icon"><i class="<?=$m['icon']?>"></i></span>
                 <div><div class="metric-value"><?= number_format((int)($stats[$m['key']]??0),0,',','.'); ?></div><div class="metric-label"><?=$m['label']?></div></div>
             </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div class="nav workspace-tabs quiz-session-tabs quiz-session-status-tabs mb-3" aria-label="Status sesi latihan">
+            <?php $tab_base = $filters; unset($tab_base['page'], $tab_base['status']); ?>
+            <?php foreach ([''=>'Semua','open'=>'Buka','ongoing'=>'Berlangsung','draft'=>'Draft','closed'=>'Ditutup','archived'=>'Arsip'] as $key => $label): ?>
+                <?php $count_key = $key === '' ? 'total' : $key; ?>
+                <a class="nav-link <?= ($filters['status'] ?? '') === $key ? 'active' : ''; ?>" href="<?= base_url('quiz-sessions?' . http_build_query(array_merge($tab_base, $key === '' ? [] : ['status' => $key]))); ?>"><span><?= $label; ?></span><span class="badge quiz-session-tab-count"><?= number_format((int) ($stats[$count_key] ?? 0), 0, ',', '.'); ?></span></a>
             <?php endforeach; ?>
         </div>
 
@@ -76,7 +85,7 @@ $page_url = function($p) use ($filters) { return base_url('quiz-sessions?'.http_
                         <td>
                             <a href="<?= base_url('quiz-sessions/attempts/'.$sess['id']); ?>" class="badge bg-blue-lt"><?= number_format((int)$sess['attempt_count'],0,',','.'); ?> attempt</a>
                         </td>
-                        <td><span class="badge <?= $status_colors[$sess['status']]??'bg-secondary'; ?>"><?= $status_labels[$sess['status']]??$sess['status']; ?></span></td>
+                        <td><span class="badge <?= $status_colors[$sess['status']]??'bg-secondary-lt text-secondary'; ?>"><i class="ti <?= $status_icons[$sess['status']] ?? 'ti-help'; ?> me-1"></i><?= $status_labels[$sess['status']]??$sess['status']; ?></span></td>
                         <td>
                             <div class="btn-list flex-nowrap">
                                 <?php if($can_edit): ?>

@@ -2,7 +2,7 @@
 
 ## Tujuan
 
-Token Pojok Baca dipakai untuk membuka koleksi digital dari mana saja selama token masih tersedia. Token juga menjadi instrumen agar kunjungan fisik tetap tinggi: ketika kuota habis, member harus melakukan update token melalui perpustakaan daerah atau titik layanan yang ditentukan.
+Token luar zona dipakai untuk membuka koleksi digital dari luar zona layanan selama kuota masih tersedia. Pojok Baca dan perpustakaan terdaftar GIS bukan penerbit token: keduanya memberi akses online bebas tanpa token maupun kuota sesi.
 
 ## Alur Member
 
@@ -10,21 +10,21 @@ Token Pojok Baca dipakai untuk membuka koleksi digital dari mana saja selama tok
 2. Member membuka katalog atau dashboard lalu menekan `Baca Online`.
 3. Untuk koleksi `location_only`, halaman reader meminta member menyalakan GPS.
 4. Sistem membandingkan koordinat member dengan titik aktif di `reading_points` dan perpustakaan aktif di `libraries`.
-5. Jika masuk radius Pojok Baca/perpustakaan, reader langsung terbuka dan kuota token tidak berkurang.
+5. Jika masuk radius Pojok Baca/perpustakaan, reader langsung terbuka tanpa token dan tanpa kuota sesi.
 6. Jika berada di luar radius, sistem memakai token aktif di `reading_tokens` dan mengurangi kuota sesuai satuan token.
 7. Jika token luar zona tidak tersedia atau kuota habis, member harus login/check-in di perpustakaan daerah atau titik layanan untuk update token.
-8. Halaman `/user/reading-checkin` tetap tersedia untuk menerbitkan token luar zona melalui check-in GPS di titik layanan.
+8. Halaman `/user/reading-checkin` memverifikasi GPS dan mencatat kehadiran di zona gratis; halaman ini tidak menerbitkan token.
 
 ## Aturan Token
 
-- Satu token diterbitkan untuk satu member dan satu titik Pojok Baca/perpustakaan layanan.
+- Token diterbitkan melalui Buku Tamu Perpustakaan Daerah, persetujuan permohonan, atau Arena Belajar; bukan melalui check-in Pojok Baca/GIS.
 - Token memakai kuota dari pengaturan titik:
   - `minutes`,
   - `pages`,
   - `books`.
 - Masa berlaku default token adalah hari yang sama sampai `23:59:59`.
 - Token yang melewati masa berlaku otomatis dianggap `expired`.
-- Jika member masih punya token aktif di titik yang sama, sistem tidak membuat token baru.
+- Check-in GPS di Pojok Baca/GIS tidak mengubah token aktif yang telah dimiliki member.
 - Token dapat dicabut admin dengan status `revoked` jika ada penyalahgunaan.
 - Kuota `0` dapat dipakai sebagai kebijakan unlimited pada titik tertentu.
 
@@ -69,6 +69,7 @@ Token Pojok Baca dipakai untuk membuka koleksi digital dari mana saja selama tok
 - Kunjungan rombongan dicatat dengan `visitor_count`, `group_name`, dan `group_leader_name`.
 - Member yang tidak scan QR dapat dicatat lewat tab `Member` memakai NIK atau nomor anggota.
 - Kunjungan fisik monitor masuk ke `member_visits`, bukan tabel terpisah, agar laporan layanan harian tetap satu pintu.
+- Check-in member di monitor Perpustakaan Daerah, baik lewat QR maupun tab `Member`, otomatis menerbitkan token kunjungan sesuai kuota, masa berlaku, dan batas harian pada menu **Pengaturan Token**. Ini terpisah dari check-in GPS Pojok Baca/GIS yang hanya memverifikasi akses bebas.
 
 ## Catatan Implementasi Saat Ini
 
@@ -81,6 +82,6 @@ Token Pojok Baca dipakai untuk membuka koleksi digital dari mana saja selama tok
   - di zona Pojok Baca/perpustakaan: akses langsung, `quota_charged = 0`, `reading_point_id`/`library_id` tersimpan jika tersedia,
   - di luar zona: token aktif wajib tersedia dan kuota berkurang.
 - Kunjungan dashboard member dicatat sekali per member per hari sebagai `member_dashboard`.
-- Kunjungan Pojok Baca dari check-in GPS dicatat sebagai `reading_point`.
+- Kunjungan Pojok Baca dari check-in GPS dicatat sebagai `reading_point` tanpa token.
 - Monitor buku tamu awal tersedia di `/guestbook/monitor` dengan QR dinamis dan form tamu/member.
 - Renderer PDF aman non-public sudah tersedia untuk aset non-downloadable melalui render per halaman/gambar ber-watermark, audit sesi, dan rate limit.

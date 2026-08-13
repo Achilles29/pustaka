@@ -53,6 +53,8 @@ $room_status = [
         </div></div></div></div>
     </div>
 
+    <div class="card mb-4"><div class="card-header"><h3 class="card-title"><i class="ti ti-tournament me-2"></i>Sesi Battle</h3><?php if($can_create): ?><div class="card-actions"><a href="<?= base_url('learn-battle/sessions/create'); ?>" class="btn btn-primary btn-sm"><i class="ti ti-plus"></i> Buat Sesi</a></div><?php endif; ?></div><div class="table-responsive"><table class="table card-table"><thead><tr><th>Judul</th><th>Status</th><th>Soal</th><th>Waktu</th><th>Pemain</th><th></th></tr></thead><tbody><?php foreach($sessions as $s): ?><tr><td><strong><?= html_escape($s['title']); ?></strong><br><code><?= html_escape($s['code']); ?></code></td><td><span class="badge <?= $s['status']==='open'?'bg-success-lt text-success':'bg-secondary-lt'; ?>"><?= html_escape($s['status']); ?></span></td><td><?= (int)$s['question_count']; ?> dari <?= (int)$s['question_pool_count']; ?></td><td><?= (int)$s['time_limit_seconds']; ?> detik</td><td><?= $s['max_players']===null?'Tanpa batas':(int)$s['max_players']; ?></td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= base_url('learn-battle/sessions/questions/'.$s['id']); ?>">Soal</a> <a class="btn btn-sm btn-outline-secondary" href="<?= base_url('learn-battle/sessions/edit/'.$s['id']); ?>">Edit</a></td></tr><?php endforeach; ?></tbody></table></div></div>
+
     <div class="row g-3">
         <div class="col-lg-8">
             <div class="card">

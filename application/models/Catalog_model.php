@@ -138,7 +138,7 @@ class Catalog_model extends CI_Model
 		$this->apply_public_book_filters($filters);
 
 		return $this->db
-			->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS public_item_count, SUM(CASE WHEN i.status = 'available' THEN 1 ELSE 0 END) AS available_count, COUNT(DISTINCT da.id) AS digital_asset_count, MIN(da.id) AS first_digital_asset_id, GROUP_CONCAT(DISTINCT NULLIF(i.collection_type, '') ORDER BY i.collection_type SEPARATOR ', ') AS collection_types", false)
+			->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS public_item_count, SUM(CASE WHEN i.status = 'available' AND i.is_loanable = 1 THEN 1 ELSE 0 END) AS available_count, SUM(CASE WHEN i.status = 'reserved' AND i.is_loanable = 1 THEN 1 ELSE 0 END) AS reserved_count, SUM(CASE WHEN i.status = 'loaned' AND i.is_loanable = 1 THEN 1 ELSE 0 END) AS loaned_count, COUNT(DISTINCT da.id) AS digital_asset_count, MIN(da.id) AS first_digital_asset_id, GROUP_CONCAT(DISTINCT NULLIF(i.collection_type, '') ORDER BY i.collection_type SEPARATOR ', ') AS collection_types, (SELECT GROUP_CONCAT(g.name ORDER BY g.sort_order SEPARATOR ' · ') FROM book_textbook_grade_tags gt JOIN textbook_grade_levels g ON g.id = gt.grade_level_id WHERE gt.book_id = b.id) AS textbook_grade_names, (SELECT GROUP_CONCAT(s.name ORDER BY s.sort_order SEPARATOR ' · ') FROM book_textbook_subject_tags st JOIN textbook_subjects s ON s.id = st.subject_id WHERE st.book_id = b.id) AS textbook_subject_names", false)
 			->join('digital_assets da', "da.book_id = b.id AND da.status = 'active'", 'left')
 			->group_by('b.id')
 			->order_by('b.title', 'ASC')
@@ -147,10 +147,41 @@ class Catalog_model extends CI_Model
 			->result_array();
 	}
 
+	/**
+	 * Pilihan katalog untuk halaman publik. ID dipilih terlebih dahulu agar
+	 * pengacakan tetap merata meski satu judul memiliki banyak eksemplar.
+	 */
+	public function get_random_public_books(array $filters = [], $limit = 9)
+	{
+		$limit = max(1, min(18, (int) $limit));
+		$this->apply_public_book_filters($filters);
+		$id_rows = $this->db
+			->select('b.id')
+			->group_by('b.id')
+			->order_by('RAND()', '', false)
+			->limit($limit)
+			->get()
+			->result_array();
+		$ids = array_values(array_filter(array_map('intval', array_column($id_rows, 'id'))));
+		if (empty($ids)) return [];
+
+		return $this->db
+			->select("b.*, cc.name AS content_category_name, COUNT(DISTINCT i.id) AS public_item_count, SUM(CASE WHEN i.status = 'available' AND i.is_loanable = 1 THEN 1 ELSE 0 END) AS available_count, COUNT(DISTINCT da.id) AS digital_asset_count, MIN(da.id) AS first_digital_asset_id", false)
+			->from('books b')
+			->join('book_items i', 'i.book_id = b.id AND i.deleted_at IS NULL AND i.is_public = 1', 'left')
+			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
+			->join('digital_assets da', "da.book_id = b.id AND da.status = 'active'", 'left')
+			->where_in('b.id', $ids)
+			->group_by('b.id')
+			->order_by('FIELD(b.id,' . implode(',', $ids) . ')', '', false)
+			->get()
+			->result_array();
+	}
+
 	public function get_public_book($id)
 	{
 		$this->db
-			->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS public_item_count, SUM(CASE WHEN i.status = 'available' THEN 1 ELSE 0 END) AS available_count", false)
+			->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name, COUNT(DISTINCT i.id) AS public_item_count, SUM(CASE WHEN i.status = 'available' AND i.is_loanable = 1 THEN 1 ELSE 0 END) AS available_count, SUM(CASE WHEN i.status = 'reserved' AND i.is_loanable = 1 THEN 1 ELSE 0 END) AS reserved_count, SUM(CASE WHEN i.status = 'loaned' AND i.is_loanable = 1 THEN 1 ELSE 0 END) AS loaned_count, (SELECT GROUP_CONCAT(g.name ORDER BY g.sort_order SEPARATOR ' · ') FROM book_textbook_grade_tags gt JOIN textbook_grade_levels g ON g.id = gt.grade_level_id WHERE gt.book_id = b.id) AS textbook_grade_names, (SELECT GROUP_CONCAT(s.name ORDER BY s.sort_order SEPARATOR ' · ') FROM book_textbook_subject_tags st JOIN textbook_subjects s ON s.id = st.subject_id WHERE st.book_id = b.id) AS textbook_subject_names", false)
 			->from('books b')
 			->join('book_items i', 'i.book_id = b.id AND i.deleted_at IS NULL AND i.is_public = 1', 'left')
 			->join('book_content_categories cc', 'cc.id = b.content_category_id', 'left')
@@ -246,10 +277,15 @@ class Catalog_model extends CI_Model
 				'popular' => $this->get_dashboard_shelf('popular', true, $limit),
 				'newest' => $this->get_dashboard_shelf('newest', true, $limit),
 			],
+			'textbooks' => [
+				'random' => $this->get_dashboard_shelf('random', false, $limit, true),
+				'popular' => $this->get_dashboard_shelf('popular', false, $limit, true),
+				'newest' => $this->get_dashboard_shelf('newest', false, $limit, true),
+			],
 		];
 	}
 
-	private function get_dashboard_shelf($sort, $digital_only, $limit)
+	private function get_dashboard_shelf($sort, $digital_only, $limit, $textbook_only = false)
 	{
 		$has_digital = "EXISTS (SELECT 1 FROM digital_assets da_filter WHERE da_filter.book_id = b.id AND da_filter.status = 'active' AND da_filter.reader_audience = 'member')";
 		$digital_asset = "(SELECT MIN(da_asset.id) FROM digital_assets da_asset WHERE da_asset.book_id = b.id AND da_asset.status = 'active' AND da_asset.reader_audience = 'member')";
@@ -266,6 +302,9 @@ class Catalog_model extends CI_Model
 		if ($digital_only) {
 			$builder->where($has_digital, null, false);
 		}
+		if ($textbook_only) {
+			$builder->where('cc.code', 'buku-pelajaran');
+		}
 
 		if ($sort === 'popular') {
 			$builder->order_by("({$physical_reads} + {$digital_reads})", 'DESC', false)
@@ -280,6 +319,74 @@ class Catalog_model extends CI_Model
 			->limit($limit)
 			->get()
 			->result_array();
+	}
+
+	public function get_textbook_grade_levels($active_only = true)
+	{
+		if (! $this->db->table_exists('textbook_grade_levels')) return [];
+		$builder = $this->db->from('textbook_grade_levels');
+		if ($active_only) $builder->where('is_active', 1);
+		return $builder->order_by('sort_order', 'ASC')->order_by('name', 'ASC')->get()->result_array();
+	}
+
+	public function get_textbook_subjects($active_only = true)
+	{
+		if (! $this->db->table_exists('textbook_subjects')) return [];
+		$builder = $this->db->from('textbook_subjects');
+		if ($active_only) $builder->where('is_active', 1);
+		return $builder->order_by('sort_order', 'ASC')->order_by('name', 'ASC')->get()->result_array();
+	}
+
+	public function get_textbook_filter_options()
+	{
+		$empty = ['grade_levels' => [], 'subjects' => []];
+		if (! $this->db->table_exists('book_textbook_grade_tags') || ! $this->db->table_exists('book_textbook_subject_tags')) return $empty;
+
+		$grade_levels = $this->db
+			->select('g.*, COUNT(DISTINCT b.id) AS total', false)
+			->from('textbook_grade_levels g')
+			->join('book_textbook_grade_tags gt', 'gt.grade_level_id = g.id', 'inner')
+			->join('books b', "b.id = gt.book_id AND b.status = 'published' AND b.deleted_at IS NULL", 'inner')
+			->join('book_content_categories cc', "cc.id = b.content_category_id AND cc.code = 'buku-pelajaran'", 'inner')
+			->where('g.is_active', 1)
+			->group_by('g.id')
+			->having('total >', 0)
+			->order_by('g.sort_order', 'ASC')->get()->result_array();
+		$subjects = $this->db
+			->select('s.*, COUNT(DISTINCT b.id) AS total', false)
+			->from('textbook_subjects s')
+			->join('book_textbook_subject_tags st', 'st.subject_id = s.id', 'inner')
+			->join('books b', "b.id = st.book_id AND b.status = 'published' AND b.deleted_at IS NULL", 'inner')
+			->join('book_content_categories cc', "cc.id = b.content_category_id AND cc.code = 'buku-pelajaran'", 'inner')
+			->where('s.is_active', 1)
+			->group_by('s.id')
+			->having('total >', 0)
+			->order_by('s.sort_order', 'ASC')->get()->result_array();
+
+		return compact('grade_levels', 'subjects');
+	}
+
+	public function get_book_textbook_tags($book_id)
+	{
+		$result = ['grades' => [], 'subjects' => []];
+		if (! $this->db->table_exists('book_textbook_grade_tags') || ! $this->db->table_exists('book_textbook_subject_tags')) return $result;
+		$result['grades'] = $this->db->select('g.*')->from('book_textbook_grade_tags gt')->join('textbook_grade_levels g', 'g.id = gt.grade_level_id')->where('gt.book_id', (int) $book_id)->order_by('g.sort_order', 'ASC')->get()->result_array();
+		$result['subjects'] = $this->db->select('s.*')->from('book_textbook_subject_tags st')->join('textbook_subjects s', 's.id = st.subject_id')->where('st.book_id', (int) $book_id)->order_by('s.sort_order', 'ASC')->get()->result_array();
+		return $result;
+	}
+
+	public function save_book_textbook_tags($book_id, array $grade_ids, array $subject_ids)
+	{
+		if (! $this->db->table_exists('book_textbook_grade_tags') || ! $this->db->table_exists('book_textbook_subject_tags')) return;
+		$grade_ids = array_values(array_unique(array_filter(array_map('intval', $grade_ids))));
+		$subject_ids = array_values(array_unique(array_filter(array_map('intval', $subject_ids))));
+		$this->db->trans_start();
+		$this->db->where('book_id', (int) $book_id)->delete('book_textbook_grade_tags');
+		$this->db->where('book_id', (int) $book_id)->delete('book_textbook_subject_tags');
+		foreach ($grade_ids as $grade_id) $this->db->insert('book_textbook_grade_tags', ['book_id' => (int) $book_id, 'grade_level_id' => $grade_id]);
+		foreach ($subject_ids as $subject_id) $this->db->insert('book_textbook_subject_tags', ['book_id' => (int) $book_id, 'subject_id' => $subject_id]);
+		$this->db->trans_complete();
+		if (! $this->db->trans_status()) throw new RuntimeException('Tag buku pelajaran gagal disimpan.');
 	}
 
 	public function admin_filter_options($scope_library_id = null)
@@ -748,9 +855,19 @@ class Catalog_model extends CI_Model
 		if ($name === '') {
 			throw new RuntimeException('Nama pemohon wajib diisi.');
 		}
+		if ($member) {
+			$existing = (int) $this->db->where('member_id', (int) $member['id'])->where('book_id', (int) $book_id)
+				->where_in('status', ['pending', 'approved'])->count_all_results('book_requests');
+			if ($existing > 0) {
+				throw new RuntimeException('Member sudah memiliki request aktif untuk buku ini.');
+			}
+		}
 
 		$available_item = $this->first_available_public_item((int) $book_id);
-		$request_type = $available_item ? 'reservation' : 'request';
+		if (! $available_item) {
+			throw new RuntimeException('Semua eksemplar yang dapat dipinjam sedang tidak tersedia. Request peminjaman tidak dapat dibuat saat ini.');
+		}
+		$request_type = 'reservation';
 		$email = $this->clip($data['requester_email'] ?? ($member['email'] ?? null), 180);
 		$phone = $this->clip($data['requester_phone'] ?? ($member['phone'] ?? null), 80);
 
@@ -767,7 +884,24 @@ class Catalog_model extends CI_Model
 			'status' => 'pending',
 		];
 
-		$this->db->insert('book_requests', $payload);
+		$this->db->trans_begin();
+		try {
+			$this->db->where('id', (int) $available_item['id'])->where('status', 'available')->update('book_items', [
+				'status' => 'reserved',
+				'updated_at' => date('Y-m-d H:i:s'),
+			]);
+			if ($this->db->affected_rows() !== 1) {
+				throw new RuntimeException('Eksemplar baru saja direservasi oleh member lain. Silakan coba lagi.');
+			}
+			$this->db->insert('book_requests', $payload);
+			if (! $this->db->trans_status()) {
+				throw new RuntimeException('Request buku gagal disimpan.');
+			}
+			$this->db->trans_commit();
+		} catch (Throwable $e) {
+			$this->db->trans_rollback();
+			throw $e;
+		}
 		return [
 			'id' => (int) $this->db->insert_id(),
 			'code' => $payload['request_code'],
@@ -786,7 +920,14 @@ class Catalog_model extends CI_Model
 		$this->apply_book_request_filters($filters);
 
 		return $this->db
-			->select('br.*, b.title, b.call_number, bi.barcode, m.member_no, m.full_name AS member_name')
+			->select("br.*, b.title, b.call_number, bi.barcode, m.member_no, m.full_name AS member_name, li.loan_status AS linked_loan_status, li.actual_return_at AS linked_actual_return_at,
+				CASE
+					WHEN br.status = 'fulfilled' AND br.loan_transaction_item_id IS NULL THEN 'completed_legacy'
+					WHEN br.status = 'fulfilled' AND (li.actual_return_at IS NOT NULL OR UPPER(COALESCE(li.loan_status, '')) = 'RETURN') THEN 'returned'
+					WHEN br.status = 'fulfilled' THEN 'active'
+					ELSE br.status
+				END AS display_status", false)
+			->join('loan_transaction_items li', 'li.id = br.loan_transaction_item_id', 'left')
 			->order_by('br.created_at', 'DESC')
 			->order_by('br.id', 'DESC')
 			->limit(max(1, min(100, (int) $limit)), max(0, (int) $offset))
@@ -797,9 +938,16 @@ class Catalog_model extends CI_Model
 	public function get_member_book_requests($member_id, $limit = 5)
 	{
 		return $this->db
-			->select('br.*, b.title')
+			->select("br.*, b.title, li.loan_status AS linked_loan_status, li.actual_return_at AS linked_actual_return_at,
+				CASE
+					WHEN br.status = 'fulfilled' AND br.loan_transaction_item_id IS NULL THEN 'completed_legacy'
+					WHEN br.status = 'fulfilled' AND (li.actual_return_at IS NOT NULL OR UPPER(COALESCE(li.loan_status, '')) = 'RETURN') THEN 'returned'
+					WHEN br.status = 'fulfilled' THEN 'active'
+					ELSE br.status
+				END AS display_status", false)
 			->from('book_requests br')
 			->join('books b', 'b.id = br.book_id', 'left')
+			->join('loan_transaction_items li', 'li.id = br.loan_transaction_item_id', 'left')
 			->where('br.member_id', (int) $member_id)
 			->order_by('br.created_at', 'DESC')
 			->limit(max(1, min(20, (int) $limit)))
@@ -809,7 +957,29 @@ class Catalog_model extends CI_Model
 
 	public function update_book_request_status($id, $status, $admin_note, $processed_by)
 	{
-		$status = in_array($status, ['approved', 'rejected', 'fulfilled', 'cancelled'], true) ? $status : 'pending';
+		$status = trim((string) $status);
+		if (! in_array($status, ['approved', 'rejected', 'cancelled'], true)) {
+			throw new RuntimeException('Status request tidak valid. Peminjaman hanya boleh dicatat melalui tombol Serahkan & Catat Pinjam.');
+		}
+		$request = $this->db->from('book_requests')->where('id', (int) $id)->limit(1)->get()->row_array();
+		if (! $request) {
+			throw new RuntimeException('Request buku tidak ditemukan.');
+		}
+		if (($request['status'] ?? '') === 'fulfilled') {
+			throw new RuntimeException('Request yang sudah menjadi peminjaman tidak dapat diubah. Kelola melalui transaksi peminjaman.');
+		}
+		$current_status = (string) ($request['status'] ?? 'pending');
+		if (($current_status === 'pending' && ! in_array($status, ['approved', 'rejected', 'cancelled'], true)) || ($current_status === 'approved' && $status !== 'cancelled') || in_array($current_status, ['rejected', 'cancelled'], true)) {
+			throw new RuntimeException('Perubahan status request tidak sesuai alur layanan.');
+		}
+		$this->db->trans_begin();
+		try {
+			if (in_array($status, ['rejected', 'cancelled'], true) && in_array(($request['status'] ?? ''), ['pending', 'approved'], true) && ! empty($request['book_item_id'])) {
+				$this->db->where('id', (int) $request['book_item_id'])->where('status', 'reserved')->update('book_items', [
+					'status' => 'available',
+					'updated_at' => date('Y-m-d H:i:s'),
+				]);
+			}
 		$this->db
 			->where('id', (int) $id)
 			->update('book_requests', [
@@ -818,8 +988,15 @@ class Catalog_model extends CI_Model
 				'processed_by' => (int) $processed_by ?: null,
 				'processed_at' => date('Y-m-d H:i:s'),
 			]);
-
-		return $this->db->affected_rows() >= 0;
+			if (! $this->db->trans_status()) {
+				throw new RuntimeException('Status request gagal diperbarui.');
+			}
+			$this->db->trans_commit();
+			return true;
+		} catch (Throwable $e) {
+			$this->db->trans_rollback();
+			throw $e;
+		}
 	}
 
 	private function apply_public_book_filters(array $filters = [])
@@ -833,18 +1010,7 @@ class Catalog_model extends CI_Model
 			->where('b.status', 'published')
 			->where('b.deleted_at IS NULL', null, false);
 
-		$q = trim((string) ($filters['q'] ?? ''));
-		if ($q !== '') {
-			$this->db->group_start()
-				->like('b.title', $q)
-				->or_like('b.statement_responsibility', $q)
-				->or_like('b.publisher', $q)
-				->or_like('b.isbn', $q)
-				->or_like('b.call_number', $q)
-				->or_like('i.barcode', $q)
-				->or_like('i.location_name', $q)
-				->group_end();
-		}
+		$this->apply_catalog_keyword_search($filters['q'] ?? '', true);
 
 		$category = trim((string) ($filters['category'] ?? ''));
 		if ($category !== '') {
@@ -864,6 +1030,18 @@ class Catalog_model extends CI_Model
 		$content_classification = (int) ($filters['content_classification_id'] ?? 0);
 		if ($content_classification > 0) {
 			$this->db->where('b.content_classification_id', $content_classification);
+		}
+
+		if (! empty($filters['textbook_only'])) {
+			$this->db->where('cc.code', 'buku-pelajaran');
+		}
+		$textbook_grade_id = (int) ($filters['textbook_grade_id'] ?? 0);
+		if ($textbook_grade_id > 0 && $this->db->table_exists('book_textbook_grade_tags')) {
+			$this->db->where("EXISTS (SELECT 1 FROM book_textbook_grade_tags textbook_grade_filter WHERE textbook_grade_filter.book_id = b.id AND textbook_grade_filter.grade_level_id = {$textbook_grade_id})", null, false);
+		}
+		$textbook_subject_id = (int) ($filters['textbook_subject_id'] ?? 0);
+		if ($textbook_subject_id > 0 && $this->db->table_exists('book_textbook_subject_tags')) {
+			$this->db->where("EXISTS (SELECT 1 FROM book_textbook_subject_tags textbook_subject_filter WHERE textbook_subject_filter.book_id = b.id AND textbook_subject_filter.subject_id = {$textbook_subject_id})", null, false);
 		}
 
 		$media = trim((string) ($filters['media'] ?? ''));
@@ -892,6 +1070,7 @@ class Catalog_model extends CI_Model
 		$availability = trim((string) ($filters['availability'] ?? ''));
 		if ($availability === 'available') {
 			$this->db->where('i.status', 'available');
+			$this->db->where('i.is_loanable', 1);
 		} elseif ($availability === 'with_items') {
 			$this->db->where('i.id IS NOT NULL', null, false);
 		} elseif ($availability === 'digital') {
@@ -906,6 +1085,7 @@ class Catalog_model extends CI_Model
 			->where('book_id', (int) $book_id)
 			->where('deleted_at IS NULL', null, false)
 			->where('is_public', 1)
+			->where('is_loanable', 1)
 			->where('status', 'available')
 			->order_by('id', 'ASC')
 			->limit(1)
@@ -1156,17 +1336,7 @@ class Catalog_model extends CI_Model
 			$this->db->where('i.library_id', (int) $scope_library_id);
 		}
 
-		$q = trim((string) ($filters['q'] ?? ''));
-		if ($q !== '') {
-			$this->db->group_start()
-				->like('b.title', $q)
-				->or_like('b.statement_responsibility', $q)
-				->or_like('b.publisher', $q)
-				->or_like('b.isbn', $q)
-				->or_like('b.call_number', $q)
-				->or_like('i.barcode', $q)
-				->group_end();
-		}
+		$this->apply_catalog_keyword_search($filters['q'] ?? '');
 
 		$status = trim((string) ($filters['status'] ?? ''));
 		if (in_array($status, ['draft', 'published', 'hidden'], true)) {
@@ -1232,6 +1402,41 @@ class Catalog_model extends CI_Model
 		$year = trim((string) ($filters['publish_year'] ?? ''));
 		if ($year !== '') {
 			$this->db->where('b.publish_year', $year);
+		}
+	}
+
+	/**
+	 * Pencarian katalog berbasis kata. Data sumber INLISLite kadang memiliki
+	 * spasi ganda/baris baru pada judul; memecah input menjadi kata membuat
+	 * pencarian tetap menemukan judul tersebut tanpa mengorbankan pencarian
+	 * ISBN, pengarang, atau barcode.
+	 */
+	private function apply_catalog_keyword_search($query, $include_location = false)
+	{
+		$query = trim((string) $query);
+		if ($query === '') {
+			return;
+		}
+		$terms = preg_split('/[\s\p{Z}]+/u', $query, -1, PREG_SPLIT_NO_EMPTY);
+		foreach ($terms as $term) {
+			// Nomor jilid/kelas yang pendek harus cocok pada judul. Bila dicari
+			// ke semua metadata, angka seperti "1" akan mengenai call number
+			// atau barcode buku lain dan hasilnya menjadi menyesatkan.
+			if (preg_match('/^\d+$/', $term)) {
+				$this->db->group_start()->like('b.title', $term)->group_end();
+				continue;
+			}
+			$this->db->group_start()
+				->like('b.title', $term)
+				->or_like('b.statement_responsibility', $term)
+				->or_like('b.publisher', $term)
+				->or_like('b.isbn', $term)
+				->or_like('b.call_number', $term)
+				->or_like('i.barcode', $term);
+			if ($include_location) {
+				$this->db->or_like('i.location_name', $term);
+			}
+			$this->db->group_end();
 		}
 	}
 
@@ -1567,6 +1772,14 @@ class Catalog_model extends CI_Model
 				->row_array();
 
 			if ($existing) {
+				// Status sirkulasi lokal lebih baru daripada snapshot INLISLite.
+				// Jangan sampai sync menghidupkan kembali item yang sedang ditahan
+				// untuk reservasi atau sedang dipinjam melalui aplikasi ini.
+				if (($existing['status'] ?? '') === 'reserved' && $this->has_active_item_reservation((int) $existing['id'])) {
+					$payload['status'] = 'reserved';
+				} elseif (($existing['status'] ?? '') === 'loaned' && $this->has_active_local_loan((int) $existing['id'])) {
+					$payload['status'] = 'loaned';
+				}
 				$this->db->where('id', (int) $existing['id'])->update('book_items', $payload);
 				$item_id = (int) $existing['id'];
 				$updated++;
@@ -1632,6 +1845,26 @@ class Catalog_model extends CI_Model
 		}
 	}
 
+	private function has_active_item_reservation($item_id)
+	{
+		return $this->db->from('book_requests')
+			->where('book_item_id', (int) $item_id)
+			->where_in('status', ['pending', 'approved'])
+			->limit(1)
+			->count_all_results() > 0;
+	}
+
+	private function has_active_local_loan($item_id)
+	{
+		return $this->db->from('loan_transaction_items')
+			->where('book_item_id', (int) $item_id)
+			->where('source_system', 'pustaka')
+			->where('actual_return_at IS NULL', null, false)
+			->where("UPPER(COALESCE(loan_status, '')) = 'LOAN'", null, false)
+			->limit(1)
+			->count_all_results() > 0;
+	}
+
 	private function book_item_payload($book_id, array $data)
 	{
 		$payload = [
@@ -1648,8 +1881,9 @@ class Catalog_model extends CI_Model
 			'call_number' => $this->clip($data['call_number'] ?? null, 120),
 			'inventory_number' => $this->clip($data['inventory_number'] ?? null, 120),
 			'collection_type' => $this->clip($data['collection_type'] ?? null, 120),
-			'status' => in_array(($data['status'] ?? 'unknown'), ['available', 'loaned', 'missing', 'damaged', 'unknown'], true) ? $data['status'] : 'unknown',
+			'status' => in_array(($data['status'] ?? 'unknown'), ['available', 'reserved', 'loaned', 'missing', 'damaged', 'unknown'], true) ? $data['status'] : 'unknown',
 			'is_public' => ! empty($data['is_public']) ? 1 : 0,
+			'is_loanable' => ! empty($data['is_loanable']) ? 1 : 0,
 			'updated_at' => date('Y-m-d H:i:s'),
 		];
 

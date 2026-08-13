@@ -31,7 +31,7 @@ $display_name = $member['full_name'] ?? ($account['full_name'] ?? $current_user[
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810a'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812h'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -57,6 +57,7 @@ $display_name = $member['full_name'] ?? ($account['full_name'] ?? $current_user[
 		<a href="<?= base_url('agenda'); ?>"><i class="ti ti-calendar-event"></i><span>Agenda</span></a>
 		<a href="<?= base_url('user/dashboard'); ?>"><i class="ti ti-id"></i><span>Dashboard</span></a>
 		<a href="<?= base_url('user/account'); ?>" class="active"><i class="ti ti-user-cog"></i><span>Akun</span></a>
+		<a href="<?= base_url('logout'); ?>"><i class="ti ti-logout"></i><span>Keluar</span></a>
 	</nav>
 
 	<main class="user-dashboard user-dashboard-v2">

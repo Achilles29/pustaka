@@ -16,6 +16,7 @@
         .q-card { background:#fff; border-radius:14px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,.06); border-left:5px solid #dee2e6; }
         .q-card.correct { border-left-color:#2ecc71; }
         .q-card.incorrect { border-left-color:#e74c3c; }
+        .q-card.unanswered { border-left-color:#94a3b8; }
         .q-card.essay-card { border-left-color:#3498db; }
         .q-num { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#999; margin-bottom:8px; }
         .q-text { font-size:1rem; line-height:1.7; margin-bottom:16px; }
@@ -31,6 +32,7 @@
         .score-chip.incorrect { background:#fdecea; color:#922b21; }
         .score-chip.partial { background:#fef9e7; color:#9a7d0a; }
         .score-chip.pending { background:#eaf3fb; color:#1a5276; }
+        .score-chip.unanswered { background:#f1f5f9; color:#475569; }
     </style>
 </head>
 <body>
@@ -52,8 +54,8 @@
     <?php $num++; ?>
 
     <?php if($ans['type'] === 'multiple_choice'): ?>
-    <?php $is_correct = (bool)$ans['is_correct']; ?>
-    <div class="q-card <?= $is_correct ? 'correct' : 'incorrect'; ?>">
+    <?php $is_answered = $ans['selected_option'] !== null; $is_correct = $is_answered && (bool)$ans['is_correct']; ?>
+    <div class="q-card <?= !$is_answered ? 'unanswered' : ($is_correct ? 'correct' : 'incorrect'); ?>">
         <div class="q-num">Soal <?= $num; ?></div>
         <div class="q-text"><?= nl2br(html_escape($ans['question_text'])); ?></div>
 
@@ -75,8 +77,8 @@
         <?php endforeach; ?>
 
         <div class="d-flex justify-content-between align-items-center mt-3">
-            <span class="score-chip <?= $is_correct ? 'correct' : 'incorrect'; ?>">
-                <?= $is_correct ? '<i class="ti ti-check me-1"></i>Benar' : '<i class="ti ti-x me-1"></i>Salah'; ?>
+            <span class="score-chip <?= !$is_answered ? 'unanswered' : ($is_correct ? 'correct' : 'incorrect'); ?>">
+                <?= !$is_answered ? '<i class="ti ti-minus me-1"></i>Tidak dijawab' : ($is_correct ? '<i class="ti ti-check me-1"></i>Benar' : '<i class="ti ti-x me-1"></i>Salah'); ?>
                 · <?= number_format((float)$ans['score_earned'],1); ?> / <?= $ans['score_weight']; ?> poin
             </span>
             <?php if($ans['explanation']): ?>

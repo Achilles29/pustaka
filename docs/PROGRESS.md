@@ -3202,3 +3202,75 @@ Status: tampilan Master Katalog dan zona waktu PHP diperbaiki.
 - Aset buku pelajaran dan Project Gutenberg dikunci menjadi `Member aktif | Render terkunci`; tidak ada lagi PDF utuh yang dapat diunduh.
 - Watermark render halaman Reader diperkecil, dibuat lebih transparan, dan hanya diletakkan satu kali di tengah halaman. Cache halaman lama dibersihkan agar perubahan langsung dipakai.
 - Setelah itu, seluruh 20 judul Project Gutenberg dilengkapi cover individual resmi dari mirror Gutenberg pada `assets/uploads/project-gutenberg/covers`; importer cover dapat dijalankan ulang melalui `tools/fetch_project_gutenberg_covers.php`.
+
+## 2026-08-12 — Monitor akses aplikasi
+
+- Menambahkan `site_access_logs` melalui `sql/2026-08-12a_site_access_monitoring.sql` dan mengaktifkan hook CodeIgniter setelah controller selesai diproses.
+- Akses halaman dinamis dicatat untuk tamu, member, dan petugas: halaman/route, metode, status respons, IP, perangkat, browser, sistem operasi, referrer, serta kode negara bila disediakan CDN/proxy.
+- Halaman admin `/access-monitor` menyediakan ringkasan hari ini, pencarian, filter pengunjung/perangkat/halaman/periode, dan pagination.
+- Menu berada pada Pengaturan Akses dan memerlukan permission `access_monitor.index`; diberikan ke SUPERADMIN serta ADMIN.
+- Lokasi tidak diambil dari GPS browser; yang disimpan hanya negara kasar dari header CDN bila tersedia. NIK, alamat, tanggal lahir, dan data identitas sensitif lain tidak direplikasi ke log akses.
+
+## 2026-08-12 — Override matriks pada import Bank Soal
+
+- Validasi impor kini membedakan kesalahan struktur soal dari peringatan cakupan matriks Kurikulum Merdeka.
+- Soal dengan struktur tidak lengkap tetap ditolak; peringatan matriks dapat di-override secara eksplisit untuk materi pengayaan atau level lebih lanjut.
+- Override hanya tersedia bagi pengguna dengan izin ubah Bank Soal dan selalu dicatat pada audit log import.
+
+## 2026-08-12 — Sirkulasi peminjaman fisik
+
+- Menambahkan migrasi `sql/2026-08-12b_physical_loan_circulation.sql`: pengaturan layanan pinjam, durasi standar, batas pinjaman aktif, dan flag `is_loanable` pada setiap eksemplar.
+- Petugas ADMIN/SUPERADMIN dapat mencatat peminjaman manual dari Request Buku/Transaksi Peminjaman dengan nomor anggota, NIK/nomor HP, serta barcode atau nomor induk eksemplar.
+- Peminjaman manual dan pengembalian memakai `loan_transactions` serta `loan_transaction_items` yang sama dengan histori INLISLite. Riwayat tampil terpadu dan sumbernya diberi label aplikasi atau INLISLite.
+- Status 165 transaksi `Loan` yang masih aktif telah diselaraskan ke eksemplar (`loaned`), sehingga katalog tidak lagi menawarkan request untuk buku yang sedang dipinjam.
+- Katalog publik menampilkan ketersediaan fisik, memblokir request ketika tidak tersedia, dan dashboard member menampilkan pinjaman aktif, jatuh tempo, keterlambatan, serta riwayat terbaru.
+
+### Pengembalian legacy dan konsistensi eksemplar
+
+- Menambahkan migrasi `sql/2026-08-12m_legacy_loan_local_returns.sql` untuk menyimpan pengembalian transaksi sumber INLISLite sebagai `local_return_at`, petugas, dan catatan lokal. Snapshot sumber INLISLite tidak diubah, sehingga refresh sinkronisasi tidak membuka kembali buku yang sudah diterima petugas.
+- `/catalog/loans` kini dapat menerima pengembalian untuk transaksi aplikasi maupun INLISLite. Transaksi legacy diberi penanda **kembali lokal** agar asal statusnya jelas.
+- Tombol **Selaraskan Eksemplar** di `/catalog/loans` mencocokkan setiap eksemplar pinjam dengan transaksi efektif (`Loan` tanpa tanggal kembali sumber maupun lokal), tanpa mengubah eksemplar reservasi, hilang, atau perbaikan.
+- Sinkronisasi transaksi INLISLite domain `loans` maupun `all` menjalankan penyelarasan eksemplar otomatis setelah import/refresh selesai.
+
+## 2026-08-12 — Sumber soal sesi latihan
+
+- `/quiz-sessions` memiliki tab status Semua, Buka, Berlangsung, Draft, Ditutup, dan Arsip dengan badge status yang lebih jelas.
+- Editor sesi memiliki tab Bank Soal dengan tiga pilihan sumber: acak dari bank sesuai filter sesi, daftar soal bank tertentu, atau bank khusus sesi.
+- Soal khusus sesi dapat diimpor langsung dengan alur pratinjau/validasi yang sama seperti import Bank Soal; disimpan sebagai soal aktif yang hanya dapat dipakai sesi tujuan.
+- Mesin pengerjaan latihan kini membaca sumber soal yang dipilih, bukan selalu mengacak bank soal global.
+
+## 2026-08-12 — Pelestarian dan digitalisasi naskah kuno
+
+- Menambahkan modul admin `/manuscripts` untuk input, edit, filter, status publikasi, akses preview, dan audit perubahan naskah kuno.
+- Rekam metadata mencakup nomor inventaris, judul/sebutan lokal, bahasa, aksara, media, halaman, ukuran, kondisi, periode, penyalin, asal, lokasi simpan, deskripsi isi, provenans, dan catatan konservasi.
+- Digitalisasi dicatat dengan tanggal, petugas, catatan proses, hak pemanfaatan, cover, dan preview PDF/citra. Preview disimpan pada `storage/manuscripts` dan dilayani controller, bukan URL berkas langsung.
+- Koleksi publik tersedia di `/naskah-kuno`, dengan filter, halaman detail, dan preview sesuai akses `Publik`, `Member`, atau `Internal`. Landing page serta dashboard pemustaka kini memiliki pintu masuk koleksi ini.
+- Migrasi: `sql/2026-08-12l_ancient_manuscripts_module.sql`.
+- Revisi input: hanya judul naskah yang wajib; nomor inventaris dapat dibuat otomatis, metadata lain boleh dilengkapi bertahap. Preview digital menerima PDF/citra hingga 200 MB, dengan batas PHP-FPM dan Nginx diselaraskan.
+
+## 2026-08-13 — Perbaikan ikon sidebar
+
+- Menambahkan migrasi `sql/2026-08-13a_fix_sidebar_menu_icons.sql` dan menerapkannya: Naskah Kuno memakai ikon `ti-feather`, Pengaturan Sistem memakai `ti-settings`, dan Reader PDF Aman memakai `ti-file-description`.
+- Nama ikon sebelumnya tidak tersedia pada Tabler Icons yang digunakan aplikasi sehingga hanya membentuk kotak kosong di sidebar.
+
+## 2026-08-13 — Viewer halaman naskah kuno
+
+- Menambahkan migrasi `sql/2026-08-13b_manuscript_page_viewer.sql` dan tabel `ancient_manuscript_pages` untuk citra scan per halaman.
+- Form Naskah Kuno kini menerima beberapa citra JPG/PNG/WEBP, memberi nomor halaman otomatis sesuai urutan berkas, dan menyimpan berkas di `storage/manuscripts/{id}/pages` yang tidak dapat diakses langsung dari web.
+- Detail koleksi memilih viewer halaman bila tersedia; viewer menyediakan daftar halaman, navigasi sebelumnya/berikutnya, serta zoom 50%–300% untuk membaca detail.
+- Akses viewer dan citra setiap halaman mengikuti hak `Publik`/`Member` yang sama dengan naskah; akses internal tidak disajikan ke publik. Pengambilan viewer/citra dicatat pada log pemanfaatan.
+
+### Pembacaan khusus member dan nuansa buka naskah
+
+- Endpoint preview tidak lagi mengirim PDF/citra mentah. Pengunjung tanpa login hanya menerima preview katalog berupa cover, metadata, serta deskripsi; isi naskah memerlukan login member.
+- Viewer dan endpoint citra halaman menggunakan sesi member untuk seluruh naskah yang ditayangkan, mengirim respons `inline` tanpa tombol atau URL unduh PDF, dengan cache privat tanpa penyimpanan.
+- Viewer menambahkan animasi membalik lembar, gesture swipe kiri/kanan, navigasi halaman, zoom, dan watermark antarmuka akses member.
+- Ditambahkan aksi admin **Buat Halaman Viewer** untuk mengonversi master PDF menjadi citra halaman turunan. Naskah `Serat Kempalan Warni-Warni (Mantra, Primbon, Doa)` telah dikonversi menjadi 134 halaman viewer; master PDF tidak disajikan ke user.
+
+## 2026-08-13 — Donasi koleksi digital terbuka
+
+- Menambahkan form publik `/donasi-digital` yang dapat digunakan masyarakat dengan atau tanpa login untuk mengusulkan buku digital, naskah, riset, karya ilmiah, skripsi, tesis/disertasi, dan materi pembelajaran.
+- Kontributor dapat mengunggah berkas hingga 200 MB atau memberi tautan HTTPS (misalnya Google Drive/repository); minimal satu sumber wajib tersedia.
+- Lisensi bebas (`CC0`, `CC BY`, `CC BY-SA`, atau domain publik) dan pernyataan hak wajib diisi. Usulan tidak otomatis diterbitkan maupun masuk katalog.
+- Admin mengelola antrean di `/digital-donations`, dapat meninjau berkas/tautan, memberi catatan, serta memperbarui status. Usulan `pending` ditambahkan ke Kotak Masuk ADMIN/SUPERADMIN.
+- Migrasi: `sql/2026-08-13c_digital_donations.sql`; panduan: `docs/DIGITAL_DONATIONS.md`.

@@ -139,7 +139,38 @@ class Reading_points extends MY_Controller
 				'offset' => $offset,
 			],
 			'pending_requests' => $this->Reading_point_model->get_pending_token_requests(20),
+			'token_settings' => $this->Reading_point_model->get_token_settings(),
 		]);
+	}
+
+	public function token_settings()
+	{
+		$this->require_permission('reading_tokens.settings', 'view');
+		$this->render('reading_points/token_settings', [
+			'title' => 'Pengaturan Token Baca',
+			'settings' => $this->Reading_point_model->get_token_settings(),
+		]);
+	}
+
+	public function update_token_settings()
+	{
+		$this->require_permission('reading_tokens.settings', 'edit');
+		try {
+			$before = $this->Reading_point_model->get_token_settings();
+			$after = $this->Reading_point_model->update_token_settings([
+				'library_checkin_quota' => $this->input->post('library_checkin_quota', true),
+				'library_checkin_valid_days' => $this->input->post('library_checkin_valid_days', true),
+				'library_checkin_daily_limit' => $this->input->post('library_checkin_daily_limit', true),
+				'request_default_quota' => $this->input->post('request_default_quota', true),
+				'request_valid_days' => $this->input->post('request_valid_days', true),
+				'outside_session_charge' => $this->input->post('outside_session_charge', true),
+			], (int) ($this->current_user['id'] ?? 0));
+			$this->audit_event('reading_tokens.settings.update', 'reading_token_settings', null, $before, $after);
+			$this->session->set_flashdata('success', 'Pengaturan token berhasil disimpan. Pengaturan berlaku untuk token baru berikutnya.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('reading-points/token-settings');
 	}
 
 	public function revoke_token($id)

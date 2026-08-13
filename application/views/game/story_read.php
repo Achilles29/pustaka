@@ -32,6 +32,7 @@ $paras = array_filter(array_map('trim', preg_split('/\n\s*\n/', $passage['body']
         .result-hero { background:#fff; border-radius:20px; padding:32px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,.08); margin-bottom:16px; display:none; }
         .toast-points { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:#16a34a; color:#fff; padding:12px 22px; border-radius:999px; font-weight:700; box-shadow:0 8px 24px rgba(22,163,74,.35); z-index:100; opacity:0; transition:.3s; }
         .toast-points.show { opacity:1; transform:translateX(-50%) translateY(6px); }
+        .reader-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.reader-tools button{border-radius:999px}.reading.focus-mode{font-family:Georgia,serif;font-size:1.18rem;line-height:2.05;letter-spacing:.015em}.reading.reading-now{box-shadow:0 0 0 4px #22d3ee55,0 8px 30px rgba(8,145,178,.15)}
     </style>
 </head>
 <body>
@@ -57,6 +58,8 @@ $paras = array_filter(array_map('trim', preg_split('/\n\s*\n/', $passage['body']
             </div>
         </div>
 
+        <div class="d-flex gap-2 flex-wrap mb-2"><span class="badge bg-cyan-lt text-cyan"><?= html_escape($passage['subject_name'] ?? 'Umum'); ?></span><span class="badge bg-blue-lt text-blue"><?= html_escape($passage['grade_name'] ?? 'Semua jenjang'); ?></span></div>
+        <div class="reader-tools"><button class="btn btn-sm btn-outline-cyan" id="listen" type="button"><i class="ti ti-headphones"></i> Dengarkan bacaan</button><button class="btn btn-sm btn-outline-secondary" id="focus" type="button"><i class="ti ti-letter-spacing"></i> Mode fokus</button></div>
         <!-- Reading passage -->
         <div class="reading" id="reading">
             <?php foreach ($paras as $p): ?><p><?= nl2br(html_escape($p)); ?></p><?php endforeach; ?>
@@ -99,6 +102,7 @@ $paras = array_filter(array_map('trim', preg_split('/\n\s*\n/', $passage['body']
     var TOTAL = <?= count($questions); ?>;
     var CSRF_NAME = '<?= $csrf_name; ?>', csrfHash = '<?= $csrf_hash; ?>';
     var started = Date.now(), submitted = false;
+    var STORY_TEXT = <?= json_encode(strip_tags($passage['body']),JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT); ?>, STORY_LANG = <?= json_encode((int)($passage['subject_id']??0)===3?'en-US':'id-ID'); ?>;
 
     // Timer
     var timerEl = document.getElementById('timer');
@@ -119,6 +123,8 @@ $paras = array_filter(array_map('trim', preg_split('/\n\s*\n/', $passage['body']
             opt.querySelector('input').checked = true;
         });
     });
+    document.getElementById('focus').addEventListener('click',function(){document.getElementById('reading').classList.toggle('focus-mode');});
+    document.getElementById('listen').addEventListener('click',function(){if(!('speechSynthesis' in window)){alert('Fitur suara belum didukung browser ini.');return;}if(window.speechSynthesis.speaking){window.speechSynthesis.cancel();this.innerHTML='<i class="ti ti-headphones"></i> Dengarkan bacaan';document.getElementById('reading').classList.remove('reading-now');return;}var u=new SpeechSynthesisUtterance(STORY_TEXT);u.lang=STORY_LANG;u.rate=.9;var b=this;u.onend=function(){b.innerHTML='<i class="ti ti-headphones"></i> Dengarkan bacaan';document.getElementById('reading').classList.remove('reading-now');};window.speechSynthesis.speak(u);this.innerHTML='<i class="ti ti-player-stop"></i> Hentikan suara';document.getElementById('reading').classList.add('reading-now');});
 
     document.getElementById('quiz-form').addEventListener('submit', function (e) {
         e.preventDefault();

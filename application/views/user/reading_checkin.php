@@ -4,6 +4,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $tabler_css = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css';
 $tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css';
 $unit_labels = ['minutes' => 'menit (legacy)', 'pages' => 'halaman (legacy)', 'books' => 'sesi baca'];
+$locations = $locations ?? [];
+$token_settings = $token_settings ?? ['request_default_quota' => 3];
 $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedaluwarsa', 'revoked' => 'Dicabut'];
 ?>
 <!doctype html>
@@ -19,7 +21,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810k'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812h'); ?>">
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -43,6 +45,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 		<a href="<?= base_url('user/dashboard'); ?>"><i class="ti ti-id"></i><span>Dashboard</span></a>
 		<a href="<?= base_url('user/reading-checkin'); ?>" class="active"><i class="ti ti-map-pin-check"></i><span>Pojok</span></a>
 		<a href="<?= base_url('user/account'); ?>"><i class="ti ti-user-cog"></i><span>Akun</span></a>
+		<a href="<?= base_url('logout'); ?>"><i class="ti ti-logout"></i><span>Keluar</span></a>
 	</nav>
 
 	<main class="user-dashboard user-dashboard-v2">
@@ -54,7 +57,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 				<div class="reading-checkin-panel">
 					<div class="section-kicker">Pojok Baca Digital</div>
 					<h1>Check-in lokasi baca</h1>
-					<p>Aktifkan GPS saat berada di titik Pojok Baca. Semua member aktif membaca online; Pojok Baca dan perpustakaan terdaftar membuat sesi baca gratis, sedangkan akses luar zona memakai token.</p>
+					<p>Aktifkan GPS saat berada di titik Pojok Baca. Di Pojok Baca dan perpustakaan terdaftar, member aktif bebas membaca buku online tanpa token maupun kuota sesi. Token hanya dipakai untuk akses dari luar zona.</p>
 
 					<?php if ($active_token): ?>
 						<div class="reading-token-card">
@@ -91,7 +94,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 						<?php if (! empty($token_request)): ?>
 							<p class="mb-0 text-secondary small">Permohonan <?= number_format((int) $token_request['requested_quota'], 0, ',', '.'); ?> sesi baca sudah dikirim pada <?= html_escape($token_request['requested_at']); ?> dan sedang diperiksa petugas.</p>
 						<?php else: ?>
-							<p class="mb-2 text-secondary small">Tidak dapat datang ke lokasi? Ajukan token 3 sesi baca. Petugas akan memeriksa permohonan sebelum token diterbitkan.</p>
+							<p class="mb-2 text-secondary small">Tidak dapat datang ke lokasi? Ajukan token <?= number_format((int) $token_settings['request_default_quota'], 0, ',', '.'); ?> sesi baca. Petugas akan memeriksa permohonan sebelum token diterbitkan.</p>
 							<?= form_open('user/token-request/store'); ?>
 								<textarea class="form-control form-control-sm mb-2" name="request_note" rows="2" maxlength="500" placeholder="Alasan singkat permohonan (opsional)"></textarea>
 								<button class="btn btn-outline-primary btn-sm" type="submit"><i class="ti ti-ticket me-1"></i>Ajukan Token</button>
@@ -110,14 +113,14 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 							<i class="ti ti-map-pin-star"></i>
 						</div>
 						<div class="member-mini-list">
-							<?php if (empty($points)): ?><div class="member-mini-empty">Belum ada Pojok Baca aktif.</div><?php endif; ?>
-							<?php foreach ($points as $point): ?>
+							<?php if (empty($locations)): ?><div class="member-mini-empty">Belum ada lokasi gratis yang aktif di GIS.</div><?php endif; ?>
+							<?php foreach ($locations as $location): ?>
 								<div class="member-mini-item">
 									<div>
-										<strong><?= html_escape($point['name']); ?></strong>
-										<span><?= html_escape($point['partner_name'] ?: ($point['library_name'] ?: '-')); ?> - radius <?= number_format((int) $point['radius_meters'], 0, ',', '.'); ?> m</span>
+										<strong><i class="ti <?= ($location['type'] ?? '') === 'library' ? 'ti-building-library' : 'ti-book-2'; ?> me-1"></i><?= html_escape($location['name']); ?></strong>
+										<span><?= html_escape($location['subtitle'] ?: '-'); ?> · radius <?= number_format((int) $location['radius_meters'], 0, ',', '.'); ?> m<?= ! empty($location['address']) ? ' · ' . html_escape($location['address']) : ''; ?></span>
 									</div>
-									<code><?= number_format((int) $point['daily_quota'], 0, ',', '.'); ?> <?= html_escape($unit_labels[$point['quota_unit']] ?? $point['quota_unit']); ?></code>
+									<code><?= ($location['type'] ?? '') === 'library' ? 'Perpus' : number_format((int) $location['quota_total'], 0, ',', '.') . ' ' . html_escape($unit_labels[$location['quota_unit']] ?? $location['quota_unit']); ?></code>
 								</div>
 							<?php endforeach; ?>
 						</div>
@@ -126,8 +129,8 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 					<div class="member-panel">
 						<div class="member-panel-head">
 							<div>
-								<div class="section-kicker">Riwayat</div>
-								<h3>Token Terakhir</h3>
+							<div class="section-kicker">Akses luar zona</div>
+							<h3>Token Terakhir</h3>
 							</div>
 							<i class="ti ti-ticket"></i>
 						</div>

@@ -101,8 +101,8 @@
                 <span style="color:#6b7280">Waktu</span><strong id="finalTime">0:00</strong>
             </div>
         </div>
-        <button class="btn-play" id="btnPlayAgain">Main Lagi!</button>
-        <button class="btn-back" onclick="location.href='<?= base_url('belajar/pilih/' . $game_type['code']); ?>'">Pilih Set Lain</button>
+        <?php if(!empty($next_game)): ?><button class="btn-play" onclick="location.href='<?= base_url($next_game['url']); ?>'">Coba <?= html_escape($next_game['name']); ?> →</button><?php endif; ?>
+        <button class="btn-back" onclick="location.href='<?= base_url('belajar/pilih/' . $game_type['code']); ?>'">Pilih Materi Lain</button>
     </div>
 </div>
 
@@ -297,14 +297,6 @@ document.getElementById('btnStart').addEventListener('click', () => {
     startTimer();
 });
 
-document.getElementById('btnPlayAgain').addEventListener('click', () => {
-    document.getElementById('overlayWin').classList.add('hidden');
-    stopTimer();
-    timerSec = 0;
-    started = true;
-    renderBoard();
-    startTimer();
-});
 </script>
 </body>
 </html>

@@ -11,7 +11,7 @@ class Learn_story_model extends CI_Model
 {
     // ── Passages ──────────────────────────────────────────────────────────────
 
-    public function get_passages($active_only = false)
+    public function get_passages($active_only = false, array $filters = [])
     {
         $this->db
             ->select('p.*, s.name AS subject_name, g.name AS grade_name,
@@ -22,9 +22,19 @@ class Learn_story_model extends CI_Model
         if ($active_only) {
             $this->db->where('p.is_active', 1);
         }
+        if (! empty($filters['subject_id'])) $this->db->where('p.subject_id', (int)$filters['subject_id']);
+        if (! empty($filters['grade_level_id'])) $this->db->where('p.grade_level_id', (int)$filters['grade_level_id']);
+        if (! empty($filters['q'])) {$q=trim((string)$filters['q']);$this->db->group_start()->like('p.title',$q)->or_like('p.summary',$q)->or_like('s.name',$q)->group_end();}
         return $this->db
             ->order_by('p.sort_order', 'ASC')->order_by('p.title', 'ASC')
             ->get()->result_array();
+    }
+
+    public function catalog_filters()
+    {
+        $subjects=$this->db->select('s.id,s.name,COUNT(p.id) deck_count',false)->from('quiz_subjects s')->join('learn_story_passages p','p.subject_id=s.id AND p.is_active=1')->where('s.is_active',1)->group_by(['s.id','s.name'])->order_by('s.name')->get()->result_array();
+        $grades=$this->db->select('g.id,g.name,COUNT(p.id) deck_count',false)->from('quiz_grade_levels g')->join('learn_story_passages p','p.grade_level_id=g.id AND p.is_active=1')->where('g.is_active',1)->group_by(['g.id','g.name'])->order_by('g.sort_order')->get()->result_array();
+        return ['subjects'=>$subjects,'grades'=>$grades];
     }
 
     public function get_passage($id)
@@ -34,7 +44,7 @@ class Learn_story_model extends CI_Model
 
     public function get_passage_by_code($code)
     {
-        return $this->db->get_where('learn_story_passages', ['code' => $code])->row_array();
+        return $this->db->select('p.*,s.name subject_name,g.name grade_name')->from('learn_story_passages p')->join('quiz_subjects s','s.id=p.subject_id','left')->join('quiz_grade_levels g','g.id=p.grade_level_id','left')->where('p.code',$code)->get()->row_array();
     }
 
     public function code_exists($code, $exclude_id = null)
@@ -214,6 +224,19 @@ class Learn_story_model extends CI_Model
             $map[(int) $r['passage_id']] = (float) $r['best'];
         }
         return $map;
+    }
+
+    /** Rekomendasi mengutamakan bacaan yang belum pernah dikerjakan. */
+    public function recommended_passage($user_id, array $passages)
+    {
+        if (! $passages) return null;
+        if (! $user_id) return $passages[((int) date('z')) % count($passages)];
+        $attempted=[];$last=[];
+        foreach($this->db->select('passage_id,MAX(created_at) last_at')->where('user_id',(int)$user_id)->group_by('passage_id')->get('learn_story_attempts')->result_array() as $row){$attempted[(int)$row['passage_id']]=true;$last[(int)$row['passage_id']]=$row['last_at'];}
+        $unread=array_values(array_filter($passages,function($p)use($attempted){return empty($attempted[(int)$p['id']]);}));
+        if($unread) return $unread[((int)date('z')) % count($unread)];
+        usort($passages,function($a,$b)use($last){return strcmp($last[(int)$a['id']]??'', $last[(int)$b['id']]??'');});
+        return $passages[0];
     }
 
     // ── Stats (admin) ─────────────────────────────────────────────────────────

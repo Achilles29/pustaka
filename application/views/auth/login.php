@@ -63,7 +63,10 @@ $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min
 						</div>
 						<div class="mb-3">
 							<label class="form-label" for="password">Password</label>
-							<input type="password" class="form-control" id="password" name="password" required>
+							<div class="input-group">
+								<input type="password" class="form-control" id="password" name="password" required>
+								<button class="btn btn-outline-secondary" type="button" id="toggle-login-password" aria-label="Tampilkan password" aria-pressed="false"><i class="ti ti-eye"></i></button>
+							</div>
 						</div>
 						<div class="form-footer">
 							<button type="submit" class="btn btn-primary btn-lg w-100"><i class="ti ti-login me-1"></i>Masuk</button>
@@ -78,5 +81,19 @@ $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min
 		</div>
 	</div>
 	<script src="<?= $tabler_js; ?>"></script>
+	<script>
+	document.addEventListener('DOMContentLoaded', function () {
+		var input = document.getElementById('password');
+		var button = document.getElementById('toggle-login-password');
+		if (!input || !button) return;
+		button.addEventListener('click', function () {
+			var visible = input.type === 'text';
+			input.type = visible ? 'password' : 'text';
+			button.setAttribute('aria-pressed', visible ? 'false' : 'true');
+			button.setAttribute('aria-label', visible ? 'Tampilkan password' : 'Sembunyikan password');
+			button.querySelector('i').className = visible ? 'ti ti-eye' : 'ti ti-eye-off';
+		});
+	});
+	</script>
 </body>
 </html>

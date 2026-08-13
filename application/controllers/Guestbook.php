@@ -7,6 +7,7 @@ class Guestbook extends CI_Controller
 	{
 		parent::__construct();
 		$this->load->model('Visit_model');
+		$this->load->model('Reading_point_model');
 	}
 
 	public function monitor()
@@ -38,8 +39,13 @@ class Guestbook extends CI_Controller
 	public function store_member()
 	{
 		try {
-			$this->Visit_model->record_member_search_checkin($this->input->post('identifier', true), $this->guestbook_input());
-			$this->session->set_flashdata('success', 'Daftar hadir member berhasil dicatat.');
+			$visit = $this->Visit_model->record_member_search_checkin($this->input->post('identifier', true), $this->guestbook_input());
+			$token = $this->Reading_point_model->issue_library_visit_token((int) $visit['member']['id'], $visit['library_id'] ?? null);
+			$message = 'Daftar hadir member berhasil dicatat.';
+			if (! empty($token['issued'])) {
+				$message .= ' ' . $token['message'];
+			}
+			$this->session->set_flashdata('success', $message);
 		} catch (Throwable $e) {
 			$this->session->set_flashdata('error', $e->getMessage());
 		}
@@ -77,6 +83,12 @@ class Guestbook extends CI_Controller
 		}
 
 		$result = $this->Visit_model->redeem_kiosk_qr_token($token, $member, $user);
+		if (! empty($result['ok'])) {
+			$issued = $this->Reading_point_model->issue_library_visit_token((int) $member['id'], $result['library_id'] ?? null);
+			if (! empty($issued['issued'])) {
+				$result['message'] .= ' ' . $issued['message'];
+			}
+		}
 		$this->session->set_flashdata($result['ok'] ? 'success' : 'error', $result['message']);
 		redirect('user/dashboard');
 	}

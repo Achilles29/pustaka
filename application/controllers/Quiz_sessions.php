@@ -20,7 +20,7 @@ class Quiz_sessions extends MY_Controller
             'grade_level_id' => (int) $this->input->get('grade_level_id', true),
             'difficulty'     => $this->input->get('difficulty', true),
         ];
-        $filters['status'] = in_array($filters['status'], ['draft', 'open', 'closed'], true) ? $filters['status'] : '';
+        $filters['status'] = in_array($filters['status'], ['draft', 'open', 'ongoing', 'closed', 'archived'], true) ? $filters['status'] : '';
         $filters['difficulty'] = in_array($filters['difficulty'], ['easy', 'medium', 'hard', 'mixed'], true) ? $filters['difficulty'] : '';
         $per_page = in_array((int) $this->input->get('per_page', true), [10, 25, 50], true) ? (int) $this->input->get('per_page', true) : 25;
         $page     = max(1, (int) $this->input->get('page', true));
@@ -51,6 +51,7 @@ class Quiz_sessions extends MY_Controller
             'session'  => null,
             'subjects' => $this->Quiz_config_model->get_subjects(true),
             'grades'   => $this->Quiz_config_model->get_grade_levels(true),
+            'active_tab' => 'settings',
         ]);
     }
 
@@ -80,8 +81,13 @@ class Quiz_sessions extends MY_Controller
             'title'    => 'Edit Sesi Latihan',
             'action'   => 'quiz-sessions/update/' . (int) $id,
             'session'  => $session,
-            'subjects' => $this->Quiz_config_model->get_subjects(true),
-            'grades'   => $this->Quiz_config_model->get_grade_levels(true),
+            // Editor harus tetap dapat menampilkan pilihan yang sudah tersimpan,
+            // termasuk master yang kebetulan dinonaktifkan setelah sesi dibuat.
+            'subjects' => $this->Quiz_config_model->get_subjects(false),
+            'grades'   => $this->Quiz_config_model->get_grade_levels(false),
+            'active_tab' => $this->input->get('tab', true) === 'questions' ? 'questions' : 'settings',
+            'session_questions' => $this->Quiz_session_model->get_competition_questions((int) $id),
+            'bank_questions' => $this->Quiz_session_model->get_bank_questions_for_session($session, 100),
         ]);
     }
 
@@ -93,6 +99,7 @@ class Quiz_sessions extends MY_Controller
         try {
             $data       = $this->session_input();
             $data['type'] = 'practice';
+            $data['question_source'] = $session['question_source'] ?? 'bank_all';
             $this->Quiz_session_model->update_session((int) $id, $data, (int) $this->current_user['id']);
             $this->audit_event('quiz.session.update', 'quiz_sessions', (int) $id);
             $this->session->set_flashdata('success', 'Sesi latihan berhasil diperbarui.');
@@ -101,6 +108,29 @@ class Quiz_sessions extends MY_Controller
             $this->session->set_flashdata('error', $e->getMessage());
             redirect('quiz-sessions/edit/' . (int) $id);
         }
+    }
+
+    public function update_question_source($id)
+    {
+        $this->require_permission('quiz_sessions.index', 'edit');
+        $session = $this->Quiz_session_model->get_session((int) $id);
+        if (! $session || $session['type'] !== 'practice') { show_404(); return; }
+        try {
+            $source = (string) $this->input->post('question_source', true);
+            $ids = (array) $this->input->post('question_ids');
+            if ($source === 'selected' && empty(array_filter(array_map('intval', $ids)))) {
+                throw new RuntimeException('Pilih minimal satu soal bank untuk mode soal tertentu.');
+            }
+            if ($source === 'session_only' && $this->Quiz_session_model->count_session_only_questions((int) $id) === 0) {
+                throw new RuntimeException('Belum ada soal khusus pada sesi ini. Impor atau tambahkan soal khusus terlebih dahulu.');
+            }
+            $this->Quiz_session_model->set_question_source((int) $id, $source, $ids);
+            $this->audit_event('quiz.session.question_source', 'quiz_sessions', (int) $id, ['question_source' => $session['question_source'] ?? 'bank_all'], ['question_source' => $source, 'question_ids' => array_map('intval', $ids)]);
+            $this->session->set_flashdata('success', 'Sumber soal sesi diperbarui.');
+        } catch (Throwable $e) {
+            $this->session->set_flashdata('error', $e->getMessage());
+        }
+        redirect('quiz-sessions/edit/' . (int) $id . '?tab=questions');
     }
 
     public function delete($id)

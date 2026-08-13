@@ -44,6 +44,10 @@ $fmt  = function ($ts) { return $ts ? date('d M Y', strtotime($ts)) : '—'; };
         .empty { color:#9ca3af; font-size:.85rem; padding:6px 0; }
         .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:.72rem; font-weight:700; }
         .pill-green { background:#dcfce7; color:#15803d; } .pill-blue { background:#dbeafe; color:#1d4ed8; } .pill-orange { background:#ffedd5; color:#c2410c; }
+        .quiz-actions { display:flex; flex-wrap:wrap; gap:5px; }
+        .quiz-link { display:inline-flex; align-items:center; gap:4px; padding:5px 8px; border-radius:7px; font-size:.72rem; font-weight:700; text-decoration:none; white-space:nowrap; }
+        .quiz-link.result { color:#1d4ed8; background:#dbeafe; }
+        .quiz-link.review { color:#6d28d9; background:#ede9fe; }
         .foot { padding:16px 32px 26px; font-size:.72rem; color:#9ca3af; text-align:center; border-top:1px solid #f0f0f3; }
 
         @media print {
@@ -119,9 +123,9 @@ $fmt  = function ($ts) { return $ts ? date('d M Y', strtotime($ts)) : '—'; };
         <!-- Riwayat quiz -->
         <?php if (! empty($r['quiz']['recent'])): ?>
         <div class="section">
-            <h2><i class="ti ti-history"></i>Riwayat Quiz Terakhir</h2>
+            <h2><i class="ti ti-history"></i>Riwayat Latihan Quiz</h2>
             <table class="data">
-                <thead><tr><th>Judul</th><th>Nilai</th><th>Status</th><th>Tanggal</th></tr></thead>
+                <thead><tr><th>Judul</th><th>Nilai</th><th>Status</th><th>Tanggal</th><?php if(empty($is_admin)): ?><th>Aksi</th><?php endif; ?></tr></thead>
                 <tbody>
                     <?php foreach ($r['quiz']['recent'] as $q): ?>
                     <tr>
@@ -129,6 +133,10 @@ $fmt  = function ($ts) { return $ts ? date('d M Y', strtotime($ts)) : '—'; };
                         <td><?= (int)$q['percentage']; ?>%</td>
                         <td><?= (int)$q['is_passed'] === 1 ? '<span class="pill pill-green">Lulus</span>' : '<span class="pill pill-orange">Belum</span>'; ?></td>
                         <td><?= $fmt($q['submitted_at']); ?></td>
+                        <?php if(empty($is_admin)): ?><td><div class="quiz-actions">
+                            <a class="quiz-link result" href="<?= base_url('quiz/result/'.(int)$q['attempt_id']); ?>"><i class="ti ti-chart-bar"></i>Hasil</a>
+                            <?php if(!empty($q['allow_review']) && !empty($q['show_result_immediately'])): ?><a class="quiz-link review" href="<?= base_url('quiz/review/'.(int)$q['attempt_id']); ?>"><i class="ti ti-book-2"></i>Pembahasan</a><?php endif; ?>
+                        </div></td><?php endif; ?>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

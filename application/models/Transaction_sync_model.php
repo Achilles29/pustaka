@@ -277,6 +277,14 @@ class Transaction_sync_model extends CI_Model
 			}
 		}
 		$this->refresh_master_labels($domain);
+		// Status eksemplar merupakan turunan dari detail pinjam efektif. Jalankan
+		// kembali setelah import/refresh loan supaya data dari INLISLite dan
+		// sirkulasi lokal tidak menghasilkan ketersediaan yang berbeda.
+		$availability = null;
+		if (in_array($domain, ['all', 'loans'], true)) {
+			$this->load->model('Loan_model');
+			$availability = $this->Loan_model->reconcile_item_availability();
+		}
 
 		$message = sprintf(
 			'Sinkronisasi transaksi selesai. Diproses: %d, baru: %d, update: %d, gagal: %d.',
@@ -285,9 +293,12 @@ class Transaction_sync_model extends CI_Model
 			$stats['updated'],
 			$stats['failed']
 		);
+		if ($availability !== null) {
+			$message .= sprintf(' Ketersediaan eksemplar: %d dipinjam, %d tersedia.', (int) $availability['loaned'], (int) $availability['available']);
+		}
 		$this->finish_run($run_id, $mode, $stats, $message);
 
-		return ['run_id' => $run_id, 'message' => $message] + $stats;
+		return ['run_id' => $run_id, 'message' => $message, 'availability' => $availability] + $stats;
 	}
 
 	private function process_type($type, $limit, $mode)

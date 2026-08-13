@@ -23,6 +23,7 @@ class Learn_config extends MY_Controller
             'badges'        => $badges,
             'stats'         => $stats,
             'badge_criteria_labels' => $this->_criteria_labels(),
+            'can_manage'    => $this->can('learn_config.index', 'create'),
         ]);
     }
 

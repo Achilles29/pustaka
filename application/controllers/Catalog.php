@@ -6,7 +6,7 @@ class Catalog extends MY_Controller
 	public function __construct()
 	{
 		parent::__construct();
-		$this->load->model('Catalog_model');
+		$this->load->model(['Catalog_model', 'Loan_model']);
 	}
 
 	public function index()
@@ -114,6 +114,9 @@ class Catalog extends MY_Controller
 			'content_categories' => $this->Catalog_model->get_content_categories(true),
 			'classification_masters' => $this->Catalog_model->get_classification_masters(true),
 			'collection_types' => $this->Catalog_model->get_collection_types(true),
+			'textbook_grade_levels' => $this->Catalog_model->get_textbook_grade_levels(),
+			'textbook_subject_options' => $this->Catalog_model->get_textbook_subjects(),
+			'textbook_tags' => ['grades' => [], 'subjects' => []],
 		]);
 	}
 
@@ -123,6 +126,7 @@ class Catalog extends MY_Controller
 
 		try {
 			$book_id = $this->Catalog_model->create_book($this->book_input(), (int) ($this->current_user['id'] ?? 0));
+			$this->Catalog_model->save_book_textbook_tags($book_id, (array) $this->input->post('textbook_grade_ids'), (array) $this->input->post('textbook_subject_ids'));
 			$this->audit_event('catalog.create', 'books', $book_id, null, $this->book_input());
 			$this->session->set_flashdata('success', 'Katalog baru berhasil disimpan.');
 			redirect('catalog/detail/' . $book_id);
@@ -151,6 +155,9 @@ class Catalog extends MY_Controller
 			'content_categories' => $this->Catalog_model->get_content_categories(true),
 			'classification_masters' => $this->Catalog_model->get_classification_masters(true),
 			'collection_types' => $this->Catalog_model->get_collection_types(true),
+			'textbook_grade_levels' => $this->Catalog_model->get_textbook_grade_levels(),
+			'textbook_subject_options' => $this->Catalog_model->get_textbook_subjects(),
+			'textbook_tags' => $this->Catalog_model->get_book_textbook_tags((int) $id),
 		]);
 	}
 
@@ -166,6 +173,7 @@ class Catalog extends MY_Controller
 
 		try {
 			$this->Catalog_model->update_book((int) $id, $this->book_input(), (int) ($this->current_user['id'] ?? 0));
+			$this->Catalog_model->save_book_textbook_tags((int) $id, (array) $this->input->post('textbook_grade_ids'), (array) $this->input->post('textbook_subject_ids'));
 			$this->audit_event('catalog.update', 'books', (int) $id, $before, $this->book_input());
 			$this->session->set_flashdata('success', 'Katalog berhasil diperbarui.');
 			redirect('catalog/detail/' . (int) $id);
@@ -426,21 +434,148 @@ class Catalog extends MY_Controller
 				'per_page' => $per_page,
 				'offset' => $offset,
 			],
+			'loan_settings' => $this->Loan_model->get_settings(),
+			'loan_stats' => $this->Loan_model->stats(),
+			'can_create_loan' => $this->can('catalog.requests', 'create'),
+			'can_manage_loan_settings' => $this->can('catalog.index', 'edit'),
 		]);
+	}
+
+	/** Daftar transaksi sirkulasi: transaksi aplikasi dan histori sinkron berada dalam satu data. */
+	public function loans()
+	{
+		$this->require_permission('catalog.requests', 'view');
+		$filters = [
+			'q' => $this->input->get('q', true),
+			'status' => $this->input->get('status', true),
+			'source' => $this->input->get('source', true),
+			'date_from' => $this->input->get('date_from', true),
+			'date_to' => $this->input->get('date_to', true),
+		];
+		$per_page = (int) $this->input->get('per_page', true);
+		$per_page = in_array($per_page, [10, 25, 50, 100], true) ? $per_page : 25;
+		$page = max(1, (int) $this->input->get('page', true));
+		$total_rows = $this->Loan_model->count_loans($filters);
+		$total_pages = max(1, (int) ceil($total_rows / $per_page));
+		$page = min($page, $total_pages);
+
+		$this->render('catalog/loans', [
+			'title' => 'Transaksi Peminjaman',
+			'loans' => $this->Loan_model->get_loans($filters, $per_page, ($page - 1) * $per_page),
+			'filters' => array_merge($filters, ['per_page' => $per_page, 'page' => $page]),
+			'pagination' => ['total_rows' => $total_rows, 'total_pages' => $total_pages, 'page' => $page, 'per_page' => $per_page, 'offset' => ($page - 1) * $per_page],
+			'stats' => $this->Loan_model->stats(),
+			'can_create_loan' => $this->can('catalog.requests', 'create'),
+			'can_return_loan' => $this->can('catalog.requests', 'approve'),
+		]);
+	}
+
+	public function issue_manual_loan()
+	{
+		$this->require_permission('catalog.requests', 'create');
+		try {
+			$result = $this->Loan_model->issue_manual_loan(
+				$this->input->post('member_lookup', true),
+				$this->input->post('item_lookup', true),
+				$this->input->post('due_date', true),
+				(int) ($this->current_user['id'] ?? 0)
+			);
+			$this->audit_event('catalog.loan.issue', 'loan_transaction_items', (int) $result['loan_item_id'], null, [
+				'reference' => $result['reference'], 'member_id' => $result['member']['id'], 'book_item_id' => $result['item']['id'], 'due_date' => $result['due_date'],
+			]);
+			$this->session->set_flashdata('success', 'Peminjaman berhasil dicatat. Referensi: ' . $result['reference'] . '. Jatuh tempo: ' . date('d M Y', strtotime($result['due_date'])) . '.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('catalog/loans');
+	}
+
+	/** Serahkan eksemplar yang sebelumnya telah disiapkan dari request member. */
+	public function issue_request_loan($request_id)
+	{
+		$this->require_permission('catalog.requests', 'approve');
+		try {
+			$result = $this->Loan_model->issue_book_request(
+				(int) $request_id,
+				$this->input->post('due_date', true),
+				(int) ($this->current_user['id'] ?? 0)
+			);
+			$this->audit_event('catalog.request_issue', 'loan_transaction_items', (int) $result['loan_item_id'], null, [
+				'request_id' => (int) $request_id,
+				'request_code' => $result['request_code'],
+				'reference' => $result['reference'],
+				'member_id' => $result['member']['id'],
+				'book_item_id' => $result['item']['id'],
+				'due_date' => $result['due_date'],
+			]);
+			$this->session->set_flashdata('success', 'Buku diserahkan dan transaksi peminjaman dicatat. Referensi: ' . $result['reference'] . '.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('catalog/requests');
+	}
+
+	public function return_loan($loan_item_id)
+	{
+		$this->require_permission('catalog.requests', 'approve');
+		try {
+			$result = $this->Loan_model->return_loan((int) $loan_item_id, (int) ($this->current_user['id'] ?? 0), $this->input->post('return_note', true));
+			$this->audit_event('catalog.loan.return', 'loan_transaction_items', (int) $loan_item_id, null, ['late_days' => $result['late_days'], 'legacy_local_override' => ! empty($result['is_legacy']), 'return_note' => $this->input->post('return_note', true)]);
+			$prefix = ! empty($result['is_legacy']) ? 'Pengembalian legacy dicatat secara lokal' : 'Pengembalian';
+			$this->session->set_flashdata('success', $prefix . ' untuk ' . $result['title'] . ' berhasil disimpan' . ($result['late_days'] > 0 ? '. Terlambat ' . $result['late_days'] . ' hari.' : '.') );
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('catalog/loans');
+	}
+
+	/** Cocokkan kembali status semua eksemplar dengan peminjaman efektif. */
+	public function reconcile_loans()
+	{
+		$this->require_permission('catalog.requests', 'approve');
+		try {
+			$result = $this->Loan_model->reconcile_item_availability();
+			$this->audit_event('catalog.loan.reconcile_availability', 'book_items', null, null, $result);
+			$this->session->set_flashdata('success', 'Ketersediaan eksemplar diselaraskan: ' . (int) $result['loaned'] . ' ditandai dipinjam, ' . (int) $result['available'] . ' dibuka kembali.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('catalog/loans');
+	}
+
+	public function save_loan_settings()
+	{
+		$this->require_permission('catalog.index', 'edit');
+		try {
+			$settings = $this->Loan_model->save_settings([
+				'is_loan_enabled' => $this->input->post('is_loan_enabled'),
+				'default_loan_days' => $this->input->post('default_loan_days', true),
+				'max_active_loans' => $this->input->post('max_active_loans', true),
+			], (int) ($this->current_user['id'] ?? 0));
+			$this->audit_event('catalog.loan.settings', 'library_loan_settings', 1, null, $settings);
+			$this->session->set_flashdata('success', 'Pengaturan peminjaman diperbarui.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('catalog/requests');
 	}
 
 	public function update_request($id)
 	{
 		$this->require_permission('catalog.requests', 'approve');
 
-		$this->Catalog_model->update_book_request_status(
-			(int) $id,
-			(string) $this->input->post('status', true),
-			$this->input->post('admin_note', true),
-			(int) ($this->current_user['id'] ?? 0)
-		);
-		$this->audit_event('catalog.request_update', 'book_requests', (int) $id, null, $this->input->post(null, true));
-		$this->session->set_flashdata('success', 'Status request buku diperbarui.');
+		try {
+			$this->Catalog_model->update_book_request_status(
+				(int) $id,
+				(string) $this->input->post('status', true),
+				$this->input->post('admin_note', true),
+				(int) ($this->current_user['id'] ?? 0)
+			);
+			$this->audit_event('catalog.request_update', 'book_requests', (int) $id, null, $this->input->post(null, true));
+			$this->session->set_flashdata('success', 'Status request buku diperbarui.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
 		redirect('catalog/requests');
 	}
 
@@ -487,6 +622,7 @@ class Catalog extends MY_Controller
 			'source_status_id' => $this->input->post('source_status_id', true),
 			'status' => $this->input->post('status', true),
 			'is_public' => $this->input->post('is_public') ? 1 : 0,
+			'is_loanable' => $this->input->post('is_loanable') ? 1 : 0,
 		];
 	}
 

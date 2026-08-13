@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS `site_access_logs` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT, `auth_user_id` bigint(20) unsigned DEFAULT NULL, `member_id` bigint(20) unsigned DEFAULT NULL,
+  `visitor_type` enum('guest','member','staff') NOT NULL DEFAULT 'guest', `identity_label` varchar(180) DEFAULT NULL, `member_no` varchar(120) DEFAULT NULL, `username` varchar(120) DEFAULT NULL,
+  `request_method` varchar(10) NOT NULL DEFAULT 'GET', `uri_path` varchar(255) NOT NULL, `route_name` varchar(160) DEFAULT NULL, `http_status` smallint unsigned NOT NULL DEFAULT 200,
+  `ip_address` varchar(45) DEFAULT NULL, `country_code` char(2) DEFAULT NULL, `device_type` enum('mobile','tablet','desktop','bot','other') NOT NULL DEFAULT 'other',
+  `browser_name` varchar(60) DEFAULT NULL, `os_name` varchar(60) DEFAULT NULL, `user_agent` varchar(255) DEFAULT NULL, `referrer` varchar(255) DEFAULT NULL, `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), KEY `idx_site_access_logs_created` (`created_at`), KEY `idx_site_access_logs_visitor_created` (`visitor_type`,`created_at`), KEY `idx_site_access_logs_member_created` (`member_id`,`created_at`), KEY `idx_site_access_logs_uri_created` (`uri_path`,`created_at`), KEY `idx_site_access_logs_ip_created` (`ip_address`,`created_at`),
+  CONSTRAINT `fk_site_access_logs_auth_user` FOREIGN KEY (`auth_user_id`) REFERENCES `auth_user` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_site_access_logs_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `sys_page` (`code`,`module`,`title`,`route`,`description`) VALUES ('access_monitor.index','system','Monitor Akses Pustaka','access-monitor','Pantau akses halaman publik dan member secara operasional.') ON DUPLICATE KEY UPDATE `module`=VALUES(`module`),`title`=VALUES(`title`),`route`=VALUES(`route`),`description`=VALUES(`description`),`is_active`=1;
+INSERT INTO `auth_role_permission` (`role_id`,`page_id`,`can_view`,`can_create`,`can_edit`,`can_delete`,`can_export`,`can_approve`) SELECT r.id,p.id,1,0,0,0,0,0 FROM auth_role r JOIN sys_page p ON p.code='access_monitor.index' WHERE r.code IN ('SUPERADMIN','ADMIN') ON DUPLICATE KEY UPDATE `can_view`=1;
+INSERT INTO `sys_menu` (`parent_id`,`page_id`,`menu_area`,`menu_key`,`title`,`icon`,`url`,`sort_order`,`is_visible`,`is_active`,`is_locked`) SELECT parent.id,p.id,'MAIN','system.access_monitor','Monitor Akses','ti ti-radar','access-monitor',55,1,1,0 FROM sys_menu parent JOIN sys_page p ON p.code='access_monitor.index' WHERE parent.menu_key='system' ON DUPLICATE KEY UPDATE `parent_id`=VALUES(`parent_id`),`page_id`=VALUES(`page_id`),`title`=VALUES(`title`),`icon`=VALUES(`icon`),`url`=VALUES(`url`),`sort_order`=VALUES(`sort_order`),`is_visible`=1,`is_active`=1;

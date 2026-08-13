@@ -11,7 +11,7 @@ class Learn_flashcards_model extends CI_Model
 {
     // ── Decks ─────────────────────────────────────────────────────────────────
 
-    public function get_decks($active_only = false)
+    public function get_decks($active_only = false, array $filters = [])
     {
         $this->db
             ->select('d.*, s.name AS subject_name, s.color AS subject_color, g.name AS grade_name,
@@ -22,11 +22,32 @@ class Learn_flashcards_model extends CI_Model
         if ($active_only) {
             $this->db->where('d.is_active', 1);
         }
+        if (! empty($filters['subject_id'])) {
+            $this->db->where('d.subject_id', (int) $filters['subject_id']);
+        }
+        if (! empty($filters['grade_level_id'])) {
+            $this->db->where('d.grade_level_id', (int) $filters['grade_level_id']);
+        }
+        if (! empty($filters['q'])) {
+            $q = trim((string) $filters['q']);
+            $this->db->group_start()->like('d.name', $q)->or_like('d.description', $q)->or_like('s.name', $q)->group_end();
+        }
         return $this->db
             ->order_by('d.sort_order', 'ASC')
             ->order_by('d.name', 'ASC')
             ->get()
             ->result_array();
+    }
+
+    public function catalog_filters()
+    {
+        $subjects = $this->db->select('s.id,s.name,COUNT(d.id) AS deck_count', false)
+            ->from('quiz_subjects s')->join('learn_flashcard_decks d', 'd.subject_id=s.id AND d.is_active=1')
+            ->where('s.is_active', 1)->group_by(['s.id','s.name'])->order_by('s.name')->get()->result_array();
+        $grades = $this->db->select('g.id,g.name,COUNT(d.id) AS deck_count', false)
+            ->from('quiz_grade_levels g')->join('learn_flashcard_decks d', 'd.grade_level_id=g.id AND d.is_active=1')
+            ->where('g.is_active', 1)->group_by(['g.id','g.name'])->order_by('g.sort_order')->order_by('g.id')->get()->result_array();
+        return ['subjects'=>$subjects, 'grades'=>$grades];
     }
 
     public function get_deck($id)
@@ -36,7 +57,9 @@ class Learn_flashcards_model extends CI_Model
 
     public function get_deck_by_code($code)
     {
-        return $this->db->get_where('learn_flashcard_decks', ['code' => $code])->row_array();
+        return $this->db->select('d.*,s.name AS subject_name,g.name AS grade_name')->from('learn_flashcard_decks d')
+            ->join('quiz_subjects s','s.id=d.subject_id','left')->join('quiz_grade_levels g','g.id=d.grade_level_id','left')
+            ->where('d.code',$code)->get()->row_array();
     }
 
     public function code_exists($code, $exclude_id = null)
