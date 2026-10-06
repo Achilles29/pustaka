@@ -36,6 +36,10 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 # Tabler development dependencies/build cache
 /tabler-dev/
 /tabler-dev/node_modules/
+/wa-engine/.env
+/wa-engine/auth_info/
+/wa-engine/node_modules/
+/wa-engine/*.log
 /tabler-dev/.turbo/
 
 # IDE Files

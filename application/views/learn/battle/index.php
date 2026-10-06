@@ -7,6 +7,7 @@ $room_status = [
     'abandoned' => ['Ditinggalkan', 'bg-secondary-lt text-secondary'],
 ];
 ?>
+<?php $tab='content';$config=['base'=>'learn-battle'];include APPPATH.'views/learn/module_progress/_tabs.php'; ?>
 
 <div class="container-xl">
     <div class="page-header mb-3">
@@ -53,7 +54,16 @@ $room_status = [
         </div></div></div></div>
     </div>
 
-    <div class="card mb-4"><div class="card-header"><h3 class="card-title"><i class="ti ti-tournament me-2"></i>Sesi Battle</h3><?php if($can_create): ?><div class="card-actions"><a href="<?= base_url('learn-battle/sessions/create'); ?>" class="btn btn-primary btn-sm"><i class="ti ti-plus"></i> Buat Sesi</a></div><?php endif; ?></div><div class="table-responsive"><table class="table card-table"><thead><tr><th>Judul</th><th>Status</th><th>Soal</th><th>Waktu</th><th>Pemain</th><th></th></tr></thead><tbody><?php foreach($sessions as $s): ?><tr><td><strong><?= html_escape($s['title']); ?></strong><br><code><?= html_escape($s['code']); ?></code></td><td><span class="badge <?= $s['status']==='open'?'bg-success-lt text-success':'bg-secondary-lt'; ?>"><?= html_escape($s['status']); ?></span></td><td><?= (int)$s['question_count']; ?> dari <?= (int)$s['question_pool_count']; ?></td><td><?= (int)$s['time_limit_seconds']; ?> detik</td><td><?= $s['max_players']===null?'Tanpa batas':(int)$s['max_players']; ?></td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?= base_url('learn-battle/sessions/questions/'.$s['id']); ?>">Soal</a> <a class="btn btn-sm btn-outline-secondary" href="<?= base_url('learn-battle/sessions/edit/'.$s['id']); ?>">Edit</a></td></tr><?php endforeach; ?></tbody></table></div></div>
+    <div class="card mb-4">
+        <div class="card-header"><h3 class="card-title"><i class="ti ti-tournament me-2"></i>Sesi Battle</h3><?php if($can_create): ?><div class="card-actions"><a href="<?= base_url('learn-battle/sessions/create'); ?>" class="btn btn-primary btn-sm"><i class="ti ti-plus"></i> Buat Sesi</a></div><?php endif; ?></div>
+        <div class="table-responsive"><table class="table card-table"><thead><tr><th>Judul</th><th>Status & Akses</th><th>Soal</th><th>Waktu</th><th>Pemain</th><th></th></tr></thead><tbody>
+        <?php foreach($sessions as $s): $battle_url=base_url('belajar/battle?session='.(int)$s['id']); ?><tr>
+            <td><strong><?= html_escape($s['title']); ?></strong><br><code><?= html_escape($s['code']); ?></code></td>
+            <td><span class="badge <?= $s['status']==='open'?'bg-success-lt text-success':'bg-secondary-lt'; ?>"><?= html_escape($s['status']); ?></span> <span class="badge <?= ($s['access_mode']??'public')==='member'?'bg-purple-lt text-purple':'bg-blue-lt text-blue'; ?>"><i class="ti <?= ($s['access_mode']??'public')==='member'?'ti-id-badge-2':'ti-world'; ?>"></i> <?= ($s['access_mode']??'public')==='member'?'Khusus Member':'Publik'; ?></span></td>
+            <td><?= (int)$s['question_count']; ?> dari <?= (int)$s['question_pool_count']; ?></td><td><?= (int)$s['time_limit_seconds']; ?> detik</td><td><?= $s['max_players']===null?'Tanpa batas':(int)$s['max_players']; ?></td>
+            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-purple js-battle-qr" data-bs-toggle="modal" data-bs-target="#battleQrModal" data-title="<?= html_escape($s['title']); ?>" data-code="<?= html_escape($s['code']); ?>" data-url="<?= html_escape($battle_url); ?>"><i class="ti ti-qrcode"></i> QR</button> <a class="btn btn-sm btn-outline-primary" href="<?= base_url('learn-battle/sessions/questions/'.$s['id']); ?>">Soal</a> <a class="btn btn-sm btn-outline-secondary" href="<?= base_url('learn-battle/sessions/edit/'.$s['id']); ?>">Edit</a></td>
+        </tr><?php endforeach; ?></tbody></table></div>
+    </div>
 
     <div class="row g-3">
         <div class="col-lg-8">
@@ -123,6 +133,15 @@ $room_status = [
     </div>
 </div>
 
+<!-- QR masuk langsung ke lobby pemain dengan sesi terpilih -->
+<div class="modal modal-blur fade" id="battleQrModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+        <div class="modal-header"><div><div class="text-secondary small">QR SESI BATTLE</div><h3 class="modal-title" id="battleQrTitle">Battle</h3></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body text-center"><div id="battleQrTarget" class="d-inline-block p-3 bg-white border rounded"></div><div class="mt-3"><span class="badge bg-purple-lt" id="battleQrCode"></span></div><p class="text-secondary small mt-2 mb-2">Scan untuk membuka halaman Battle dengan sesi ini terpilih otomatis.</p><input id="battleQrUrl" class="form-control form-control-sm text-center" readonly></div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" id="battleQrCopy"><i class="ti ti-copy"></i> Salin</button><button type="button" class="btn btn-primary" id="battleQrDownload"><i class="ti ti-download"></i> Unduh PNG</button></div>
+    </div></div>
+</div>
+
 <!-- Modal Add -->
 <div class="modal modal-blur fade" id="modalAdd" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content">
@@ -145,7 +164,16 @@ $room_status = [
     </div></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
+var battleQrModal=document.getElementById('battleQrModal'),battleQrCurrentTitle='battle';
+battleQrModal.addEventListener('show.bs.modal',function(e){
+    var d=e.relatedTarget.dataset,target=document.getElementById('battleQrTarget');
+    battleQrCurrentTitle=d.code||'battle';document.getElementById('battleQrTitle').textContent=d.title;document.getElementById('battleQrCode').textContent=d.code;document.getElementById('battleQrUrl').value=d.url;target.innerHTML='';
+    if(window.QRCode)new QRCode(target,{text:d.url,width:240,height:240,colorDark:'#312e81',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+});
+document.getElementById('battleQrCopy').addEventListener('click',function(){var input=document.getElementById('battleQrUrl'),button=this;input.select();if(navigator.clipboard)navigator.clipboard.writeText(input.value);else document.execCommand('copy');button.innerHTML='<i class="ti ti-check"></i> Tersalin';setTimeout(function(){button.innerHTML='<i class="ti ti-copy"></i> Salin';},1600);});
+document.getElementById('battleQrDownload').addEventListener('click',function(){var target=document.getElementById('battleQrTarget'),source=target.querySelector('canvas')||target.querySelector('img');if(!source)return;var link=document.createElement('a');link.href=source.tagName==='CANVAS'?source.toDataURL('image/png'):source.src;link.download='qr-battle-'+battleQrCurrentTitle.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png';link.click();});
 document.getElementById('modalEdit').addEventListener('show.bs.modal', function (e) {
     var d = e.relatedTarget.dataset, f = document.getElementById('formEdit');
     f.action = '<?= base_url('learn-battle/update/'); ?>' + d.id;

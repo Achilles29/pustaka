@@ -1,0 +1,10 @@
+{
+    "applied": true,
+    "libraries": 538,
+    "fields": {
+        "phone": 353,
+        "email": 522,
+        "website": 4
+    },
+    "backup": "\/www\/backup\/pustaka-network\/before-network-20261006-120414-f987f9f9.sql.gz"
+}

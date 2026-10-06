@@ -28,6 +28,12 @@ $purpose_options = [
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/guestbook-demographics.css?v=20260820b'); ?>">
+	<style>
+		.guestbook-welcome{position:fixed;z-index:1080;top:82px;left:50%;display:flex;align-items:center;gap:14px;width:min(620px,calc(100% - 28px));padding:17px 20px;border:1px solid #86d4ad;border-radius:16px;background:#ecfff5;color:#12633b;box-shadow:0 18px 55px rgba(20,84,54,.24);transform:translateX(-50%);animation:guestbook-welcome-in .3s ease-out}
+		.guestbook-welcome>i{flex:none;font-size:2rem}.guestbook-welcome-copy{min-width:0;flex:1}.guestbook-welcome strong{display:block;font-size:1.05rem}.guestbook-welcome span{display:block;margin-top:3px;color:#357257;font-size:.78rem}.guestbook-welcome-close{flex:none;border:0;background:transparent;color:inherit;font-size:1.25rem;cursor:pointer}.guestbook-welcome-play{display:none;margin-top:8px;padding:5px 10px;border:1px solid #5bb98a;border-radius:8px;background:#fff;color:#12633b;font-size:.72rem;font-weight:800;cursor:pointer}.guestbook-welcome-play.is-visible{display:inline-flex;align-items:center;gap:5px}.guestbook-welcome.is-hiding{opacity:0;transform:translate(-50%,-12px);transition:.25s ease}
+		@keyframes guestbook-welcome-in{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}
+	</style>
 </head>
 <body class="guestbook-page">
 	<header class="user-topbar user-topbar-app">
@@ -43,7 +49,20 @@ $purpose_options = [
 
 	<main class="guestbook-shell">
 		<div class="container-xl">
-			<?php if (! empty($success)): ?><div class="alert alert-success"><?= html_escape($success); ?></div><?php endif; ?>
+			<?php if (! empty($success)): ?>
+				<div class="guestbook-welcome" id="guestbook-welcome" role="status" aria-live="polite">
+					<i class="ti ti-confetti"></i>
+					<div class="guestbook-welcome-copy">
+						<strong>Selamat Datang di Perpustakaan Daerah Kabupaten Rembang</strong>
+						<span><?= html_escape($success); ?></span>
+						<button class="guestbook-welcome-play" type="button" id="guestbook-welcome-play"><i class="ti ti-volume"></i> Putar suara</button>
+					</div>
+					<button class="guestbook-welcome-close" type="button" id="guestbook-welcome-close" aria-label="Tutup notifikasi"><i class="ti ti-x"></i></button>
+				</div>
+				<audio id="guestbook-welcome-audio" preload="auto" playsinline>
+					<source src="<?= base_url('assets/uploads/audio/selamat-datang-perpustakaan-rembang.mp3'); ?>" type="audio/mpeg">
+				</audio>
+			<?php endif; ?>
 			<?php if (! empty($error)): ?><div class="alert alert-danger"><?= html_escape($error); ?></div><?php endif; ?>
 
 			<div class="guestbook-grid">
@@ -79,7 +98,8 @@ $purpose_options = [
 								</div>
 								<div class="col-md-5">
 									<label class="form-label">Jumlah Orang</label>
-									<input type="number" class="form-control" name="visitor_count" value="1" min="1" max="1000" required>
+									<input type="number" class="form-control" name="visitor_count" id="guest-visitor-count" value="1" readonly required>
+									<div class="form-hint">Dihitung otomatis dari komposisi.</div>
 								</div>
 								<div class="col-md-6">
 									<label class="form-label">Nama Rombongan / Instansi</label>
@@ -88,6 +108,21 @@ $purpose_options = [
 								<div class="col-md-6">
 									<label class="form-label">Pemimpin Rombongan</label>
 									<input type="text" class="form-control" name="group_leader_name" placeholder="Opsional">
+								</div>
+								<div class="col-12">
+									<div class="d-flex align-items-center justify-content-between mb-2">
+										<div><label class="form-label mb-0">Komposisi Pengunjung</label><div class="form-hint">Pisahkan baris bila gender, usia, pendidikan, atau pekerjaannya berbeda.</div></div>
+										<button class="btn btn-outline-primary btn-sm" type="button" id="add-demographic-row"><i class="ti ti-plus me-1"></i>Tambah Komposisi</button>
+									</div>
+									<div id="demographic-rows" class="vstack gap-2">
+										<div class="card card-sm demographic-row"><div class="card-body"><div class="row g-2 align-items-end">
+											<div class="demographic-field demographic-gender"><label class="form-label">Jenis Kelamin</label><select class="form-select" name="demographic_gender[]" required><option value="male">Laki-laki</option><option value="female">Perempuan</option></select></div>
+											<div class="demographic-field demographic-age"><label class="form-label">Kelompok Usia</label><select class="form-select" name="demographic_age_group[]" required><?php foreach(['0–6','7–12','13–15','16–18','19–24','25–44','45–59','60+'] as $age):?><option value="<?=html_escape($age);?>"><?=html_escape($age);?> tahun</option><?php endforeach;?></select></div>
+											<div class="demographic-field demographic-education"><label class="form-label">Pendidikan</label><select class="form-select" name="demographic_education[]" required><option value="">Pilih pendidikan</option><?php foreach($education_options as $option):?><option value="<?=html_escape($option['id'].'|'.$option['name']);?>"><?=html_escape($option['name']);?></option><?php endforeach;?></select></div>
+											<div class="demographic-field demographic-profession"><label class="form-label">Pekerjaan</label><select class="form-select" name="demographic_profession[]" required><option value="">Pilih pekerjaan</option><?php foreach($profession_options as $option):?><option value="<?=html_escape($option['id'].'|'.$option['name']);?>"><?=html_escape($option['name']);?></option><?php endforeach;?></select></div>
+											<div class="demographic-field demographic-total"><label class="form-label">Jumlah</label><div class="input-group"><input type="number" class="form-control demographic-count" name="demographic_count[]" value="1" min="1" max="1000" required><button class="btn btn-outline-danger remove-demographic-row" type="button" title="Hapus"><i class="ti ti-trash"></i></button></div></div>
+										</div></div></div>
+									</div>
 								</div>
 								<div class="col-md-6">
 									<label class="form-label">Tujuan</label>
@@ -151,6 +186,40 @@ $purpose_options = [
 	<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 	<script>
 	document.addEventListener('DOMContentLoaded', function () {
+		var welcome = document.getElementById('guestbook-welcome');
+		var welcomeClose = document.getElementById('guestbook-welcome-close');
+		var welcomePlay = document.getElementById('guestbook-welcome-play');
+		var welcomeAudio = document.getElementById('guestbook-welcome-audio');
+		function closeWelcome() {
+			if (! welcome) return;
+			welcome.classList.add('is-hiding');
+			window.setTimeout(function () { if (welcome) welcome.remove(); }, 260);
+		}
+		if (welcomeClose) welcomeClose.addEventListener('click', closeWelcome);
+		if (welcome) {
+			window.setTimeout(closeWelcome, 6500);
+			if (welcomeAudio) {
+				function playWelcomeAudio() {
+					welcomeAudio.currentTime = 0;
+					var playback = welcomeAudio.play();
+					if (playback && typeof playback.then === 'function') {
+						playback.then(function () {
+							if (welcomePlay) welcomePlay.classList.remove('is-visible');
+						}).catch(function () {
+							if (welcomePlay) welcomePlay.classList.add('is-visible');
+						});
+					}
+				}
+				if (welcomePlay) welcomePlay.addEventListener('click', playWelcomeAudio);
+				window.setTimeout(playWelcomeAudio, 250);
+			}
+		}
+
+		var demographicRows = document.getElementById('demographic-rows');
+		var visitorCount = document.getElementById('guest-visitor-count');
+		var addDemographicRow = document.getElementById('add-demographic-row');
+		function updateVisitorCount() { var total=0;if(demographicRows)demographicRows.querySelectorAll('.demographic-count').forEach(function(input){total+=Math.max(0,parseInt(input.value||'0',10));});if(visitorCount)visitorCount.value=Math.max(1,total); }
+		if(addDemographicRow&&demographicRows){addDemographicRow.addEventListener('click',function(){var first=demographicRows.querySelector('.demographic-row');if(!first)return;var clone=first.cloneNode(true);clone.querySelectorAll('select').forEach(function(select){select.selectedIndex=0;});var count=clone.querySelector('.demographic-count');if(count)count.value=1;demographicRows.appendChild(clone);updateVisitorCount();});demographicRows.addEventListener('input',updateVisitorCount);demographicRows.addEventListener('click',function(event){var remove=event.target.closest('.remove-demographic-row');if(!remove)return;if(demographicRows.querySelectorAll('.demographic-row').length===1)return;remove.closest('.demographic-row').remove();updateVisitorCount();});updateVisitorCount();}
 		var qrValue = <?= json_encode($qr_url, JSON_UNESCAPED_SLASHES); ?>;
 		if (qrValue && window.QRious) {
 			new QRious({

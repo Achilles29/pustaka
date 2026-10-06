@@ -1,0 +1,20 @@
+{
+    "created_at": "2026-10-05T14:51:55+07:00",
+    "source_rows": 834,
+    "database_units": 411,
+    "comparison_rows": 861,
+    "statuses": {
+        "DIKONFIRMASI_TASK3": 3,
+        "PERLU_VERIFIKASI": 65,
+        "COCOK_GANDA": 8,
+        "COCOK": 364,
+        "HANYA_DATABASE": 27,
+        "HANYA_PENDATAAN": 394
+    },
+    "confirmed_unique_units": 370,
+    "not_yet_confirmed_units": 41,
+    "npsn_differences": 18,
+    "source_sha256": "bffd074f07702c1867860254ba9fb1f0f2c3d7205f2352766a2372c470ac20f1",
+    "workbook_sha256": "c19cd86c4075fcf48c459f1e5d9a4b975a85426244a42cc9e769242a06af84fa",
+    "database_changed": false
+}

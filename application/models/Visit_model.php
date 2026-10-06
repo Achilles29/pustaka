@@ -233,7 +233,10 @@ class Visit_model extends CI_Model
 			throw new RuntimeException('Nama pengunjung wajib diisi.');
 		}
 
-		return $this->insert_visit([
+		$demographics = $this->normalize_guest_demographics($data);
+		$visitor_count = array_sum(array_column($demographics, 'people_count'));
+		$this->db->trans_begin();
+		$visit_id = $this->insert_visit([
 			'source_system' => self::SOURCE_SYSTEM,
 			'source_id' => 'guestbook:' . date('YmdHis') . ':' . strtoupper(substr(hash('sha256', uniqid('', true)), 0, 10)),
 			'visit_channel' => 'library_guestbook',
@@ -242,7 +245,7 @@ class Visit_model extends CI_Model
 			'visitor_name' => substr($name, 0, 180),
 			'group_name' => $this->blank_to_null($data['group_name'] ?? null),
 			'group_leader_name' => $this->blank_to_null($data['group_leader_name'] ?? null),
-			'visitor_count' => max(1, min(1000, (int) ($data['visitor_count'] ?? 1))),
+			'visitor_count' => $visitor_count,
 			'checkin_method' => 'guest_form',
 			'location_label' => 'Buku Tamu Perpustakaan',
 			'purpose_label' => $this->blank_to_null($data['purpose_label'] ?? null) ?: 'Kunjungan perpustakaan',
@@ -252,6 +255,43 @@ class Visit_model extends CI_Model
 			'ip_address' => $this->input->ip_address(),
 			'user_agent' => substr((string) $this->input->user_agent(), 0, 255),
 		]);
+		if (! $visit_id) {
+			$this->db->trans_rollback();
+			throw new RuntimeException('Kunjungan belum dapat disimpan. Silakan coba lagi.');
+		}
+		foreach ($demographics as $row) {
+			$row['visit_id'] = (int) $visit_id;
+			$this->db->insert('member_visit_demographics', $row);
+		}
+		if ($this->db->trans_status() === false) {
+			$this->db->trans_rollback();
+			throw new RuntimeException('Komposisi pengunjung belum dapat disimpan.');
+		}
+		$this->db->trans_commit();
+		return $visit_id;
+	}
+
+	public function guest_reference_options(array $source_tables)
+	{
+		if (! $this->db->table_exists('inlislite_master_references')) return [];
+		$rows = $this->db->select('source_id,name')->from('inlislite_master_references')->where_in('source_table', $source_tables)->where('name IS NOT NULL', null, false)->where('name <>', '')->get()->result_array();
+		usort($rows, function ($a, $b) { $ai=(string)$a['source_id'];$bi=(string)$b['source_id'];return ctype_digit($ai)&&ctype_digit($bi)?((int)$ai<=>(int)$bi):strnatcasecmp($ai,$bi); });
+		$options=[];foreach($rows as $row){$key=trim((string)$row['name']);if($key!==''&&!isset($options[strtolower($key)]))$options[strtolower($key)]=['id'=>(string)$row['source_id'],'name'=>$key];}
+		return array_values($options);
+	}
+
+	private function normalize_guest_demographics(array $data)
+	{
+		if (! $this->db->table_exists('member_visit_demographics')) throw new RuntimeException('Pembaruan database komposisi pengunjung belum dijalankan.');
+		$genders=(array)($data['demographic_gender']??[]);$ages=(array)($data['demographic_age_group']??[]);$educations=(array)($data['demographic_education']??[]);$professions=(array)($data['demographic_profession']??[]);$counts=(array)($data['demographic_count']??[]);
+		$allowedAges=['0–6','7–12','13–15','16–18','19–24','25–44','45–59','60+'];$rows=[];$total=0;
+		foreach($counts as $index=>$rawCount){$count=(int)$rawCount;if($count<=0)continue;$gender=$genders[$index]??'';$age=$ages[$index]??'';$education=$this->parse_reference_option($educations[$index]??'');$profession=$this->parse_reference_option($professions[$index]??'');if(!in_array($gender,['male','female'],true)||!in_array($age,$allowedAges,true)||$education['label']===''||$profession['label']==='')throw new RuntimeException('Lengkapi jenis kelamin, usia, pendidikan, pekerjaan, dan jumlah pada setiap komposisi.');$total+=$count;if($total>1000)throw new RuntimeException('Jumlah pengunjung maksimal 1.000 orang.');$rows[]=['gender'=>$gender,'age_group'=>$age,'education_id'=>$education['id'],'education_label'=>$education['label'],'profession_id'=>$profession['id'],'profession_label'=>$profession['label'],'people_count'=>$count];}
+		if(!$rows)throw new RuntimeException('Tambahkan sekurangnya satu komposisi pengunjung.');return $rows;
+	}
+
+	private function parse_reference_option($value)
+	{
+		$parts=explode('|',(string)$value,2);return ['id'=>trim($parts[0]??'')?:null,'label'=>trim($parts[1]??'')];
 	}
 
 	public function record_member_search_checkin($identifier, array $data = [])
@@ -384,7 +424,7 @@ class Visit_model extends CI_Model
 		}
 
 		$this->db->insert('member_visits', $payload);
-		return $this->db->affected_rows() > 0;
+		return $this->db->affected_rows() > 0 ? (int) $this->db->insert_id() : false;
 	}
 
 	private function source_exists($source_id)

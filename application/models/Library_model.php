@@ -5,12 +5,24 @@ class Library_model extends CI_Model
 {
 	public function get_types()
 	{
+		if ($this->db->field_exists('sort_order','library_types')) $this->db->order_by('sort_order','ASC');
 		return $this->db
 			->from('library_types')
 			->where('is_active', 1)
 			->order_by('name', 'ASC')
 			->get()
 			->result_array();
+	}
+
+	public function get_subtypes()
+	{
+		if (!$this->db->table_exists('library_subtypes')) return [];
+		return $this->db->where('is_active',1)->order_by('sort_order')->order_by('name')->get('library_subtypes')->result_array();
+	}
+
+	private function join_subtype()
+	{
+		if ($this->db->table_exists('library_subtypes') && $this->db->field_exists('library_subtype_id','libraries')) $this->db->select('st.name AS subtype_name')->join('library_subtypes st','st.id=l.library_subtype_id','left');
 	}
 
 	public function get_libraries(array $filters = [], $limit = 25, $offset = 0)
@@ -32,6 +44,7 @@ class Library_model extends CI_Model
 
 	private function build_libraries_query(array $filters = [])
 	{
+		$this->join_subtype();
 		$this->db
 			->select('l.*, t.name AS type_name, t.code AS type_code, t.marker_color, d.name AS district_name, v.name AS village_name, cover.file_path AS cover_path')
 			->from('libraries l')
@@ -44,6 +57,7 @@ class Library_model extends CI_Model
 			$q = trim((string) $filters['q']);
 			$this->db->group_start()
 				->like('l.name', $q)
+				->or_like('l.institution_name', $q)
 				->or_like('l.code', $q)
 				->or_like('l.district', $q)
 				->or_like('l.village', $q)
@@ -52,6 +66,9 @@ class Library_model extends CI_Model
 
 		if (! empty($filters['type_id'])) {
 			$this->db->where('l.library_type_id', (int) $filters['type_id']);
+		}
+		if (! empty($filters['subtype_id']) && $this->db->field_exists('library_subtype_id','libraries')) {
+			$this->db->where('l.library_subtype_id', (int) $filters['subtype_id']);
 		}
 
 		if (! empty($filters['district_id'])) {
@@ -69,6 +86,7 @@ class Library_model extends CI_Model
 
 	public function get_library($id, $scope_library_id = null)
 	{
+		$this->join_subtype();
 		$this->db
 			->select('l.*, t.name AS type_name, t.code AS type_code, t.marker_color, d.name AS district_name, v.name AS village_name')
 			->from('libraries l')
@@ -272,14 +290,57 @@ class Library_model extends CI_Model
 		];
 	}
 
-	public function map_payload(array $libraries)
+	/** Type filters are shared with the directory; pagination never limits the map. */
+	public function get_map_libraries($scope_library_id = null, $active_only = false, array $filters = [])
+	{
+		$this->join_subtype();
+		$this->db
+			->select('l.id, l.code, l.name, l.address, l.district, l.village, l.latitude, l.longitude, l.service_radius_meters, l.manager_name, l.opening_hours, l.facilities, l.status, l.is_verified, t.name AS type_name, t.code AS type_code, t.marker_color, d.name AS district_name, v.name AS village_name')
+			->from('libraries l')
+			->join('library_types t', 't.id = l.library_type_id')
+			->join('ref_districts d', 'd.id = l.district_id', 'left')
+			->join('ref_villages v', 'v.id = l.village_id', 'left');
+		if ($scope_library_id !== null) {
+			$this->db->where('l.id', (int) $scope_library_id);
+		}
+		if ($active_only) {
+			$this->db->where('l.status', 'active');
+		}
+		foreach (['type_id' => 'library_type_id', 'subtype_id' => 'library_subtype_id'] as $key => $column) {
+			if (!empty($filters[$key])) $this->db->where('l.'.$column, (int)$filters[$key]);
+		}
+		return $this->db->order_by('l.name', 'ASC')->get()->result_array();
+	}
+
+	/** Explicit public projection: no PIC, contact details, source metadata or admin links. */
+	public function public_map_payload()
+	{
+		if (! $this->db->table_exists('libraries')) return [];
+		$allowed = array_flip(['id', 'code', 'name', 'type', 'subtype', 'type_code', 'color', 'lat', 'lng', 'radius', 'address', 'district', 'village', 'opening_hours', 'facilities', 'status', 'verified']);
+		return array_map(function ($point) use ($allowed) {
+			$point = array_intersect_key($point, $allowed);
+			$point['location_kind'] = 'library';
+			return $point;
+		}, $this->map_payload($this->get_map_libraries(null, true), true));
+	}
+
+	public function map_payload(array $libraries, $include_admin_details = false)
 	{
 		$payload = [];
 		foreach ($libraries as $library) {
-			$payload[] = [
+			if (! is_numeric($library['latitude']) || ! is_numeric($library['longitude'])) {
+				continue;
+			}
+			$lat = (float) $library['latitude'];
+			$lng = (float) $library['longitude'];
+			if (! is_finite($lat) || ! is_finite($lng) || abs($lat) > 90 || abs($lng) > 180 || ($lat == 0 && $lng == 0)) {
+				continue;
+			}
+			$point = [
 				'id' => (int) $library['id'],
 				'name' => $library['name'],
 				'type' => $library['type_name'],
+				'subtype' => $library['subtype_name'] ?? '',
 				'color' => $library['marker_color'],
 				'lat' => (float) $library['latitude'],
 				'lng' => (float) $library['longitude'],
@@ -290,6 +351,18 @@ class Library_model extends CI_Model
 				'cover' => empty($library['cover_path']) ? null : base_url($library['cover_path']),
 				'url' => base_url('libraries/edit/' . (int) $library['id']),
 			];
+			if ($include_admin_details) {
+				$point += [
+					'code' => $library['code'] ?? '',
+					'type_code' => $library['type_code'] ?? '',
+					'manager' => $library['manager_name'] ?? '',
+					'opening_hours' => $library['opening_hours'] ?? '',
+					'facilities' => $library['facilities'] ?? '',
+					'status' => $library['status'] ?? '',
+					'verified' => ! empty($library['is_verified']),
+				];
+			}
+			$payload[] = $point;
 		}
 
 		return $payload;
@@ -297,7 +370,23 @@ class Library_model extends CI_Model
 
 	private function clean_payload(array $data)
 	{
-		return [
+        $pic=$data['manager_name']??'';$phone=$data['phone']??'';
+        if(!is_scalar($pic)||!is_scalar($phone)||!trim((string)$pic)||!preg_match('/^(?:\+?62|0)8[0-9]{7,12}$/D',preg_replace('/[\s().-]/','',(string)$phone))) throw new InvalidArgumentException('Contact person dan nomor HP aktif wajib diisi.');
+        $extra=[];
+        if($this->db->field_exists('iplm_population_status','libraries')){
+            $selection=$data['iplm_population_status']??'pending';
+            if(!in_array($selection,['pending','included','excluded'],true))throw new InvalidArgumentException('Seleksi populasi tidak valid.');
+            $extra['iplm_population_status']=$selection;
+        }
+		if ($this->db->table_exists('library_subtypes') && $this->db->field_exists('library_subtype_id','libraries')) {
+			$type=(int)($data['library_type_id']??0);$sub=(int)($data['library_subtype_id']??0);
+			if (!$this->db->where(['id'=>$type,'is_active'=>1])->count_all_results('library_types')) throw new InvalidArgumentException('Jenis perpustakaan tidak aktif.');
+			if ($sub && !$this->db->where(['id'=>$sub,'library_type_id'=>$type,'is_active'=>1])->count_all_results('library_subtypes')) throw new InvalidArgumentException('Subjenis tidak sesuai jenis perpustakaan.');
+			if (!$sub && $this->db->where(['library_type_id'=>$type,'is_active'=>1])->count_all_results('library_subtypes')) throw new InvalidArgumentException('Pilih subjenis perpustakaan.');
+			$extra=['library_subtype_id'=>$sub?:null,'institution_name'=>trim((string)($data['institution_name']??''))?:null,'npp'=>trim((string)($data['npp']??''))?:null];
+			if($this->db->field_exists('institution_status','libraries')&&isset($data['institution_status'])){$ownership=$data['institution_status'];if(!in_array($ownership,['','negeri','swasta','belum_diketahui'],true))throw new RuntimeException('Status institusi tidak valid.');$extra['institution_status']=$ownership?:null;}
+		}
+		return $extra + [
 			'library_type_id' => (int) $data['library_type_id'],
 			'code' => trim((string) $data['code']),
 			'name' => trim((string) $data['name']),

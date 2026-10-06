@@ -30,6 +30,37 @@ class Loan_model extends CI_Model
         return $this->get_settings();
     }
 
+    public function search_members($query, $limit = 10)
+    {
+        $query = trim((string) $query);
+        if (mb_strlen($query) < 2) return [];
+        $settings = $this->get_settings();
+        $active_sql = "(SELECT COUNT(*) FROM loan_transaction_items li WHERE li.member_id=m.id AND li.actual_return_at IS NULL AND li.local_return_at IS NULL AND UPPER(COALESCE(li.loan_status,''))='LOAN')";
+        $rows = $this->db->select("m.id,m.member_no,m.full_name,m.identity_number,m.phone,m.card_status,m.expired_at,{$active_sql} AS active_loans", false)
+            ->from('members m')->where('m.deleted_at IS NULL', null, false)->group_start()
+            ->like('m.full_name', $query)->or_like('m.member_no', $query)->or_like('m.identity_number', $query)->or_like('m.phone', $query)
+            ->group_end()->order_by('m.full_name','ASC')->limit(max(1,min(20,(int)$limit)))->get()->result_array();
+        foreach ($rows as &$row) {
+            $row['active_loans']=(int)$row['active_loans'];
+            $row['max_active_loans']=(int)$settings['max_active_loans'];
+            $row['can_borrow']=($row['card_status']??'active')!=='blocked' && (empty($row['expired_at'])||strtotime($row['expired_at'])>=strtotime(date('Y-m-d'))) && $row['active_loans']<(int)$settings['max_active_loans'];
+        }
+        unset($row);
+        return $rows;
+    }
+
+    public function search_loan_items($query, $limit = 10)
+    {
+        $query=trim((string)$query);
+        if(mb_strlen($query)<2)return [];
+        $rows=$this->db->select('bi.id,bi.book_id,bi.barcode,bi.inventory_number,bi.item_code,bi.call_number,bi.collection_type,bi.location_name,bi.status,bi.is_loanable,b.title')
+            ->from('book_items bi')->join('books b','b.id=bi.book_id','left')->where('bi.deleted_at IS NULL',null,false)->where('b.deleted_at IS NULL',null,false)
+            ->group_start()->like('bi.barcode',$query)->or_like('bi.inventory_number',$query)->or_like('bi.item_code',$query)->or_like('b.title',$query)->group_end()
+            ->order_by("CASE WHEN bi.status='available' AND bi.is_loanable=1 THEN 0 ELSE 1 END",'',false)->order_by('b.title','ASC')->limit(max(1,min(20,(int)$limit)))->get()->result_array();
+        foreach($rows as &$row){$row['is_loanable']=(int)$row['is_loanable'];$row['can_borrow']=$row['status']==='available'&&$row['is_loanable']===1;}unset($row);
+        return $rows;
+    }
+
     public function issue_manual_loan($member_lookup, $item_lookup, $due_date, $operator_id)
     {
         $settings = $this->get_settings();
@@ -206,65 +237,140 @@ class Loan_model extends CI_Model
      */
     public function return_loan($loan_item_id, $operator_id = null, $note = null)
     {
-        $loan = $this->get_loan_item((int) $loan_item_id);
-        if (! $loan) throw new RuntimeException('Data peminjaman tidak ditemukan.');
-        if (! $this->is_active_loan($loan)) throw new RuntimeException('Buku ini sudah dikembalikan atau transaksi sudah ditutup.');
-
-        $returned_at = date('Y-m-d H:i:s');
-        $late_days = ! empty($loan['due_date']) ? max(0, (int) floor((strtotime(date('Y-m-d')) - strtotime(substr($loan['due_date'], 0, 10))) / 86400)) : 0;
-        $this->db->trans_start();
-        $is_local_transaction = ($loan['source_system'] ?? '') === self::SOURCE_SYSTEM;
-        if ($is_local_transaction) {
-            $this->db->where('id', (int) $loan_item_id)->update('loan_transaction_items', [
-                'actual_return_at' => $returned_at,
-                'late_days' => $late_days,
-                'loan_status' => 'Return',
-                'source_updated_at' => $returned_at,
-            ]);
-        } else {
-            $this->db->where('id', (int) $loan_item_id)->where('local_return_at IS NULL', null, false)->update('loan_transaction_items', [
-                'local_return_at' => $returned_at,
-                'local_returned_by' => (int) $operator_id ?: null,
-                'local_return_note' => trim((string) $note) ?: null,
-            ]);
-            if ($this->db->affected_rows() !== 1) {
-                $this->db->trans_rollback();
-                throw new RuntimeException('Pengembalian lokal sudah dicatat oleh petugas lain.');
+        $debug = $this->db->db_debug;
+        $this->db->db_debug = false;
+        $started = false;
+        try {
+            if (! $this->db->trans_begin()) throw new RuntimeException('Transaksi pengembalian tidak dapat dimulai.');
+            $started = true;
+            $initial = $this->circulation_query('SELECT book_item_id FROM loan_transaction_items WHERE id=?', [(int) $loan_item_id])->row_array();
+            if (! $initial) throw new RuntimeException('Data peminjaman tidak ditemukan.');
+            $item_id = (int) $initial['book_item_id'];
+            // Kunci eksemplar sebelum detail pinjam, searah dengan pengaman
+            // antarlembaga. Baca ulang detail setelah menunggu lock.
+            if ($item_id > 0) $this->circulation_query('SELECT id FROM book_items WHERE id=? FOR UPDATE', [$item_id]);
+            $loan = $this->circulation_query('SELECT li.*, COALESCE(li.local_due_date,li.due_date) AS due_date FROM loan_transaction_items li WHERE li.id=? FOR UPDATE', [(int) $loan_item_id])->row_array();
+            if (! $loan || (int) $loan['book_item_id'] !== $item_id) throw new RuntimeException('Data peminjaman berubah. Muat ulang sebelum mengembalikan.');
+            if (! $this->is_active_loan($loan)) throw new RuntimeException('Buku ini sudah dikembalikan atau transaksi sudah ditutup.');
+            $book = $this->circulation_query('SELECT b.title FROM book_items bi LEFT JOIN books b ON b.id=bi.book_id WHERE bi.id=?', [$item_id])->row_array();
+            $returned_at = date('Y-m-d H:i:s');
+            $late_days = ! empty($loan['due_date']) ? max(0, (int) floor((strtotime(date('Y-m-d')) - strtotime(substr($loan['due_date'], 0, 10))) / 86400)) : 0;
+            $is_local_transaction = ($loan['source_system'] ?? '') === self::SOURCE_SYSTEM;
+            if ($is_local_transaction) {
+                $this->circulation_query("UPDATE loan_transaction_items SET actual_return_at=?, late_days=?, loan_status='Return', source_updated_at=? WHERE id=?", [$returned_at, $late_days, $returned_at, (int) $loan_item_id]);
+                $this->circulation_query('UPDATE loan_transactions SET return_count=1, late_count=?, source_updated_at=? WHERE id=?', [$late_days > 0 ? 1 : 0, $returned_at, (int) $loan['loan_transaction_id']]);
+            } else {
+                $this->circulation_query('UPDATE loan_transaction_items SET local_return_at=?, local_returned_by=?, local_return_note=? WHERE id=?', [$returned_at, (int) $operator_id ?: null, trim((string) $note) ?: null, (int) $loan_item_id]);
             }
+            // Hanya item ini, dan masih dalam transaksi yang sama. Riwayat
+            // aktif lain / hold antarlembaga tidak boleh ikut dibuka.
+            $availability = $item_id > 0 ? $this->reconcile_availability_updates($item_id) : ['loaned' => 0, 'available' => 0];
+            if (! $this->db->trans_status() || ! $this->db->trans_commit()) throw new RuntimeException('Pengembalian buku gagal disimpan.');
+            $started = false;
+            return ['late_days' => $late_days, 'title' => $book['title'] ?? 'Buku', 'is_legacy' => ! $is_local_transaction, 'availability' => $availability];
+        } catch (Throwable $e) {
+            if ($started) $this->db->trans_rollback();
+            throw $e;
+        } finally {
+            $this->db->db_debug = $debug;
         }
-        $this->db->where('id', (int) $loan['book_item_id'])->where('status', 'loaned')->update('book_items', [
-            'status' => 'available',
-            'updated_at' => $returned_at,
-        ]);
-        if ($is_local_transaction) {
-            $this->db->where('id', (int) $loan['loan_transaction_id'])->update('loan_transactions', [
-                'return_count' => 1,
-                'late_count' => $late_days > 0 ? 1 : 0,
-                'source_updated_at' => $returned_at,
+    }
+
+    public function renew_loan($loan_item_id, $new_due_date, $operator_id = null, $note = null)
+    {
+        $this->db->trans_begin();
+        try {
+            $loan = $this->db->query("SELECT li.*,m.full_name AS member_name,m.card_status,m.expired_at,b.title
+                FROM loan_transaction_items li
+                LEFT JOIN members m ON m.id=li.member_id
+                LEFT JOIN book_items bi ON bi.id=li.book_item_id
+                LEFT JOIN books b ON b.id=bi.book_id
+                WHERE li.id=? FOR UPDATE", [(int) $loan_item_id])->row_array();
+            if (! $loan) throw new RuntimeException('Data peminjaman tidak ditemukan.');
+            if (! $this->is_active_loan($loan)) throw new RuntimeException('Hanya peminjaman yang masih aktif yang dapat diperpanjang.');
+            if (($loan['card_status'] ?? 'active') === 'blocked') throw new RuntimeException('Peminjaman tidak dapat diperpanjang karena kartu member diblokir.');
+            if (! empty($loan['expired_at']) && strtotime($loan['expired_at']) < strtotime(date('Y-m-d'))) throw new RuntimeException('Peminjaman tidak dapat diperpanjang karena membership sudah berakhir.');
+
+            $old_due = ($loan['local_due_date'] ?? null) ?: ($loan['due_date'] ?? null);
+            if (empty($old_due)) throw new RuntimeException('Tanggal jatuh tempo lama tidak tersedia.');
+            $new_due = $this->normalize_due_date($new_due_date, (int) $this->get_settings()['default_loan_days']);
+            if (strtotime($new_due) <= strtotime($old_due)) throw new RuntimeException('Tanggal jatuh tempo baru harus setelah jatuh tempo saat ini.');
+            if (! empty($loan['expired_at']) && strtotime($new_due) > strtotime($loan['expired_at'])) throw new RuntimeException('Jatuh tempo baru tidak boleh melewati masa berlaku membership (' . date('d M Y', strtotime($loan['expired_at'])) . ').');
+
+            $renewed_at = date('Y-m-d H:i:s');
+            $clean_note = trim((string) $note);
+            $this->db->where('id', (int) $loan_item_id)->update('loan_transaction_items', [
+                'local_due_date' => $new_due,
+                'renewal_count' => (int) ($loan['renewal_count'] ?? 0) + 1,
+                'last_renewed_at' => $renewed_at,
+                'last_renewed_by' => (int) $operator_id ?: null,
             ]);
+            $this->db->insert('loan_renewal_logs', [
+                'loan_transaction_item_id' => (int) $loan_item_id,
+                'old_due_date' => $old_due,
+                'new_due_date' => $new_due,
+                'renewed_by' => (int) $operator_id ?: null,
+                'note' => $clean_note !== '' ? mb_substr($clean_note, 0, 500) : null,
+            ]);
+            $this->db->trans_commit();
+            return ['old_due_date'=>$old_due,'new_due_date'=>$new_due,'renewal_count'=>(int)($loan['renewal_count']??0)+1,'note'=>$clean_note,'title'=>$loan['title']?:'Buku'];
+        } catch (Throwable $e) {
+            $this->db->trans_rollback();
+            throw $e;
         }
-        $this->db->trans_complete();
-        if (! $this->db->trans_status()) throw new RuntimeException('Pengembalian buku gagal disimpan.');
-        // Item yang sama dapat memiliki riwayat lebih dari satu. Selaraskan
-        // ulang terhadap seluruh transaksi efektif agar tidak salah dibuka.
-        $availability = $this->reconcile_item_availability();
-        return [
-            'late_days' => $late_days,
-            'title' => $loan['title'] ?? 'Buku',
-            'is_legacy' => ! $is_local_transaction,
-            'availability' => $availability,
-        ];
     }
 
     /** Menjadikan status eksemplar konsisten dengan transaksi efektif aktif. */
-    public function reconcile_item_availability()
+    public function reconcile_item_availability($item_id = null)
     {
         if (! $this->db->table_exists('loan_transaction_items') || ! $this->db->table_exists('book_items')) return ['loaned' => 0, 'available' => 0];
+        if ($item_id !== null && (int) $item_id < 1) throw new InvalidArgumentException('Eksemplar tidak valid.');
+        $debug = $this->db->db_debug;
+        $this->db->db_debug = false;
+        $started = false;
+        try {
+            if (! $this->db->trans_begin()) throw new RuntimeException('Penyelarasan ketersediaan tidak dapat dimulai.');
+            $started = true;
+            $result = $this->reconcile_availability_updates($item_id);
+            if (! $this->db->trans_status() || ! $this->db->trans_commit()) throw new RuntimeException('Penyelarasan ketersediaan gagal disimpan.');
+            $started = false;
+            return $result;
+        } catch (Throwable $e) {
+            if ($started) $this->db->trans_rollback();
+            throw $e;
+        } finally {
+            $this->db->db_debug = $debug;
+        }
+    }
+
+    /** Dipanggil hanya di dalam transaksi; trigger hold tetap menjadi pengaman terakhir. */
+    private function reconcile_availability_updates($item_id = null)
+    {
         $active = "li.actual_return_at IS NULL AND li.local_return_at IS NULL AND UPPER(COALESCE(li.loan_status, '')) = 'LOAN'";
-        $this->db->query("UPDATE book_items bi SET bi.status = 'loaned', bi.updated_at = NOW() WHERE bi.deleted_at IS NULL AND bi.is_loanable = 1 AND bi.status IN ('available','loaned') AND EXISTS (SELECT 1 FROM loan_transaction_items li WHERE li.book_item_id = bi.id AND {$active})");
+        $scope = $item_id === null ? '' : ' AND bi.id=' . (int) $item_id;
+        // Pengembalian tetap menutup pinjaman ketika izin peminjaman item
+        // sudah dimatikan setelah buku dipinjam; izin tersebut tidak diubah.
+        $loanable = $item_id === null ? ' AND bi.is_loanable = 1' : '';
+        // Jangan referensikan inter_library_loans di UPDATE book_items:
+        // trigger book_items mengunci tabel tersebut dan MariaDB menolak
+        // akses dari statement pemicu yang sama (error 1442).
+        if ($this->db->table_exists('inter_library_loans')) {
+            $held = $this->circulation_query("SELECT item_id FROM inter_library_loans WHERE source='legacy' AND active_slot=1" . ($item_id === null ? '' : ' AND item_id=' . (int) $item_id))->result_array();
+            if ($held) $scope .= ' AND bi.id NOT IN (' . implode(',', array_map('intval', array_column($held, 'item_id'))) . ')';
+        }
+        // Snapshot di atas hanya untuk melewati hold yang sudah diketahui.
+        // Hold baru setelah SELECT tetap dilindungi trigger FOR UPDATE.
+        $this->circulation_query("UPDATE book_items bi SET bi.status = 'loaned', bi.status_label = 'Dipinjam', bi.updated_at = NOW() WHERE bi.deleted_at IS NULL{$loanable} AND bi.status IN ('available','loaned') AND (bi.status <> 'loaned' OR COALESCE(bi.status_label, '') <> 'Dipinjam') AND EXISTS (SELECT 1 FROM loan_transaction_items li WHERE li.book_item_id = bi.id AND {$active}){$scope}");
         $loaned = $this->db->affected_rows();
-        $this->db->query("UPDATE book_items bi SET bi.status = 'available', bi.updated_at = NOW() WHERE bi.deleted_at IS NULL AND bi.is_loanable = 1 AND bi.status = 'loaned' AND NOT EXISTS (SELECT 1 FROM loan_transaction_items li WHERE li.book_item_id = bi.id AND {$active})");
+        $this->circulation_query("UPDATE book_items bi SET bi.status = 'available', bi.status_label = 'Tersedia', bi.updated_at = NOW() WHERE bi.deleted_at IS NULL{$loanable} AND ((bi.status = 'loaned') OR (bi.status = 'available' AND COALESCE(bi.status_label, '') <> 'Tersedia')) AND NOT EXISTS (SELECT 1 FROM loan_transaction_items li WHERE li.book_item_id = bi.id AND {$active}){$scope}");
         return ['loaned' => $loaned, 'available' => $this->db->affected_rows()];
+    }
+
+    private function circulation_query($sql, array $bindings = [])
+    {
+        $result = $this->db->query($sql, $bindings ?: false);
+        if ($result === false) throw new RuntimeException('Operasi sirkulasi gagal disimpan. Silakan muat ulang dan coba lagi.');
+        return $result;
     }
 
     public function get_loans(array $filters = [], $limit = 25, $offset = 0)
@@ -287,7 +393,7 @@ class Loan_model extends CI_Model
         $base = "actual_return_at IS NULL AND local_return_at IS NULL AND UPPER(COALESCE(loan_status, '')) = 'LOAN'";
         $rows = $this->db->query("SELECT
             SUM(CASE WHEN {$base} THEN 1 ELSE 0 END) AS active,
-            SUM(CASE WHEN {$base} AND due_date IS NOT NULL AND due_date < ? THEN 1 ELSE 0 END) AS overdue,
+            SUM(CASE WHEN {$base} AND COALESCE(local_due_date,due_date) IS NOT NULL AND COALESCE(local_due_date,due_date) < ? THEN 1 ELSE 0 END) AS overdue,
             SUM(CASE WHEN DATE(COALESCE(actual_return_at, local_return_at)) = ? THEN 1 ELSE 0 END) AS returned_today,
             COUNT(*) AS total
             FROM loan_transaction_items", [$today, $today])->row_array();
@@ -309,8 +415,8 @@ class Loan_model extends CI_Model
         $base = "actual_return_at IS NULL AND local_return_at IS NULL AND UPPER(COALESCE(loan_status, '')) = 'LOAN'";
         $row = $this->db->query("SELECT
             SUM(CASE WHEN {$base} THEN 1 ELSE 0 END) AS active,
-            SUM(CASE WHEN {$base} AND due_date IS NOT NULL AND due_date < ? THEN 1 ELSE 0 END) AS overdue,
-            MIN(CASE WHEN {$base} THEN due_date END) AS next_due_date,
+            SUM(CASE WHEN {$base} AND COALESCE(local_due_date,due_date) IS NOT NULL AND COALESCE(local_due_date,due_date) < ? THEN 1 ELSE 0 END) AS overdue,
+            MIN(CASE WHEN {$base} THEN COALESCE(local_due_date,due_date) END) AS next_due_date,
             COUNT(*) AS total
             FROM loan_transaction_items WHERE member_id = ?", [$today, (int) $member_id])->row_array();
         return ['active' => (int) ($row['active'] ?? 0), 'overdue' => (int) ($row['overdue'] ?? 0), 'next_due_date' => $row['next_due_date'] ?? null, 'total' => (int) ($row['total'] ?? 0)];
@@ -372,7 +478,7 @@ class Loan_model extends CI_Model
         if ($q !== '') $this->db->group_start()->like('m.full_name', $q)->or_like('m.member_no', $q)->or_like('b.title', $q)->or_like('bi.barcode', $q)->or_like('li.source_loan_id', $q)->group_end();
         $status = trim((string) ($filters['status'] ?? ''));
         if ($status === 'active') $this->db->where('li.actual_return_at IS NULL', null, false)->where('li.local_return_at IS NULL', null, false)->where("UPPER(COALESCE(li.loan_status, '')) = 'LOAN'", null, false);
-        if ($status === 'overdue') $this->db->where('li.actual_return_at IS NULL', null, false)->where('li.local_return_at IS NULL', null, false)->where("UPPER(COALESCE(li.loan_status, '')) = 'LOAN'", null, false)->where('li.due_date <', date('Y-m-d 00:00:00'));
+        if ($status === 'overdue') $this->db->where('li.actual_return_at IS NULL', null, false)->where('li.local_return_at IS NULL', null, false)->where("UPPER(COALESCE(li.loan_status, '')) = 'LOAN'", null, false)->where('COALESCE(li.local_due_date,li.due_date) <', date('Y-m-d 00:00:00'), false);
         if ($status === 'returned') $this->db->group_start()->where('li.actual_return_at IS NOT NULL', null, false)->or_where('li.local_return_at IS NOT NULL', null, false)->or_where("UPPER(COALESCE(li.loan_status, '')) = 'RETURN'", null, false)->group_end();
         if (! empty($filters['source'])) $this->db->where('li.source_system', (string) $filters['source']);
         if (! empty($filters['date_from'])) $this->db->where('li.loan_date >=', $filters['date_from'] . ' 00:00:00');
@@ -381,11 +487,11 @@ class Loan_model extends CI_Model
 
     private function loan_select()
     {
-        return "li.*, m.full_name AS member_name, m.member_no, b.title, bi.barcode, bi.inventory_number,
+        return "li.*, COALESCE(li.local_due_date,li.due_date) AS due_date, m.full_name AS member_name, m.member_no, b.title, bi.barcode, bi.inventory_number,
             CASE WHEN li.actual_return_at IS NOT NULL OR li.local_return_at IS NOT NULL OR UPPER(COALESCE(li.loan_status, '')) = 'RETURN' THEN 'returned'
-                 WHEN li.local_return_at IS NULL AND li.due_date IS NOT NULL AND li.due_date < CURDATE() THEN 'overdue'
+                 WHEN li.local_return_at IS NULL AND COALESCE(li.local_due_date,li.due_date) IS NOT NULL AND COALESCE(li.local_due_date,li.due_date) < CURDATE() THEN 'overdue'
                  WHEN UPPER(COALESCE(li.loan_status, '')) = 'LOAN' THEN 'active' ELSE 'history' END AS circulation_status,
-            CASE WHEN li.actual_return_at IS NULL AND li.local_return_at IS NULL AND UPPER(COALESCE(li.loan_status, '')) = 'LOAN' AND li.due_date IS NOT NULL
-                 THEN DATEDIFF(li.due_date, CURDATE()) ELSE NULL END AS days_remaining";
+            CASE WHEN li.actual_return_at IS NULL AND li.local_return_at IS NULL AND UPPER(COALESCE(li.loan_status, '')) = 'LOAN' AND COALESCE(li.local_due_date,li.due_date) IS NOT NULL
+                 THEN DATEDIFF(COALESCE(li.local_due_date,li.due_date), CURDATE()) ELSE NULL END AS days_remaining";
     }
 }

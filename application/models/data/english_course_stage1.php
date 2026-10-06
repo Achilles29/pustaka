@@ -1,0 +1,27 @@
+<?php defined('BASEPATH') OR exit('No direct script access allowed');
+return [
+['hello-english','Hello, English!','Identitas dan salam','👋','Subject pronouns dan am/is/are','hello, name, country, fine, student',[
+['Hello! My name is Rani.','Halo! Nama saya Rani.'],['I am a new student.','Saya seorang siswa baru.'],['You are in my class.','Kamu berada di kelas saya.'],['He is my friend, Bima.','Dia teman saya, Bima.'],['We are happy to meet you.','Kami senang bertemu denganmu.']]],
+['alphabet-sounds','Letters and Sounds','Alfabet, ejaan, dan bunyi','🔤','Alphabet, spelling, dan question What is ...?','letter, spell, word, sound, vowel',[
+['How do you spell your name?','Bagaimana kamu mengeja namamu?'],['It is R-A-N-I.','Ejaannya R-A-N-I.'],['What is this letter?','Huruf apa ini?'],['A is a vowel.','A adalah huruf vokal.'],['Please say the sound again.','Tolong ucapkan bunyinya lagi.']]],
+['my-classroom','My Classroom','Benda dan instruksi kelas','🏫','Articles a/an, this/that, dan imperatives','book, pencil, board, chair, notebook',[
+['This is a book.','Ini sebuah buku.'],['That is an eraser.','Itu sebuah penghapus.'],['Please open your notebook.','Tolong buka buku catatanmu.'],['Write your name on the paper.','Tuliskan namamu pada kertas.'],['May I enter the classroom?','Bolehkah saya masuk ke kelas?']]],
+['numbers-colors','Numbers, Colors, and Shapes','Menghitung dan mendeskripsikan benda','🎨','Singular/plural, these/those, adjective + noun','number, color, circle, square, red',[
+['I have one blue pencil.','Saya mempunyai satu pensil biru.'],['These are three red books.','Ini adalah tiga buku merah.'],['Those circles are yellow.','Lingkaran-lingkaran itu berwarna kuning.'],['The box is big and green.','Kotak itu besar dan hijau.'],['How many stars can you see?','Berapa bintang yang dapat kamu lihat?']]],
+['people-around-me','People Around Me','Keluarga dan teman','👨‍👩‍👧','Possessive adjectives, possessive s, have/has','mother, father, sister, brother, friend',[
+['This is my mother.','Ini ibu saya.'],['Her name is Sinta.','Namanya Sinta.'],['Raka is Dini’s brother.','Raka adalah saudara laki-laki Dini.'],['I have one sister.','Saya mempunyai satu saudara perempuan.'],['My friend has curly hair.','Teman saya mempunyai rambut keriting.']]],
+['my-body-feelings','My Body and Feelings','Tubuh dan perasaan','😊','Be + adjectives, have/has, dan basic questions','head, hand, eyes, happy, tired',[
+['I have two eyes and two ears.','Saya mempunyai dua mata dan dua telinga.'],['My hands are clean.','Tangan saya bersih.'],['She is happy today.','Dia bahagia hari ini.'],['Are you tired?','Apakah kamu lelah?'],['No, I am fine.','Tidak, saya baik-baik saja.']]],
+['my-home','My Home','Ruangan dan posisi benda','🏠','There is/are dan prepositions of place','room, table, bed, kitchen, window',[
+['There is a table in the kitchen.','Ada sebuah meja di dapur.'],['There are two windows in my room.','Ada dua jendela di kamar saya.'],['The bag is under the chair.','Tas itu berada di bawah kursi.'],['My book is next to the lamp.','Buku saya berada di samping lampu.'],['Is there a garden behind the house?','Apakah ada kebun di belakang rumah?']]],
+['food-drinks','Food and Drinks','Makanan, minuman, dan kesukaan','🍎','Like/don’t like, a/an, some, dan simple questions','rice, bread, water, fruit, hungry',[
+['I like rice and vegetables.','Saya suka nasi dan sayuran.'],['She does not like spicy food.','Dia tidak suka makanan pedas.'],['Would you like an apple?','Apakah kamu mau sebuah apel?'],['I want some water, please.','Saya ingin sedikit air, tolong.'],['Are you hungry now?','Apakah kamu lapar sekarang?']]],
+['what-i-can-do','What I Can Do','Kemampuan dan hobi','⚽','Can/can’t serta can questions','read, swim, draw, sing, play',[
+['I can read a short story.','Saya dapat membaca cerita pendek.'],['He can play football.','Dia dapat bermain sepak bola.'],['She cannot swim yet.','Dia belum dapat berenang.'],['Can you draw a cat?','Bisakah kamu menggambar seekor kucing?'],['Yes, I can draw it.','Ya, saya dapat menggambarnya.']]],
+['my-day','My Day','Rutinitas dan waktu dasar','⏰','Simple present dasar dan time expressions','wake up, eat, study, play, sleep',[
+['I wake up at six.','Saya bangun pukul enam.'],['I eat breakfast with my family.','Saya sarapan bersama keluarga.'],['We study at school in the morning.','Kami belajar di sekolah pada pagi hari.'],['I play with my friends after school.','Saya bermain bersama teman-teman setelah sekolah.'],['I sleep at nine o’clock.','Saya tidur pukul sembilan.']]],
+['questions-answers','Ask and Answer','Pertanyaan dasar dalam percakapan','❓','Yes/no questions dan who/what/where/how','who, what, where, how, because',[
+['What is your favorite color?','Apa warna kesukaanmu?'],['Where is your classroom?','Di mana ruang kelasmu?'],['Who is your English teacher?','Siapa guru bahasa Inggrismu?'],['How are you today?','Bagaimana kabarmu hari ini?'],['Is this your pencil?','Apakah ini pensilmu?']]],
+['stage-one-project','My First English Project','Integrasi dan proyek Stage 1','🌟','Review be, have, there is/are, can, dan simple present','introduce, describe, ask, answer, present',[
+['Hello, I would like to introduce myself.','Halo, saya ingin memperkenalkan diri.'],['I am from Rembang.','Saya berasal dari Rembang.'],['There are four people in my family.','Ada empat orang dalam keluarga saya.'],['I can read and draw.','Saya dapat membaca dan menggambar.'],['Thank you for listening to me.','Terima kasih telah mendengarkan saya.']]]
+];

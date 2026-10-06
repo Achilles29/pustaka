@@ -1,0 +1,1 @@
+{"name":"pustaka-wa-engine","version":"1.0.0","private":true,"scripts":{"start":"node index.js"},"dependencies":{"@whiskeysockets/baileys":"^6.7.21","mysql2":"^3.16.2","pino":"^9.14.0"}}

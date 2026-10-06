@@ -1,0 +1,89 @@
+/* Landing footer: scoped to avoid changing admin and profile footers. */
+.pustaka-site-footer {
+ position:relative; isolation:isolate; overflow:hidden; color:#e8f0f5;
+ background:radial-gradient(ellipse at 95% 0%,#154653 0,transparent 43%),linear-gradient(120deg,#071d37,#092e43);
+ border-top:4px solid #d0b26e;
+}
+.pustaka-site-footer::before {content:'';position:absolute;z-index:-1;inset:0;opacity:.1;background-image:linear-gradient(#9dc8d9 1px,transparent 1px),linear-gradient(90deg,#9dc8d9 1px,transparent 1px);background-size:100px 100px;mask-image:linear-gradient(180deg,#000,transparent 65%);pointer-events:none}
+.pustaka-footer-inner {max-width:1440px;margin:0 auto;padding:0 clamp(24px,4vw,64px)}
+.pustaka-site-footer a {color:inherit;text-decoration:none}
+.pustaka-site-footer a:focus-visible {outline:3px solid #edcd85;outline-offset:5px;border-radius:5px}
+.pustaka-footer-eyebrow {display:block;color:#bed6d7;font-size:.62rem;line-height:1.6;font-weight:800;letter-spacing:.17em}
+.pustaka-footer-invite {position:relative;display:flex;align-items:center;justify-content:space-between;gap:36px;padding:54px 0 43px;border-bottom:1px solid #ffffff21}
+.pustaka-footer-invite-copy {position:relative;z-index:1;max-width:570px}
+.pustaka-footer-invite h2 {margin:13px 0 14px;color:#fff;font-family:Fraunces,Georgia,serif;font-weight:650;font-size:clamp(2.2rem,3.6vw,3.65rem);line-height:1.08;letter-spacing:-.035em}
+.pustaka-footer-invite h2 em {font-style:normal;color:#e7c988}
+.pustaka-footer-invite-copy>p {max-width:390px;margin:0;color:#b7cbd8;font-size:.86rem;line-height:1.8}
+.pustaka-footer-invite-actions {position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;gap:18px;margin-right:150px}
+.pustaka-site-footer .pustaka-footer-button {display:inline-flex;align-items:center;justify-content:center;gap:14px;padding:17px 22px;border:1px solid #edce91;border-radius:12px;background:#e7c988;color:#102d3c;font-size:.83rem;font-weight:800;box-shadow:0 12px 30px #00000015;transition:background .18s,transform .18s}
+.pustaka-footer-button>i {font-size:1.2rem}
+.pustaka-site-footer .pustaka-footer-button:hover {background:#f2daaa;transform:translateY(-2px)}
+.pustaka-footer-secondary {display:flex;align-items:center;gap:12px;color:#d4e3ed!important;font-size:.73rem;font-weight:600}
+.pustaka-footer-secondary:hover {text-decoration:underline;text-underline-offset:4px}
+.pustaka-footer-books {position:absolute;right:5px;bottom:43px;display:flex;align-items:flex-end;gap:6px;height:154px;transform:rotate(-7deg);opacity:.68;pointer-events:none}
+.pustaka-footer-books span {display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;width:32px;height:125px;border:1px solid #ffffff35;border-radius:4px 4px 0 0;color:#f0dcab;background:#244a5a;font-size:.48rem;letter-spacing:.15em}
+.pustaka-footer-books span:nth-child(2){height:155px;background:#356b6a}.pustaka-footer-books span:nth-child(3){height:140px;background:#73684d}
+.pustaka-footer-main {display:grid;grid-template-columns:1.35fr .85fr 1fr 1.15fr;gap:clamp(24px,3.5vw,55px);padding:43px 0 36px}
+.pustaka-footer-brand {display:inline-flex;align-items:center;gap:13px;font-size:.84rem;line-height:1.4}
+.pustaka-footer-brand strong {display:block;font-size:1.32rem;letter-spacing:-.025em;color:#fff}
+.pustaka-footer-logo {display:grid;place-items:center;width:59px;height:64px;flex-shrink:0;border:1px solid #ffffff40;border-radius:14px;background:#fff;box-shadow:0 10px 20px #00000012}
+.pustaka-footer-logo img {object-fit:contain}
+.pustaka-footer-about>p {margin:19px 0 17px;max-width:300px;color:#b7cbd8;font-size:.77rem;line-height:1.9}
+.pustaka-footer-map-link {display:inline-flex;align-items:center;gap:8px;color:#e7c988!important;font-size:.73rem;font-weight:700;min-height:32px}
+.pustaka-footer-map-link:hover {text-decoration:underline;text-underline-offset:4px}
+.pustaka-footer-tagline {display:block;margin-top:20px;color:#a7bdca;font-size:.51rem;font-weight:700;letter-spacing:.14em}
+.pustaka-footer-column {min-width:0;padding-top:6px}
+.pustaka-footer-column h3 {margin:0 0 19px;color:#fff;font-size:.81rem;font-weight:800;line-height:1.5}
+.pustaka-footer-column ul {margin:0;padding:0;list-style:none}
+.pustaka-footer-column li+li {margin-top:3px}
+.pustaka-footer-column li>a {display:inline-block;padding:7px 0;font-size:.75rem;line-height:1.5;color:#bdcfda;transition:color .15s}
+.pustaka-footer-column li>a:hover {color:#f2d69b;text-decoration:underline;text-underline-offset:4px}
+.pustaka-footer-hours dl {margin:0}
+.pustaka-footer-hours dl>div {display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #ffffff13;font-size:.7rem;line-height:1.5}
+.pustaka-footer-hours dt {font-weight:500;color:#bdcfda}.pustaka-footer-hours dd {margin:0;color:#fff;font-weight:650;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pustaka-footer-hours>p {display:flex;align-items:center;gap:6px;margin:14px 0 7px;font-size:.66rem;color:#c3d3de}
+.pustaka-footer-hours>small {display:block;color:#9fb7c7;font-size:.61rem;line-height:1.75}
+.pustaka-footer-hours-link {display:inline-block;margin-top:12px;color:#e7c988!important;font-size:.67rem;font-weight:600}
+.pustaka-footer-connect {display:grid;grid-template-columns:1fr 2fr;align-items:center;gap:30px;padding:25px;border:1px solid #ffffff1c;border-radius:16px;background:#ffffff06}
+.pustaka-footer-connect h3 {max-width:245px;margin:8px 0 0;color:#fff;font-size:1rem;font-weight:650;line-height:1.5;letter-spacing:-.02em}
+.pustaka-footer-socials {display:flex;gap:12px;flex-wrap:wrap}
+.pustaka-footer-socials>a {flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #ffffff1f;border-radius:10px;transition:background .15s,border-color .15s}
+.pustaka-footer-socials>a:hover {background:#ffffff0f;border-color:#e7c98888}
+.pustaka-footer-socials>a>i {font-size:1.4rem;color:#e7c988}
+.pustaka-footer-socials>a>span {min-width:0}.pustaka-footer-socials strong {display:block;font-size:.72rem;font-weight:700;color:#eef5f8}
+.pustaka-footer-socials small {display:block;margin-top:3px;font-size:.68rem;color:#b9ccd9;overflow-wrap:anywhere}
+.pustaka-footer-external {margin-left:auto;align-self:flex-start;color:#a9c1d1;font-size:.8rem}
+.pustaka-footer-resources {display:flex;align-items:center;gap:30px;flex-wrap:wrap;margin-top:25px;padding:0 0 25px;border-bottom:1px solid #ffffff21}
+.pustaka-footer-resources>span {font-size:.62rem;color:#a9c1d1;font-weight:600}
+.pustaka-footer-resources>div {display:flex;gap:12px;flex-wrap:wrap}
+.pustaka-footer-resources a {display:flex;align-items:center;gap:9px;padding:8px 13px;border:1px solid #ffffff1a;border-radius:8px;font-size:.67rem;color:#d2e0e9;transition:border-color .15s}
+.pustaka-footer-resources a:hover {border-color:#e7c988;color:#f4d89a}.pustaka-footer-resources a>i {font-size:1rem}.pustaka-footer-resources a>span {margin-left:6px;color:#a9c1d1}
+.pustaka-footer-bottom {display:flex;align-items:center;justify-content:space-between;gap:20px;padding:23px 0 28px;color:#b2c6d4;font-size:.65rem}
+.pustaka-footer-bottom p {margin:0;line-height:1.8}.pustaka-footer-bottom p>span {margin-left:16px;color:#95b0c3}
+.pustaka-footer-top {display:flex;align-items:center;gap:11px;white-space:nowrap}
+.pustaka-footer-top i {display:grid;place-items:center;width:32px;height:32px;border:1px solid #ffffff2b;border-radius:50%;color:#e7c988;font-size:1rem}
+.pustaka-footer-top:hover {color:#f2d69b}
+@media(max-width:1199.98px){
+ .pustaka-footer-invite-actions{margin-right:85px}.pustaka-footer-books{opacity:.38;right:-12px}
+ .pustaka-footer-main{grid-template-columns:1.2fr 1fr;gap:35px 60px}.pustaka-footer-about>p{max-width:360px}
+ .pustaka-footer-connect{grid-template-columns:1fr;gap:20px}.pustaka-footer-connect h3{max-width:none}
+}
+@media(max-width:1279.98px){
+ .public-page.has-pustaka-footer{padding-bottom:0!important}
+ .pustaka-site-footer{padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+}
+@media(max-width:767.98px){
+ .pustaka-footer-inner{padding:0 24px}.pustaka-footer-invite{align-items:flex-start;flex-direction:column;gap:25px;padding:38px 0 32px}
+ .pustaka-footer-invite-copy{max-width:100%}.pustaka-footer-invite h2{font-size:2.7rem}.pustaka-footer-invite-copy>p{font-size:.8rem;max-width:315px}
+ .pustaka-footer-invite-actions{margin-right:0;align-items:flex-start;gap:16px}.pustaka-footer-books{right:0;bottom:28px;opacity:.2;transform:scale(.7) rotate(-7deg);transform-origin:right bottom}
+ .pustaka-footer-button{max-width:100%}.pustaka-footer-secondary{font-size:.67rem}
+ .pustaka-footer-main{grid-template-columns:1fr 1fr;padding:32px 0;gap:28px 20px}.pustaka-footer-about,.pustaka-footer-hours{grid-column:1/-1}
+ .pustaka-footer-about>p{max-width:none;font-size:.8rem}.pustaka-footer-tagline{margin-top:14px}.pustaka-footer-column h3{font-size:.78rem;margin-bottom:12px}
+ .pustaka-footer-column li>a{font-size:.73rem;padding:10px 0}.pustaka-footer-hours dl>div{font-size:.77rem;padding:10px 0}.pustaka-footer-hours>small{font-size:.67rem}
+ .pustaka-footer-connect{padding:20px}.pustaka-footer-socials{flex-direction:column;gap:9px}.pustaka-footer-socials>a{padding:13px;gap:12px}.pustaka-footer-socials small{font-size:.68rem}.pustaka-footer-socials strong{font-size:.78rem}
+ .pustaka-footer-resources{gap:12px;margin-top:23px}.pustaka-footer-resources>div{gap:8px}.pustaka-footer-resources a{font-size:.66rem;min-height:42px}
+ .pustaka-footer-bottom{align-items:flex-start;font-size:.62rem;gap:12px}.pustaka-footer-bottom p>span{display:block;margin:4px 0 0}.pustaka-footer-top{gap:6px;font-size:.59rem}
+}
+@media(max-width:359.98px){.pustaka-footer-inner{padding:0 18px}.pustaka-footer-invite h2{font-size:2.35rem}.pustaka-site-footer .pustaka-footer-button{padding:15px;gap:10px;font-size:.76rem}.pustaka-footer-bottom{flex-direction:column;gap:16px}.pustaka-footer-main{gap:25px 14px}}
+@media(prefers-reduced-motion:reduce){.pustaka-site-footer a{transition:none}.pustaka-site-footer .pustaka-footer-button:hover{transform:none}}
+@media print{.pustaka-site-footer{background:#fff;color:#111;border-top:1px solid #ccc}.pustaka-site-footer *{color:#111!important}.pustaka-footer-books,.pustaka-footer-top,.pustaka-footer-invite-actions{display:none}.pustaka-footer-invite{padding:20px 0}}

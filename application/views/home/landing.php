@@ -3,7 +3,6 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 $tabler_css = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/css/tabler.min.css';
 $tabler_icons_css = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css';
-$map_json = json_encode($map_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 $url_path = function ($path) {
 	$segments = explode('/', str_replace('\\', '/', trim((string) $path, '/')));
 	return implode('/', array_map('rawurlencode', $segments));
@@ -58,7 +57,6 @@ $share_url = base_url();
 	<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,650;9..144,750;9..144,850&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
-	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260807d'); ?>">
 	<style>
@@ -94,8 +92,11 @@ $share_url = base_url();
 			}
 			@media (max-width: 991.98px) { .public-page .public-agency-strip { display: none !important; } }
 		</style>
-	</head>
-<body class="public-page">
+	<link rel="stylesheet" href="<?=base_url('assets/css/pustaka-community.css?v=20260929b');?>">
+	<link rel="stylesheet" href="<?=base_url('assets/css/pustaka-footer.css?v=20260930b');?>">
+	<?php $this->load->view('partials/network_map_styles'); ?>
+</head>
+<body class="public-page has-pustaka-footer">
 	<header class="public-nav">
 		<a class="public-brand" href="<?= base_url(); ?>">
 			<span class="brand-logo-shell">
@@ -108,12 +109,15 @@ $share_url = base_url();
 		</div>
 		<nav class="public-links">
 			<a href="<?= base_url(); ?>">Beranda</a>
+			<a href="<?= base_url('profil-perpustakaan'); ?>">Profil Perpustakaan</a>
 			<a href="<?= base_url('katalog'); ?>">Katalog</a>
-			<a href="<?= base_url('naskah-kuno'); ?>">Naskah Kuno</a>
-			<a href="<?= base_url('donasi-digital'); ?>">Donasi Digital</a>
 			<a href="<?= base_url('suara-pemustaka'); ?>">Suara Pemustaka</a>
-			<a href="<?= base_url('agenda'); ?>">Agenda</a>
-			<a href="#jejaring">Jejaring</a>
+			<details class="pustaka-nav-menu"><summary>Layanan</summary><div>
+				<a href="<?=base_url('naskah-kuno');?>">Naskah Kuno</a><a href="<?=base_url('donasi-digital');?>">Donasi Digital</a><a href="<?=base_url('agenda');?>">Agenda</a><a href="<?=base_url('guestbook/monitor');?>">Buku Tamu</a><a href="#jejaring">Jejaring Perpustakaan</a>
+			</div></details>
+			<details class="pustaka-nav-menu"><summary>Tautan</summary><div>
+				<a href="https://data.rembangkab.go.id/" target="_blank" rel="noopener noreferrer">Data Rembang <span aria-hidden="true">↗</span></a><a href="https://onesearch.id/" target="_blank" rel="noopener noreferrer">Indonesia OneSearch <span aria-hidden="true">↗</span></a>
+			</div></details>
 			<?php if ($is_logged_in): ?>
 				<a href="<?= $dashboard_url; ?>">Dashboard</a>
 				<a href="<?= base_url('logout'); ?>" class="btn btn-primary btn-sm">Logout</a>
@@ -124,6 +128,7 @@ $share_url = base_url();
 			<?php endif; ?>
 		</nav>
 	</header>
+	<nav class="pustaka-mobile-resources" aria-label="Profil dan tautan pengetahuan"><a href="<?=base_url('profil-perpustakaan');?>">Profil Perpustakaan</a><a href="https://data.rembangkab.go.id/" target="_blank" rel="noopener noreferrer">Data Rembang ↗</a><a href="https://onesearch.id/" target="_blank" rel="noopener noreferrer">OneSearch ↗</a></nav>
 	<nav class="public-mobile-nav" aria-label="Navigasi publik">
 		<a href="<?= base_url(); ?>" class="active"><i class="ti ti-home"></i><span>Beranda</span></a>
 		<a href="<?= base_url('katalog'); ?>"><i class="ti ti-search"></i><span>Katalog</span></a>
@@ -136,9 +141,12 @@ $share_url = base_url();
 		<?php endif; ?>
 	</nav>
 
-	<main>
+	<main id="page-top" tabindex="-1">
 		<section class="public-hero public-hero-compact">
-			<div id="public-map" class="public-map"></div>
+			<div class="public-visit-panel">
+				<?php $this->load->view('partials/service_hours'); ?>
+				<?php $this->load->view('partials/network_map', ['map_payload' => $map_payload, 'map_id' => 'public-map', 'map_title' => 'Jelajahi perpustakaan Rembang', 'locatable' => false]); ?>
+			</div>
 			<div class="public-hero-copy">
 				<div class="hero-logo-row">
 					<span class="hero-logo-card">
@@ -175,7 +183,7 @@ $share_url = base_url();
 				<div class="public-hero-stats" aria-label="Ringkasan layanan">
 					<div><strong><?= number_format($public_catalog_count, 0, ',', '.'); ?></strong><span>Katalog publik</span></div>
 					<div><strong><?= number_format($service_counts['collections'], 0, ',', '.'); ?></strong><span>Eksemplar acuan</span></div>
-					<div><strong><?= number_format(count($libraries), 0, ',', '.'); ?></strong><span>Titik layanan</span></div>
+					<div><strong><?= number_format(count($map_payload), 0, ',', '.'); ?></strong><span>Titik layanan</span></div>
 				</div>
 			</div>
 			<a href="#katalog" class="public-scroll-hint">Mulai jelajah</a>
@@ -249,6 +257,7 @@ $share_url = base_url();
 				<div class="row g-4 align-items-center">
 					<div class="col-lg-5">
 						<div class="section-kicker">Jejaring Rembang</div>
+						<a class="btn btn-outline-primary mb-3" href="<?= base_url('jejaring/katalog'); ?>"><i class="ti ti-books me-1"></i>Jelajahi Katalog Jejaring</a>
 						<h2>Perpustakaan sekolah, desa, komunitas, dan swasta berada dalam satu peta layanan.</h2>
 						<p class="text-secondary mt-3">Setiap titik dapat membawa profil, koordinat, radius layanan, galeri foto, dan kelak kuota akses pojok baca digital berbasis lokasi.</p>
 					</div>
@@ -280,31 +289,8 @@ $share_url = base_url();
 			</div>
 		</section>
 	</main>
+	<?php $this->load->view('partials/landing_footer', ['is_logged_in'=>$is_logged_in, 'dashboard_url'=>$dashboard_url]); ?>
 
-	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-	<script>
-	(function () {
-		var points = <?= $map_json ?: '[]'; ?>;
-		var map = L.map('public-map', {
-			zoomControl: false,
-			attributionControl: false,
-			scrollWheelZoom: false,
-			dragging: false,
-			doubleClickZoom: false
-		}).setView([-6.7750, 111.3900], 11);
-
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
-
-		points.forEach(function (point) {
-			L.circleMarker([point.lat, point.lng], {
-				radius: 8,
-				color: '#ffffff',
-				weight: 2,
-				fillColor: point.color || '#0b6b86',
-				fillOpacity: 1
-			}).addTo(map);
-		});
-	})();
-	</script>
+	<?php $this->load->view('partials/network_map_scripts'); ?>
 </body>
 </html>

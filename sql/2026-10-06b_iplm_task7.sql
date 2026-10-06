@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS library_survey_profiles (
+ library_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+ values_json LONGTEXT NOT NULL,
+ version INT UNSIGNED NOT NULL DEFAULT 1,
+ updated_by BIGINT UNSIGNED NULL,
+ updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ CONSTRAINT fk_library_survey_library FOREIGN KEY (library_id) REFERENCES libraries(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

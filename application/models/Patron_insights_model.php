@@ -55,7 +55,7 @@ class Patron_insights_model extends CI_Model
 		$loan = $this->db->query("SELECT COUNT(*) AS loan_items, COUNT(DISTINCT li.member_id) AS unique_borrowers
 			FROM loan_transaction_items li WHERE li.member_id IS NOT NULL {$loan_where}")->row_array();
 		$overdue = $this->db->query("SELECT COUNT(*) AS overdue_items, COUNT(DISTINCT li.member_id) AS overdue_members
-			FROM loan_transaction_items li WHERE " . $this->active_loan_condition('li') . " AND li.due_date IS NOT NULL AND li.due_date < CURDATE()")->row_array();
+			FROM loan_transaction_items li WHERE " . $this->active_loan_condition('li') . " AND COALESCE(li.local_due_date,li.due_date) IS NOT NULL AND COALESCE(li.local_due_date,li.due_date) < CURDATE()")->row_array();
 		return array_map('intval', array_merge($empty, (array) $visit, (array) $loan, (array) $overdue));
 	}
 
@@ -81,7 +81,7 @@ class Patron_insights_model extends CI_Model
 		return $this->db->query("SELECT m.id, m.full_name, m.member_no, m.photo_local_path, m.photo_source_path, m.photo_path,
 			COUNT(*) AS loan_total, COUNT(DISTINCT li.loan_transaction_id) AS transaction_total,
 			SUM(CASE WHEN " . $this->active_loan_condition('li') . " THEN 1 ELSE 0 END) AS active_total,
-			SUM(CASE WHEN " . $this->active_loan_condition('li') . " AND li.due_date < CURDATE() THEN 1 ELSE 0 END) AS overdue_total,
+			SUM(CASE WHEN " . $this->active_loan_condition('li') . " AND COALESCE(li.local_due_date,li.due_date) < CURDATE() THEN 1 ELSE 0 END) AS overdue_total,
 			MAX(li.loan_date) AS last_loan
 			FROM loan_transaction_items li JOIN members m ON m.id = li.member_id
 			WHERE m.deleted_at IS NULL {$where}
@@ -92,12 +92,12 @@ class Patron_insights_model extends CI_Model
 	{
 		if (! $this->db->table_exists('loan_transaction_items')) return [];
 		return $this->db->query("SELECT m.id, m.full_name, m.member_no, m.phone, m.photo_local_path, m.photo_source_path, m.photo_path,
-			COUNT(*) AS overdue_total, MAX(DATEDIFF(CURDATE(), DATE(li.due_date))) AS max_late_days,
-			MIN(li.due_date) AS earliest_due_date,
-			GROUP_CONCAT(DISTINCT b.title ORDER BY li.due_date ASC SEPARATOR ' | ') AS book_titles
+			COUNT(*) AS overdue_total, MAX(DATEDIFF(CURDATE(), DATE(COALESCE(li.local_due_date,li.due_date)))) AS max_late_days,
+			MIN(COALESCE(li.local_due_date,li.due_date)) AS earliest_due_date,
+			GROUP_CONCAT(DISTINCT b.title ORDER BY COALESCE(li.local_due_date,li.due_date) ASC SEPARATOR ' | ') AS book_titles
 			FROM loan_transaction_items li JOIN members m ON m.id = li.member_id
 			LEFT JOIN book_items bi ON bi.id = li.book_item_id LEFT JOIN books b ON b.id = bi.book_id
-			WHERE m.deleted_at IS NULL AND " . $this->active_loan_condition('li') . " AND li.due_date IS NOT NULL AND li.due_date < CURDATE()
+			WHERE m.deleted_at IS NULL AND " . $this->active_loan_condition('li') . " AND COALESCE(li.local_due_date,li.due_date) IS NOT NULL AND COALESCE(li.local_due_date,li.due_date) < CURDATE()
 			GROUP BY m.id ORDER BY max_late_days DESC, overdue_total DESC, earliest_due_date ASC LIMIT 12")->result_array();
 	}
 
@@ -120,7 +120,7 @@ class Patron_insights_model extends CI_Model
 			) v ON v.member_id = m.id
 			LEFT JOIN (
 				SELECT li.member_id, COUNT(*) AS loan_total,
-				SUM(CASE WHEN COALESCE(li.actual_return_at, li.local_return_at) IS NOT NULL AND li.due_date IS NOT NULL AND COALESCE(li.actual_return_at, li.local_return_at) <= li.due_date THEN 1 ELSE 0 END) AS ontime_return_total
+				SUM(CASE WHEN COALESCE(li.actual_return_at, li.local_return_at) IS NOT NULL AND COALESCE(li.local_due_date,li.due_date) IS NOT NULL AND COALESCE(li.actual_return_at, li.local_return_at) <= COALESCE(li.local_due_date,li.due_date) THEN 1 ELSE 0 END) AS ontime_return_total
 				FROM loan_transaction_items li WHERE li.member_id IS NOT NULL {$loan_period} GROUP BY li.member_id
 			) l ON l.member_id = m.id
 			WHERE m.deleted_at IS NULL AND (COALESCE(v.offline_total, 0) + COALESCE(v.online_total, 0) + COALESCE(l.loan_total, 0)) > 0

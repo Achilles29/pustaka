@@ -1,4 +1,5 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<?php $tab='content';$config=['base'=>'learn-story'];include APPPATH.'views/learn/module_progress/_tabs.php'; ?>
 
 <div class="container-xl">
     <div class="page-header mb-3">

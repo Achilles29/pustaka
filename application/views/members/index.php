@@ -54,6 +54,9 @@ $asset_url = function ($member) {
 			</div>
 			<div class="col-auto ms-auto">
 				<div class="btn-list">
+					<a href="<?= base_url('members/cards'); ?>" class="btn btn-outline-primary">
+						<i class="ti ti-id-badge-2 me-1"></i>Kartu Anggota
+					</a>
 					<a href="<?= base_url('members/create'); ?>" class="btn btn-outline-primary">
 						<i class="ti ti-user-plus me-1"></i>Tambah
 					</a>
@@ -184,6 +187,9 @@ $asset_url = function ($member) {
 											<div class="btn-list flex-nowrap">
 												<a class="btn btn-sm btn-action btn-action-muted" href="<?= base_url('members/detail/' . (int) $member['id']); ?>">
 													<i class="ti ti-eye"></i><span>Detail</span>
+												</a>
+												<a class="btn btn-sm btn-action btn-action-primary" href="<?= base_url('members/cards/print/' . (int) $member['id']); ?>" target="_blank" title="Lihat dan cetak kartu anggota">
+													<i class="ti ti-id-badge-2"></i><span>Kartu</span>
 												</a>
 												<a class="btn btn-sm btn-action btn-action-primary" href="<?= base_url('members/edit/' . (int) $member['id']); ?>">
 													<i class="ti ti-edit"></i><span>Edit</span>

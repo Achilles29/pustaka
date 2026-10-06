@@ -18,7 +18,6 @@ class Membership extends CI_Controller
 			'form_options' => $this->Member_model->form_options(),
 			'provinces' => $this->Region_model->get_provinces(),
 			'districts' => $this->Region_model->get_districts(),
-			'villages' => $this->Region_model->village_payload(),
 		]);
 	}
 
@@ -70,6 +69,8 @@ class Membership extends CI_Controller
 			return;
 		}
 
+		$previous_db_debug = $this->db->db_debug;
+		$this->db->db_debug = false;
 		try {
 			$result = $this->Member_registration_model->create_request([
 				'full_name' => $this->input->post('full_name', true),
@@ -99,13 +100,44 @@ class Membership extends CI_Controller
 				'identity_domicile' => $this->input->post('identity_domicile', true),
 				'residency_note' => $this->input->post('residency_note', true),
 			], $_FILES);
+			// Notifikasi adalah proses tambahan. Pendaftaran yang sudah tersimpan
+			// harus tetap dianggap berhasil saat tabel/template WA sedang bermasalah.
+			try {
+				if ($this->db->table_exists('wa_outbox')) {
+					$this->load->model('Whatsapp_model');
+					$this->Whatsapp_model->queue_template('member_registration_received', $this->input->post('phone', true), [
+						'member_name' => $this->input->post('full_name', true),
+						'request_code' => $result['code'],
+					]);
+				}
+			} catch (Throwable $notification_error) {
+				log_message('error', 'Antrean WA pendaftaran ' . $result['code'] . ' gagal: ' . $notification_error->getMessage());
+			}
 			$this->session->set_flashdata('registration_success', 'Pendaftaran berhasil dikirim. Kode antrean: ' . $result['code']);
+			$this->db->db_debug = $previous_db_debug;
 			redirect('membership/register/pending/' . rawurlencode($result['token']));
 		} catch (Throwable $e) {
-			$this->session->set_flashdata('registration_error', $e->getMessage());
+			$this->db->db_debug = $previous_db_debug;
+			$this->session->set_flashdata('registration_error', $this->friendly_registration_error($e));
 			$this->session->set_flashdata('registration_old', $this->input->post(null, true));
 			redirect('membership/register');
 		}
+	}
+
+	private function friendly_registration_error(Throwable $error)
+	{
+		$message = trim((string) $error->getMessage());
+		$database_error = (array) $this->db->error();
+		$combined = strtolower($message . ' ' . ($database_error['message'] ?? ''));
+		if ((int) ($database_error['code'] ?? 0) === 1062
+			|| strpos($combined, 'duplicate entry') !== false
+			|| strpos($combined, 'identity_number') !== false) {
+			return 'NIK tersebut sudah terdaftar atau sudah memiliki pengajuan. Silakan gunakan menu Cek Status atau masuk dengan akun yang sudah ada.';
+		}
+		if ($message === '' || preg_match('/\b(sql|database|query|constraint|1062)\b/i', $message)) {
+			return 'Pendaftaran belum dapat disimpan. Periksa kembali data yang diisi lalu coba lagi.';
+		}
+		return $message;
 	}
 
 	private function post_body_exceeds_server_limit()
@@ -153,7 +185,10 @@ class Membership extends CI_Controller
 		$payload = array_map(function ($row) {
 			return ['id' => (int) $row['id'], 'code' => (string) $row['code'], 'name' => (string) $row['name'], 'area_type' => $row['area_type'] ?? null];
 		}, $rows);
-		$this->output->set_content_type('application/json', 'utf-8')->set_output(json_encode(['data' => $payload], JSON_UNESCAPED_UNICODE));
+		$this->output
+			->set_header('Cache-Control: private, max-age=3600')
+			->set_content_type('application/json', 'utf-8')
+			->set_output(json_encode(['data' => $payload], JSON_UNESCAPED_UNICODE));
 	}
 
 	public function verify($member_id, $token = '')

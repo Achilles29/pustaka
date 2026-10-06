@@ -3,16 +3,30 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Home extends CI_Controller
 {
+	public function __construct()
+	{
+		parent::__construct();
+		$this->config->load('library_public', true);
+	}
+
+	public function profile()
+	{
+		$this->load->model('Patron_feedback_model');
+		$this->load->view('home/profile', [
+			'title'=>'Profil Perpustakaan',
+			'profile_intro'=>$this->config->item('profile_intro', 'library_public'),
+			'profile_history'=>$this->config->item('profile_history', 'library_public'),
+			'contact_links'=>$this->Patron_feedback_model->contact_links(),
+		]);
+	}
+
 	public function index()
 	{
 		$this->load->model('Library_model');
 		$this->load->model('Catalog_model');
 		$this->load->model('Manuscript_model');
 		$this->load->model('Event_model');
-
-		$libraries = $this->db->table_exists('libraries')
-			? $this->Library_model->get_libraries(['status' => 'active'])
-			: [];
+		$this->load->model('Patron_feedback_model');
 
 		$service_counts = [
 			'catalogs' => $this->count_local_table('books'),
@@ -22,8 +36,7 @@ class Home extends CI_Controller
 
 		$this->load->view('home/landing', [
 			'title' => 'Pustaka Digital Rembang',
-			'libraries' => $libraries,
-			'map_payload' => $this->Library_model->map_payload($libraries),
+			'map_payload' => $this->Library_model->public_map_payload(),
 			'service_counts' => $service_counts,
 			'public_catalog_count' => $this->Catalog_model->count_public_books(['availability' => 'with_items']),
 			'public_digital_count' => $this->Catalog_model->count_public_books(['availability' => 'digital']),
@@ -31,6 +44,7 @@ class Home extends CI_Controller
 			'manuscript_preview' => $this->Manuscript_model->featured(3),
 			'manuscript_stats' => $this->Manuscript_model->stats(),
 			'upcoming_events' => $this->Event_model->get_public_events(['time' => 'upcoming'], 3),
+			'contact_links' => $this->Patron_feedback_model->contact_links(),
 		]);
 	}
 

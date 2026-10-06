@@ -184,6 +184,26 @@ class Reading_point_model extends CI_Model
 		return $locations;
 	}
 
+	/** Member map uses only public institution/location data, never tokens or member records. */
+	public function member_map_payload()
+	{
+		$this->load->model('Library_model');
+		$points = $this->Library_model->public_map_payload();
+		foreach ($this->get_active_points(500) as $point) {
+			if (! is_numeric($point['latitude']) || ! is_numeric($point['longitude'])) continue;
+			$lat = (float) $point['latitude']; $lng = (float) $point['longitude'];
+			if (! is_finite($lat) || ! is_finite($lng) || abs($lat) > 90 || abs($lng) > 180 || ($lat == 0 && $lng == 0)) continue;
+			$points[] = [
+				'id' => (int) $point['id'], 'location_kind' => 'reading_point',
+				'name' => $point['name'], 'type' => 'Pojok Baca Digital', 'type_code' => 'reading_point',
+				'lat' => $lat, 'lng' => $lng, 'radius' => max(10, (int) $point['radius_meters']),
+				'address' => $point['address'] ?? '', 'subtitle' => $point['library_name'] ?: 'Pojok Baca Digital',
+				'status' => 'active',
+			];
+		}
+		return $points;
+	}
+
 	public function library_options()
 	{
 		if (! $this->db->table_exists('libraries')) {

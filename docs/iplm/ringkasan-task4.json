@@ -1,0 +1,16 @@
+{
+    "applied": true,
+    "source_rows": 834,
+    "statuses": {
+        "IMPORT": 421,
+        "PADANAN": 378,
+        "TAHAN_NEGERI": 33,
+        "TAHAN_NPSN": 2
+    },
+    "master_before": 411,
+    "master_after": 832,
+    "source_sha256": "bffd074f07702c1867860254ba9fb1f0f2c3d7205f2352766a2372c470ac20f1",
+    "existing_master_preserved": true,
+    "accounts_preserved": true,
+    "iplm_values_preserved": true
+}

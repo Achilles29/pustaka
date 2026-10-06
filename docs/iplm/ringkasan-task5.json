@@ -1,0 +1,60 @@
+{
+    "applied": true,
+    "source_rows": 1339,
+    "source_sha256": "1823d04d0be1120001c5b260c36e0c45e1cf7a2a0bfac0483da7ced640bd9f5b",
+    "statuses": {
+        "BELUM_TERDAFTAR": 871,
+        "SESUAI": 423,
+        "PERBARUI": 42,
+        "TAHAN_REFERENSI": 1,
+        "TAHAN_WILAYAH": 1,
+        "TAHAN_KONFLIK_IDENTITAS": 1
+    },
+    "changed_fields": {
+        "institution_name": 26,
+        "name": 22,
+        "code": 26,
+        "institution_status": 1
+    },
+    "period_change": {
+        "before": {
+            "id": "2",
+            "year": "2026",
+            "title": "IPLM 2026 — data tahun 2025",
+            "start_date": "2025-01-01",
+            "end_date": "2025-12-31",
+            "dates_confirmed": "1",
+            "population": "403",
+            "population_note": "Snapshot \/libraries aktif, jenis\/subjenis aktif dan masuk cakupan IPLM; TK\/SKB dikecualikan. Dihitung 2026-10-05 13:44:22 WIB.",
+            "state": "draft",
+            "version": "2",
+            "created_at": "2026-10-05 09:31:52",
+            "population_mode": "auto",
+            "population_registry_count": "403"
+        },
+        "after": {
+            "id": "2",
+            "year": "2026",
+            "title": "IPLM 2026 — data tahun 2026",
+            "start_date": "2026-01-01",
+            "end_date": "2026-12-31",
+            "dates_confirmed": 1,
+            "population": "403",
+            "population_note": "Snapshot \/libraries aktif, jenis\/subjenis aktif dan masuk cakupan IPLM; TK\/SKB dikecualikan. Dihitung 2026-10-05 13:44:22 WIB.",
+            "state": "draft",
+            "version": 3,
+            "created_at": "2026-10-05 09:31:52",
+            "population_mode": "auto",
+            "population_registry_count": "403"
+        },
+        "draft_ids": [
+            2,
+            4
+        ]
+    },
+    "drafts_for_review": [
+        2,
+        4
+    ],
+    "backup": "\/www\/backup\/pustaka-network\/before-network-20261006-103409-13b8ac21.sql.gz"
+}

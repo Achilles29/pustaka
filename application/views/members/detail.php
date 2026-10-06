@@ -43,6 +43,9 @@ if (! empty($member['photo_local_path'])) {
 					<a href="<?= base_url('members'); ?>" class="btn btn-outline-secondary">
 						<i class="ti ti-arrow-left me-1"></i>Membership
 					</a>
+					<a href="<?= base_url('members/cards/print/' . (int) $member['id']); ?>" class="btn btn-outline-primary" target="_blank">
+						<i class="ti ti-id-badge-2 me-1"></i>Kartu Anggota
+					</a>
 					<a href="<?= base_url('members/edit/' . (int) $member['id']); ?>" class="btn btn-primary">
 						<i class="ti ti-edit me-1"></i>Edit
 					</a>

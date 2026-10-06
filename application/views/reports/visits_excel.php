@@ -40,6 +40,15 @@ $cell = function ($value) {
 			<td colspan="5"></td>
 		</tr>
 		<tr><td colspan="10"></td></tr>
+		<tr><td class="section" colspan="10">Kunjungan Berdasarkan Tujuan</td></tr>
+		<tr><th colspan="6">Tujuan kunjungan</th><th>Orang</th><th>Entri</th><th colspan="2">Persentase orang</th></tr>
+		<?php foreach ($purpose_breakdown as $row): $purpose=(string)$row['label']; if(preg_match('/^[\x00-\x20]*[=+@-]/u',$purpose))$purpose="'".$purpose; ?>
+		<tr><td colspan="6"><?=$cell($purpose);?></td><td class="number"><?=(int)$row['people'];?></td><td class="number"><?=(int)$row['entries'];?></td><td class="number" colspan="2"><?=number_format($summary['people']>0?(int)$row['people']/$summary['people']*100:0,1,'.','');?>%</td></tr>
+		<?php endforeach; ?>
+		<?php if (!$purpose_breakdown): ?><tr><td colspan="10">Belum ada kunjungan pada periode dan jenis kunjungan ini.</td></tr><?php endif; ?>
+		<tr><th colspan="6">Total</th><th><?=(int)$summary['people'];?></th><th><?=(int)$summary['entries'];?></th><th colspan="2"><?=$summary['people']>0?'100.0%':'0.0%';?></th></tr>
+		<tr><td colspan="10">Orang termasuk peserta rombongan; entri adalah baris buku tamu. Tujuan kosong: Belum diisi. Akses dashboard member dan baca buku digital dikelompokkan sebagai “Layanan digital”; detail kunjungan tetap menampilkan tujuan asli.</td></tr>
+		<tr><td colspan="10"></td></tr>
 		<tr><td class="section" colspan="10">Breakdown Kanal</td></tr>
 		<tr><th>Kanal</th><th>Orang</th><th>Entri</th><th colspan="7"></th></tr>
 		<?php foreach ($channel_breakdown as $row): ?>

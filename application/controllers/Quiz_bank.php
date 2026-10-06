@@ -240,6 +240,7 @@ class Quiz_bank extends MY_Controller
             'can_curriculum_override' => $this->can('quiz_bank.index', 'edit'),
             'session_scope'            => $session_scope,
         ]);
+        $this->output->set_output($this->_decorate_import_image_preview($this->output->get_output(), $result['questions']));
     }
 
     /** Langkah 2: import soal yang sudah direview (hanya yang valid). */
@@ -261,9 +262,16 @@ class Quiz_bank extends MY_Controller
             return;
         }
         $session_scope_id = (int) ($data['session_scope_id'] ?? 0) ?: null;
-        $res = $this->Quiz_bank_model->commit_import(
-            $data['questions'], (int) $this->current_user['id'], $data['filename'], $data['format'], $allow_curriculum_override, $session_scope_id
-        );
+        try {
+            $questions = $this->_attach_import_question_images($data['questions']);
+            $res = $this->Quiz_bank_model->commit_import(
+                $questions, (int) $this->current_user['id'], $data['filename'], $data['format'], $allow_curriculum_override, $session_scope_id
+            );
+        } catch (Throwable $e) {
+            $this->session->set_flashdata('error', 'Import gambar/soal gagal: ' . $e->getMessage());
+            redirect($session_scope_id ? 'quiz-bank/import?session_id=' . $session_scope_id : 'quiz-bank/import');
+            return;
+        }
         if ($session_scope_id) {
             $this->load->model('Quiz_session_model');
             $this->Quiz_session_model->add_session_only_questions($session_scope_id, $res['question_ids'] ?? []);
@@ -387,6 +395,71 @@ class Quiz_bank extends MY_Controller
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function _decorate_import_image_preview($html, array $questions)
+    {
+        $html = preg_replace_callback('/<span class="badge bg-secondary">#(\d+)<\/span>/', function ($match) {
+            return '<span class="badge bg-dark text-white px-2">Soal ' . (int) $match[1] . '</span>';
+        }, $html);
+        $index = 0;
+        $html = preg_replace_callback('/(<div class="fw-medium mb-2">.*?<\/div>)/s', function ($match) use (&$index, $questions) {
+            $current = $index++;
+            if (! isset($questions[$current]) || ($questions[$current]['status'] ?? '') !== 'ok') return $match[1];
+            $number = $current + 1;
+            $block = '<div class="import-question-image mt-3"><div class="d-flex align-items-center gap-2 mb-2"><span class="avatar avatar-sm bg-purple-lt"><i class="ti ti-photo-plus"></i></span><div><strong class="small">Gambar soal (opsional)</strong><div class="text-secondary small">Tambahkan diagram, ilustrasi, peta, atau foto untuk soal ini.</div></div></div><input type="file" class="form-control form-control-sm" name="question_images['.$current.']" form="commit-import-form" accept="image/jpeg,image/png,image/webp,image/gif" data-question-image data-preview="question-image-preview-'.$current.'"><div class="form-hint">JPG, PNG, WebP, atau GIF · maksimal 4 MB.</div><div class="question-image-preview mt-2" id="question-image-preview-'.$current.'" hidden><img alt="Preview gambar soal #'.$number.'"><button type="button" class="btn btn-sm btn-outline-danger" data-remove-question-image><i class="ti ti-trash me-1"></i>Hapus pilihan</button></div></div>';
+            return $match[1] . $block;
+        }, $html);
+        $html = preg_replace('/<form\b(?![^>]*enctype=)([^>]*id="commit-import-form"[^>]*)>/i', '<form$1 enctype="multipart/form-data">', $html, 1);
+        $assets = '<style>.import-question-image{padding:12px;border:1px dashed #c4b5fd;border-radius:12px;background:#faf8ff}.question-image-preview{display:flex;align-items:flex-start;gap:12px;padding:10px;border-radius:12px;background:#fff}.question-image-preview[hidden]{display:none!important}.question-image-preview img{display:block;max-width:240px;max-height:180px;object-fit:contain;border:1px solid #e2e8f0;border-radius:9px}</style><script>(function(){document.querySelectorAll("[data-question-image]").forEach(function(input){var wrap=document.getElementById(input.dataset.preview),img=wrap&&wrap.querySelector("img"),remove=wrap&&wrap.querySelector("[data-remove-question-image]"),objectUrl="";input.addEventListener("change",function(){var file=this.files&&this.files[0];if(!file){wrap.hidden=true;return}if(file.size>4*1024*1024){this.value="";alert("Ukuran gambar maksimal 4 MB.");return}if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(file);img.src=objectUrl;wrap.hidden=false});if(remove)remove.addEventListener("click",function(){input.value="";wrap.hidden=true;if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl=""}})})})();</script>';
+        return str_replace('</body>', $assets . '</body>', $html);
+    }
+
+    /**
+     * Menautkan upload gambar pada indeks soal hasil analisis.
+     * File baru dipindahkan saat commit agar unggah ulang file sumber tidak diperlukan.
+     */
+    private function _attach_import_question_images(array $questions)
+    {
+        $files = $_FILES['question_images'] ?? null;
+        if (! is_array($files) || empty($files['name']) || ! is_array($files['name'])) return $questions;
+
+        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+        $uploaded = [];
+        try {
+            foreach ($files['name'] as $index => $original) {
+                if ((string) $original === '') continue;
+                $index = (int) $index;
+                if (! isset($questions[$index]) || ($questions[$index]['status'] ?? '') !== 'ok') {
+                    throw new RuntimeException('Gambar mengarah ke soal yang tidak valid.');
+                }
+                $error = (int) ($files['error'][$index] ?? UPLOAD_ERR_NO_FILE);
+                if ($error !== UPLOAD_ERR_OK) throw new RuntimeException('Upload gambar soal #' . ($index + 1) . ' gagal.');
+                $size = (int) ($files['size'][$index] ?? 0);
+                if ($size <= 0 || $size > 4 * 1024 * 1024) throw new RuntimeException('Gambar soal #' . ($index + 1) . ' maksimal 4 MB.');
+                $tmp = (string) ($files['tmp_name'][$index] ?? '');
+                if ($tmp === '' || ! is_uploaded_file($tmp)) throw new RuntimeException('Berkas gambar soal #' . ($index + 1) . ' tidak valid.');
+                $info = @getimagesize($tmp);
+                $mime = strtolower((string) ($info['mime'] ?? ''));
+                if (! $info || ! isset($allowed[$mime])) throw new RuntimeException('Gambar soal #' . ($index + 1) . ' harus JPG, PNG, WebP, atau GIF.');
+                if ((int) $info[0] < 40 || (int) $info[1] < 40 || (int) $info[0] > 8000 || (int) $info[1] > 8000) {
+                    throw new RuntimeException('Dimensi gambar soal #' . ($index + 1) . ' harus 40–8000 piksel.');
+                }
+                $relative = 'assets/uploads/quiz/questions/' . date('Y/m');
+                $absolute = FCPATH . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+                if (! is_dir($absolute) && ! mkdir($absolute, 0775, true)) throw new RuntimeException('Folder gambar soal tidak dapat dibuat.');
+                $name = 'import-' . date('YmdHis') . '-' . bin2hex(random_bytes(8)) . '.' . $allowed[$mime];
+                $target = $absolute . DIRECTORY_SEPARATOR . $name;
+                if (! move_uploaded_file($tmp, $target)) throw new RuntimeException('Gambar soal #' . ($index + 1) . ' belum dapat disimpan.');
+                $path = $relative . '/' . $name;
+                $uploaded[] = $path;
+                $questions[$index]['question_image'] = $path;
+            }
+        } catch (Throwable $e) {
+            foreach ($uploaded as $path) if (is_file(FCPATH . $path)) @unlink(FCPATH . $path);
+            throw $e;
+        }
+        return $questions;
+    }
 
     private function question_input()
     {

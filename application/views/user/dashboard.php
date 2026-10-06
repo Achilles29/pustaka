@@ -107,7 +107,8 @@ $patron_feedback_status_labels = ['pending' => 'Menunggu', 'reviewing' => 'Ditin
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812h'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260813m'); ?>">
+	<?php $this->load->view('partials/network_map_styles'); ?>
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -291,6 +292,8 @@ $patron_feedback_status_labels = ['pending' => 'Menunggu', 'reviewing' => 'Ditin
 					<?php endif; ?>
 				</div>
 			</section>
+
+			<?php $this->load->view('partials/network_map', ['map_payload' => $map_payload ?? [], 'map_id' => 'member-map', 'map_title' => 'Perpustakaan & Pojok Baca di sekitar Anda', 'locatable' => true]); ?>
 
 			<section class="member-curated-section">
 				<div class="member-section-head">
@@ -499,10 +502,13 @@ $patron_feedback_status_labels = ['pending' => 'Menunggu', 'reviewing' => 'Ditin
 							<div class="member-mini-empty">Belum ada request buku. Buka katalog publik untuk mengajukan.</div>
 						<?php endif; ?>
 						<?php foreach ($book_requests as $request): ?>
+							<?php $request_display_status = $request['display_status'] ?? $request['status']; $needs_staff_note = in_array($request_display_status, ['rejected', 'cancelled', 'returned', 'completed_legacy'], true); ?>
 							<a class="member-mini-item" href="<?= base_url('katalog/detail/' . (int) $request['book_id'] . '#request-buku'); ?>" aria-label="Lihat request <?= html_escape($request['title'] ?: ('Katalog #' . $request['book_id'])); ?>">
 								<div>
 									<strong><?= html_escape($request['title'] ?: 'Katalog #' . $request['book_id']); ?></strong>
-									<span><?= html_escape($request['request_code']); ?> - <?= html_escape($request_status_labels[$request['display_status'] ?? $request['status']] ?? ($request['display_status'] ?? $request['status'])); ?></span>
+									<div class="member-request-meta"><?= html_escape($request['request_code']); ?> <b>·</b> <?= html_escape($request_status_labels[$request_display_status] ?? $request_display_status); ?></div>
+									<?php if (! empty($request['message'])): ?><div class="member-request-note member-request-note-requester"><i class="ti ti-message"></i><span><b>Pesan pengajuan</b><?= html_escape($request['message']); ?></span></div><?php endif; ?>
+									<?php if (! empty($request['staff_note'])): ?><div class="member-request-note"><i class="ti ti-message-2"></i><span><b>Tanggapan petugas</b><?= html_escape($request['staff_note']); ?></span></div><?php elseif ($needs_staff_note): ?><div class="member-request-note member-request-note-empty"><i class="ti ti-info-circle"></i><span>Tanggapan petugas belum tersedia.</span></div><?php endif; ?>
 								</div>
 								<i class="ti ti-chevron-right"></i>
 							</a>
@@ -720,5 +726,6 @@ $patron_feedback_status_labels = ['pending' => 'Menunggu', 'reviewing' => 'Ditin
 		});
 	})();
 	</script>
+	<?php $this->load->view('partials/network_map_scripts'); ?>
 </body>
 </html>

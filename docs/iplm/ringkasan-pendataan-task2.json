@@ -1,0 +1,34 @@
+{
+    "generated_at": "2026-10-05T13:51:25+07:00",
+    "source_sha256": "bffd074f07702c1867860254ba9fb1f0f2c3d7205f2352766a2372c470ac20f1",
+    "source_rows": 834,
+    "source_columns": 60,
+    "master_rows": 411,
+    "statuses": {
+        "BELUM_DITEMUKAN": 394,
+        "COCOK": 364,
+        "COCOK_GANDA": 8,
+        "PERLU_VERIFIKASI": 68
+    },
+    "matched_unique_libraries": 368,
+    "master_without_confirmed_match": 43,
+    "source_subtypes": {
+        "SEKOLAH \/ SMK": 15,
+        "KHUSUS \/ RUMAH IBADAH": 5,
+        "UMUM \/ KOMUNITAS\/TBM\/LAINNYA": 22,
+        "KHUSUS \/ PONDOK PESANTREN": 2,
+        "SEKOLAH \/ SD": 388,
+        "PERGURUAN TINGGI \/ SEKOLAH TINGGI": 4,
+        "SEKOLAH \/ MTS": 38,
+        "SEKOLAH \/ SMA": 11,
+        "SEKOLAH \/ MA": 5,
+        "UMUM \/ KELURAHAN\/DESA": 278,
+        "SEKOLAH \/ SMP": 59,
+        "KHUSUS \/ LAPAS": 1,
+        "KHUSUS \/ KEMENTERIAN\/LEMBAGA": 4,
+        "UMUM \/ KABUPATEN\/KOTA": 1,
+        "SEKOLAH \/ SDLB": 1
+    },
+    "gps_over_1km": 261,
+    "duplicate_target_libraries": 4
+}

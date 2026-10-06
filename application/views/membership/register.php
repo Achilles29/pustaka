@@ -21,9 +21,7 @@ $options_for = function ($group, $current = '') use ($form_options) {
 	return array_values(array_unique($options));
 };
 $districts = $districts ?? [];
-$villages = $villages ?? [];
 $provinces = $provinces ?? [];
-$village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!doctype html>
 <html lang="id">
@@ -73,7 +71,7 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 					<div class="register-rule-list">
 						<div><i class="ti ti-id"></i><span>Unggah foto dan pilih salah satu: KTP atau Kartu Keluarga.</span></div>
 						<div><i class="ti ti-map-pin"></i><span>Bila dokumen identitas dari luar Rembang, surat keterangan dan catatan domisili dapat diisi bila diperlukan.</span></div>
-						<div><i class="ti ti-file-check"></i><span>Target ukuran setiap berkas maksimal 2 MB; berkas lebih besar akan dicoba dikompresi otomatis.</span></div>
+						<div><i class="ti ti-file-check"></i><span>Setiap berkas maksimal 2 MB; foto JPG/PNG yang lebih besar diperkecil di perangkat sebelum dikirim.</span></div>
 						<div><i class="ti ti-shield-check"></i><span>Akun aktif setelah data diverifikasi admin.</span></div>
 					</div>
 					<div class="auth-secondary-link mt-3">
@@ -201,7 +199,7 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 							<div class="mb-3">
 								<label class="form-label">Foto Diri</label>
 								<input type="file" class="form-control" name="photo_file" accept=".jpg,.jpeg,.png" required data-upload-file>
-								<div class="form-hint">JPG atau PNG. Target maksimal 2 MB; gambar yang lebih besar akan dicoba dikompresi otomatis.</div>
+								<div class="form-hint">JPG atau PNG, maksimal 2 MB. Gambar yang lebih besar akan diperkecil sebelum dikirim.</div>
 							</div>
 							<fieldset class="mb-3" aria-describedby="identity-document-help">
 								<legend class="form-label mb-2">Dokumen Identitas Utama</legend>
@@ -217,14 +215,14 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 									<label class="form-label" for="kk_file">File Kartu Keluarga</label>
 									<input id="kk_file" type="file" class="form-control" name="kk_file" accept=".jpg,.jpeg,.png,.pdf" data-upload-file>
 								</div>
-								<div id="identity-document-help" class="form-hint">Pilih dan unggah salah satu saja. JPG, PNG, atau PDF. Target maksimal 2 MB; berkas lebih besar akan dicoba dikompresi otomatis.</div>
+								<div id="identity-document-help" class="form-hint">Pilih dan unggah salah satu saja. JPG/PNG akan diperkecil bila perlu; PDF harus maksimal 2 MB.</div>
 							</fieldset>
 						</div>
 						<div class="outside-rembang-fields" hidden>
 							<div class="mb-3">
 								<label class="form-label">Surat Keterangan Luar Rembang <span class="text-secondary">(opsional)</span></label>
 								<input type="file" class="form-control" name="support_letter_file" accept=".jpg,.jpeg,.png,.pdf" data-upload-file disabled>
-								<div class="form-hint">Boleh dilampirkan bila ada surat domisili, sekolah, pondok, atau instansi. Target maksimal 2 MB; berkas lebih besar akan dicoba dikompresi otomatis.</div>
+								<div class="form-hint">Boleh dilampirkan bila ada surat domisili, sekolah, pondok, atau instansi. JPG/PNG akan diperkecil bila perlu; PDF harus maksimal 2 MB.</div>
 							</div>
 							<div class="mb-3">
 								<label class="form-label">Catatan Domisili / Instansi <span class="text-secondary">(opsional)</span></label>
@@ -232,7 +230,7 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 							</div>
 						</div>
 						<div id="upload-compression-notice" class="alert alert-info py-2 small" role="status" hidden>
-							<i class="ti ti-file-zip me-1"></i>Ada berkas di atas 2 MB. Server akan mencoba mengompresinya setelah formulir dikirim. Proses dapat membutuhkan waktu lebih lama; jangan menutup halaman.
+							<i class="ti ti-photo-cog me-1"></i><span data-upload-notice-text>Gambar sedang diperkecil agar pengiriman lebih cepat.</span>
 						</div>
 						<div class="register-submit-bar">
 							<button type="submit" class="btn btn-primary btn-lg w-100" data-submit-registration>
@@ -250,22 +248,9 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 		var form = document.querySelector('.public-member-register-form');
 		if (!form) return;
 		var maxBytes = 2 * 1024 * 1024;
-		var villageMap = <?= $village_json ?: '{}'; ?>;
 		var districtSelect = document.getElementById('district_id');
 		var villageSelect = document.getElementById('village_id');
 		var currentVillage = parseInt(villageSelect.dataset.current || '0', 10);
-		var renderVillages = function () {
-			var districtId = parseInt(districtSelect.value || '0', 10);
-			var villages = villageMap[districtId] || [];
-			villageSelect.innerHTML = '<option value="">Pilih desa / kelurahan</option>';
-			villages.forEach(function (village) {
-				var option = document.createElement('option');
-				option.value = village.id;
-				option.textContent = village.name;
-				option.selected = parseInt(village.id, 10) === currentVillage;
-				villageSelect.appendChild(option);
-			});
-		};
 		var regionBaseUrl = <?= json_encode(base_url('membership/regions/'), JSON_UNESCAPED_SLASHES); ?>;
 		var setOptions = function (select, rows, label, selectedId) {
 			select.innerHTML = '<option value="">Pilih ' + label + '</option>';
@@ -274,6 +259,16 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 			});
 		};
 		var fetchRegions = function (path) { return fetch(regionBaseUrl + path, { credentials: 'same-origin' }).then(function (response) { return response.ok ? response.json() : { data: [] }; }).then(function (json) { return json.data || []; }); };
+		var loadRembangVillages = function (keepSelection) {
+			setOptions(villageSelect, [], districtSelect.value ? 'desa / kelurahan (memuat...)' : 'kecamatan dahulu', 0);
+			villageSelect.disabled = !districtSelect.value;
+			if (!districtSelect.value) return Promise.resolve();
+			villageSelect.disabled = true;
+			return fetchRegions('villages/' + districtSelect.value).then(function (rows) {
+				setOptions(villageSelect, rows, 'desa / kelurahan', keepSelection ? currentVillage : 0);
+				villageSelect.disabled = false;
+			});
+		};
 		var setupNationalAddress = function (card) {
 			var province = card.querySelector('.national-province'), regency = card.querySelector('.national-regency'), district = card.querySelector('.national-district'), village = card.querySelector('.national-village');
 			var selectedRegency = parseInt(regency.dataset.current || '0', 10), selectedDistrict = parseInt(district.dataset.current || '0', 10), selectedVillage = parseInt(village.dataset.current || '0', 10);
@@ -316,28 +311,119 @@ $village_json = json_encode($villages, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 		};
 		form.querySelectorAll('input[name="identity_document_type"]').forEach(function (input) { input.addEventListener('change', updateDocument); });
 		form.querySelectorAll('input[name="identity_domicile"]').forEach(function (input) { input.addEventListener('change', updateDomicile); });
-		districtSelect.addEventListener('change', function () { currentVillage = 0; renderVillages(); });
+		districtSelect.addEventListener('change', function () { currentVillage = 0; loadRembangVillages(false); });
 		form.querySelectorAll('[data-address-prefix]').forEach(setupNationalAddress);
 		var compressionNotice = document.getElementById('upload-compression-notice');
+		var compressionNoticeText = compressionNotice.querySelector('[data-upload-notice-text]');
 		var submitButton = form.querySelector('[data-submit-registration]');
+		var originalSubmitHtml = submitButton ? submitButton.innerHTML : '';
+		var uploadJobs = new WeakMap();
 		var hasOversizedUpload = function () {
 			return Array.prototype.some.call(form.querySelectorAll('[data-upload-file]'), function (input) {
 				return !input.disabled && input.files[0] && input.files[0].size > maxBytes;
 			});
 		};
 		var updateCompressionNotice = function () {
-			compressionNotice.hidden = !hasOversizedUpload();
+			var oversized = hasOversizedUpload();
+			compressionNotice.hidden = !oversized;
+			if (oversized) compressionNoticeText.textContent = 'Gambar sedang diperkecil agar pengiriman lebih cepat. PDF harus berukuran maksimal 2 MB.';
+		};
+		var canvasBlob = function (canvas, quality) {
+			return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/jpeg', quality); });
+		};
+		var compressImageFile = function (file) {
+			return new Promise(function (resolve, reject) {
+				if (!/^image\/(jpeg|png)$/i.test(file.type || '')) {
+					reject(new Error('Berkas ' + file.name + ' melebihi 2 MB. PDF harus diperkecil terlebih dahulu.'));
+					return;
+				}
+				var image = new Image();
+				var objectUrl = URL.createObjectURL(file);
+				image.onerror = function () { URL.revokeObjectURL(objectUrl); reject(new Error('Gambar ' + file.name + ' tidak dapat dibaca.')); };
+				image.onload = function () {
+					URL.revokeObjectURL(objectUrl);
+					var dimensions = [1800, 1500, 1200, 900];
+					var qualities = [0.82, 0.72, 0.62];
+					var tryDimension = function (dimensionIndex) {
+						if (dimensionIndex >= dimensions.length) {
+							reject(new Error('Gambar ' + file.name + ' belum dapat diperkecil hingga 2 MB. Gunakan gambar dengan resolusi lebih rendah.'));
+							return;
+						}
+						var scale = Math.min(1, dimensions[dimensionIndex] / Math.max(image.naturalWidth, image.naturalHeight));
+						var canvas = document.createElement('canvas');
+						canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+						canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+						var context = canvas.getContext('2d');
+						context.fillStyle = '#fff';
+						context.fillRect(0, 0, canvas.width, canvas.height);
+						context.drawImage(image, 0, 0, canvas.width, canvas.height);
+						var tryQuality = function (qualityIndex) {
+							if (qualityIndex >= qualities.length) { tryDimension(dimensionIndex + 1); return; }
+							canvasBlob(canvas, qualities[qualityIndex]).then(function (blob) {
+								if (!blob) { reject(new Error('Browser tidak dapat memproses gambar ' + file.name + '.')); return; }
+								if (blob.size <= maxBytes) { resolve(blob); return; }
+								tryQuality(qualityIndex + 1);
+							});
+						};
+						tryQuality(0);
+					};
+					tryDimension(0);
+				};
+				image.src = objectUrl;
+			});
+		};
+		var prepareUpload = function (input) {
+			var file = input.files && input.files[0];
+			if (!file || input.disabled || file.size <= maxBytes) return Promise.resolve();
+			var existing = uploadJobs.get(input);
+			if (existing && existing.file === file) return existing.promise;
+			var promise = compressImageFile(file).then(function (blob) {
+				if (!input.files[0] || input.files[0] !== file) return;
+				if (typeof DataTransfer === 'undefined' || typeof File === 'undefined') throw new Error('Browser tidak mendukung pengecilan gambar otomatis. Gunakan berkas maksimal 2 MB.');
+				var transfer = new DataTransfer();
+				var baseName = file.name.replace(/\.[^.]+$/, '') || 'dokumen';
+				transfer.items.add(new File([blob], baseName + '.jpg', { type: 'image/jpeg', lastModified: Date.now() }));
+				input.files = transfer.files;
+				input.setCustomValidity('');
+				updateCompressionNotice();
+			});
+			uploadJobs.set(input, { file: file, promise: promise });
+			return promise;
 		};
 		form.querySelectorAll('[data-upload-file]').forEach(function (input) {
-			input.addEventListener('change', updateCompressionNotice);
+			input.addEventListener('change', function () {
+				input.setCustomValidity('');
+				updateCompressionNotice();
+				prepareUpload(input).catch(function (error) {
+					compressionNotice.hidden = false;
+					compressionNoticeText.textContent = error.message;
+				});
+			});
 		});
-		form.addEventListener('submit', function () {
-			if (hasOversizedUpload() && submitButton) {
+		form.addEventListener('submit', function (event) {
+			var inputs = Array.prototype.filter.call(form.querySelectorAll('[data-upload-file]'), function (input) { return !input.disabled && input.files[0]; });
+			if (!hasOversizedUpload()) return;
+			event.preventDefault();
+			if (submitButton) {
 				submitButton.disabled = true;
-				submitButton.innerHTML = '<i class="ti ti-loader-2 me-1"></i>Mengirim dan mengompresi berkas...';
+				submitButton.innerHTML = '<i class="ti ti-loader-2 me-1"></i>Menyiapkan berkas...';
 			}
+			Promise.all(inputs.map(prepareUpload)).then(function () {
+				var oversizedInput = inputs.find(function (input) { return input.files[0] && input.files[0].size > maxBytes; });
+				if (oversizedInput) throw new Error('Masih ada berkas di atas 2 MB. Perkecil berkas tersebut lalu coba kembali.');
+				HTMLFormElement.prototype.submit.call(form);
+			}).catch(function (error) {
+				var oversizedInput = inputs.find(function (input) { return input.files[0] && input.files[0].size > maxBytes; });
+				if (oversizedInput) {
+					oversizedInput.setCustomValidity(error.message);
+					oversizedInput.reportValidity();
+				}
+				compressionNotice.hidden = false;
+				compressionNoticeText.textContent = error.message;
+				if (submitButton) { submitButton.disabled = false; submitButton.innerHTML = originalSubmitHtml; }
+			});
 		});
-		renderVillages();
+		loadRembangVillages(true);
 		updateDocument();
 		updateDomicile();
 		updateCompressionNotice();

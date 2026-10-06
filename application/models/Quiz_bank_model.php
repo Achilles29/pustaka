@@ -328,6 +328,7 @@ class Quiz_bank_model extends CI_Model
                 'type'                 => $q['type'],
                 'difficulty'           => $q['difficulty'],
                 'question_text'        => $q['question_text'],
+                'question_image'       => ! empty($q['question_image']) ? $q['question_image'] : null,
                 'explanation'          => $q['explanation'] ?? '',
                 'correct_option_index' => $q['type'] === 'multiple_choice' ? (int) $q['correct_index'] : null,
                 // Bank umum tetap draft; soal khusus sesi sudah direview pada pratinjau import.
@@ -558,6 +559,7 @@ class Quiz_bank_model extends CI_Model
         $order = [];
         $answers = [];     // number => index
         $current = null;
+        $current_option = null;
         $difficulty = 'medium';
         $in_answer_key = false;
 
@@ -565,10 +567,18 @@ class Quiz_bank_model extends CI_Model
             $trim = trim($line);
             if ($trim === '') continue;
 
-            if (preg_match('/KUNCI\s*JAWABAN/i', $trim)) { $in_answer_key = true; $current = null; continue; }
+            // Header kunci harus berada di awal baris. Frasa "kunci jawaban" yang
+            // kebetulan menjadi bagian teks soal tidak boleh mengakhiri blok soal.
+            if (preg_match('/^(?:KUNCI(?:\s+JAWABAN)?|ANSWER\s+KEY)\s*:?\s*(.*)$/iu', $trim, $key_header)) {
+                $in_answer_key = true;
+                $current = null;
+                $current_option = null;
+                $trim = trim($key_header[1]);
+                if ($trim === '') continue;
+            }
 
             if ($in_answer_key) {
-                if (preg_match_all('/(\d+)\s*[\.\)]\s*([a-eA-E])/', $trim, $m, PREG_SET_ORDER)) {
+                if (preg_match_all('/\b(\d+)\s*(?:[\.\)\-:]|\s)\s*([a-e])\b/iu', $trim, $m, PREG_SET_ORDER)) {
                     foreach ($m as $pair) {
                         $answers[(int) $pair[1]] = $letters_idx[strtoupper($pair[2])] ?? 0;
                     }
@@ -576,33 +586,46 @@ class Quiz_bank_model extends CI_Model
                 continue;
             }
 
-            // Section header menentukan tingkat kesulitan
-            if (preg_match('/BAGIAN|SECTION|MUDAH|SEDANG|SULIT/i', $trim) && ! preg_match('/^\d+\./', $trim)) {
-                if (preg_match('/MUDAH|EASY/i', $trim))  $difficulty = 'easy';
-                elseif (preg_match('/SEDANG|MEDIUM/i', $trim)) $difficulty = 'medium';
-                elseif (preg_match('/SULIT|HARD|SUKAR/i', $trim)) $difficulty = 'hard';
-                continue;
-            }
-
-            // Opsi jawaban: "a. ..." / "a) ..."
-            if ($current !== null && preg_match('/^([a-eA-E])\s*[\.\)]\s*(.+)$/', $trim, $m)) {
-                $li = $letters_idx[strtoupper($m[1])] ?? null;
-                if ($li !== null) $questions[$current]['options'][$li] = ['text' => trim($m[2]), 'image' => null];
-                continue;
-            }
-
-            // Soal baru: "1. ..."
-            if (preg_match('/^(\d+)\s*[\.\)]\s*(.+)$/', $trim, $m)) {
-                $num = (int) $m[1];
+            // Soal harus dikenali sebelum header. Dengan demikian teks seperti
+            // "1) Bagian tumbuhan ..." atau "2 - Soal mudah ..." tetap menjadi soal.
+            $question_line = $this->txt_question_line($trim);
+            if ($question_line !== null) {
+                $num = $question_line['number'];
                 $current = $num;
-                $questions[$num] = ['text' => trim($m[2]), 'options' => [], 'difficulty' => $difficulty];
-                $order[] = $num;
+                $current_option = null;
+                $questions[$num] = ['text' => $question_line['text'], 'options' => [], 'difficulty' => $difficulty];
+                if (! in_array($num, $order, true)) $order[] = $num;
                 continue;
             }
 
-            // Baris lanjutan teks soal (belum ada opsi)
-            if ($current !== null && empty($questions[$current]['options'])) {
-                $questions[$current]['text'] .= ' ' . $trim;
+            // Opsi: a. / a) / (a) / a: / a -
+            $option_line = $this->txt_option_line($trim);
+            if ($current !== null && $option_line !== null) {
+                $li = $letters_idx[$option_line['letter']] ?? null;
+                if ($li !== null) {
+                    $questions[$current]['options'][$li] = ['text' => $option_line['text'], 'image' => null];
+                    $current_option = $li;
+                }
+                continue;
+            }
+
+            // Hanya bentuk header yang jelas yang boleh mengubah tingkat kesulitan.
+            // Kata biasa "bagian", "mudah", atau "sedang" di dalam teks tidak cocok.
+            $section = $this->txt_section_header($trim);
+            if ($section['is_header']) {
+                if ($section['difficulty'] !== null) $difficulty = $section['difficulty'];
+                $current = null;
+                $current_option = null;
+                continue;
+            }
+
+            // Baris terbungkus dilanjutkan ke opsi terakhir atau ke teks soal.
+            if ($current !== null) {
+                if ($current_option !== null && isset($questions[$current]['options'][$current_option])) {
+                    $questions[$current]['options'][$current_option]['text'] .= ' ' . $trim;
+                } else {
+                    $questions[$current]['text'] .= ' ' . $trim;
+                }
             }
         }
 
@@ -641,6 +664,54 @@ class Quiz_bank_model extends CI_Model
             ];
         }
         return $out;
+    }
+
+    /** Ambil nomor dan teks dari bentuk 1. / 1) / (1) / 1: / 1 -. */
+    private function txt_question_line($line)
+    {
+        if (preg_match('/^\((\d+)\)\s*(.+)$/u', $line, $m)
+            || preg_match('/^(\d+)\s*[\.\)\-:]\s*(.+)$/u', $line, $m)) {
+            return ['number' => (int) $m[1], 'text' => trim($m[2])];
+        }
+        return null;
+    }
+
+    /** Ambil huruf dan teks dari bentuk a. / a) / (a) / a: / a -. */
+    private function txt_option_line($line)
+    {
+        if (preg_match('/^\(([a-e])\)\s*(.+)$/iu', $line, $m)
+            || preg_match('/^([a-e])\s*[\.\)\-:]\s*(.+)$/iu', $line, $m)) {
+            return ['letter' => strtoupper($m[1]), 'text' => trim($m[2])];
+        }
+        return null;
+    }
+
+    /**
+     * Kenali header struktural saja. Nilai difficulty null berarti header bagian
+     * valid tetapi tidak menyebut tingkat kesulitan sehingga nilai sebelumnya dipakai.
+     */
+    private function txt_section_header($line)
+    {
+        $difficulty_words = '(?:MUDAH|EASY|SEDANG|MEDIUM|MENENGAH|SULIT|SUKAR|HARD)';
+        $is_structural = preg_match(
+            '/^(?:(?:BAGIAN|SECTION|SEKSI)\s+(?:(?:[A-Z]|\d+|[IVXLCDM]+)\b(?:\s*(?:[-:–—\(]|$)|\s+(?=' . $difficulty_words . '\b))|' . $difficulty_words . '\b)|(?:TINGKAT|LEVEL)\s+' . $difficulty_words . '\b)/iu',
+            $line
+        ) === 1;
+        $is_difficulty_only = preg_match(
+            '/^[\[\(]?\s*' . $difficulty_words . '\s*[\]\)]?(?:\s*[-:–—]?\s*(?:SOAL|QUESTIONS?)\s*\d+(?:\s*[-–—]\s*\d+)?)?\s*\.?$/iu',
+            $line
+        ) === 1;
+
+        if (! $is_structural && ! $is_difficulty_only) {
+            return ['is_header' => false, 'difficulty' => null];
+        }
+
+        $difficulty = null;
+        if (preg_match('/\b(?:MUDAH|EASY)\b/iu', $line)) $difficulty = 'easy';
+        elseif (preg_match('/\b(?:SEDANG|MEDIUM|MENENGAH)\b/iu', $line)) $difficulty = 'medium';
+        elseif (preg_match('/\b(?:SULIT|SUKAR|HARD)\b/iu', $line)) $difficulty = 'hard';
+
+        return ['is_header' => true, 'difficulty' => $difficulty];
     }
 
     private function subject_names()

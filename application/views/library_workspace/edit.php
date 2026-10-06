@@ -1,0 +1,11 @@
+<?php $this->load->view('library_workspace/header'); ?>
+<form class="card" method="post" action="<?= html_escape($network_url('edit/'.$entity.'/'.$record_id)); ?>"><input type="hidden" name="network_csrf" value="<?= html_escape($csrf); ?>"><div class="card-header"><h2 class="card-title"><?= $record_id?'Edit':'Tambah'; ?> <?= html_escape($definition['title']); ?></h2></div><div class="card-body"><div class="row g-3">
+<?php foreach($definition['fields']as$key=>$field): [$label,$type,$limit,$required]=$field;$value=$row[$key]??''; ?>
+<div class="<?= $type==='textarea'?'col-12':'col-md-6'; ?>"><label class="form-label" for="field-<?= $key; ?>"><?= html_escape($label); ?><?= $required?' *':''; ?></label>
+<?php if($type==='select'||$type==='book'): ?><select class="form-select" id="field-<?= $key; ?>" name="<?= $key; ?>" <?= $required?'required':''; ?>>
+<?php if($type==='book'): ?><option value="">Pilih judul fisik</option><?php foreach($books as$b):if($b['format']!=='physical')continue; ?><option value="<?= (int)$b['id']; ?>" <?= (int)$value===(int)$b['id']?'selected':''; ?>>#<?= (int)$b['id']; ?> · <?= html_escape($b['title']); ?></option><?php endforeach; ?>
+<?php else: foreach($limit as$option=>$text): ?><option value="<?= html_escape($option); ?>" <?= (string)$value===(string)$option?'selected':''; ?>><?= html_escape($text); ?></option><?php endforeach; endif; ?></select>
+<?php elseif($type==='textarea'): ?><textarea class="form-control" rows="4" name="<?= $key; ?>" id="field-<?= $key; ?>" maxlength="<?= $limit; ?>"><?= html_escape($value); ?></textarea>
+<?php else: ?><input class="form-control" id="field-<?= $key; ?>" name="<?= $key; ?>" type="<?= in_array($type,['date','email','url'],true)?$type:'text'; ?>" value="<?= html_escape($value); ?>" maxlength="<?= $limit; ?>" <?= $required?'required':''; ?>><?php endif; ?></div>
+<?php endforeach; ?></div><?php if($entity==='items'&&($row['status']??'')==='loaned'): ?><div class="alert alert-warning mt-3">Eksemplar sedang dipinjam. Pengeditan ditolak sampai dikembalikan.</div><?php endif; ?></div><div class="card-footer network-actions"><button class="btn btn-primary">Simpan</button><a class="btn" href="<?= html_escape($network_url('records/'.$entity)); ?>">Kembali</a></div></form>
+<?php $this->load->view('library_workspace/footer'); ?>

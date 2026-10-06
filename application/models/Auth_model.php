@@ -16,37 +16,22 @@ class Auth_model extends CI_Model
 
 	public function attempt_login($identifier, $password)
 	{
-		$row = $this->db
-			->select('id, username, email, password_hash, full_name, status, force_password_change, library_id')
-			->from('auth_user')
-			->group_start()
-				->where('username', $identifier)
-				->or_where('email', $identifier)
-			->group_end()
-			->where('status', 'active')
-			->limit(1)
-			->get()
-			->row_array();
-
-		if (empty($row) || ! password_verify($password, $row['password_hash'])) {
-			return false;
-		}
-
-		if (password_needs_rehash($row['password_hash'], PASSWORD_BCRYPT)) {
-			$this->db
-				->where('id', $row['id'])
-				->update('auth_user', [
-					'password_hash' => password_hash($password, PASSWORD_BCRYPT),
-				]);
-		}
-
-		$this->db
-			->where('id', $row['id'])
-			->update('auth_user', ['last_login_at' => date('Y-m-d H:i:s')]);
-
-		unset($row['password_hash']);
-
-		return $row;
+        // Serialize password verification with activation; a login that wins the
+        // user-row lock prevents any later ownership claim for this library.
+        $this->db->trans_begin();
+        try {
+            $query=$this->db->query("SELECT id,username,email,password_hash,full_name,status,force_password_change,library_id FROM auth_user WHERE (username=? OR email=?) AND status='active' LIMIT 1 FOR UPDATE",[$identifier,$identifier]);
+            $row=$query?$query->row_array():null;
+            if(!$row||!password_verify((string)$password,$row['password_hash'])){$this->db->trans_rollback();return false;}
+            if(!empty($row['library_id'])&&$this->db->table_exists('library_activation_codes')){
+                $pending=$this->db->where('library_id',$row['library_id'])->where('claimed_at IS NULL',null,false)->count_all_results('library_activation_codes');
+                if($pending){$this->db->trans_rollback();return false;}
+            }
+            $data=['last_login_at'=>date('Y-m-d H:i:s')];
+            if(password_needs_rehash($row['password_hash'],PASSWORD_BCRYPT))$data['password_hash']=password_hash((string)$password,PASSWORD_BCRYPT);
+            if(!$this->db->where('id',$row['id'])->update('auth_user',$data)||!$this->db->trans_status())throw new RuntimeException('Login gagal disimpan.');
+            $this->db->trans_commit();unset($row['password_hash']);return $row;
+        }catch(Throwable $e){$this->db->trans_rollback();return false;}
 	}
 
 	public function username_exists($username, $exclude_user_id = null)
@@ -74,8 +59,9 @@ class Auth_model extends CI_Model
 		return $this->db->affected_rows() >= 0;
 	}
 
-	public function update_password($user_id, $password)
+	public function update_password($user_id, $password, $expected_hash = null)
 	{
+		if($expected_hash!==null)$this->db->where('password_hash',$expected_hash);
 		$this->db
 			->where('id', (int) $user_id)
 			->update('auth_user', [
@@ -84,7 +70,7 @@ class Auth_model extends CI_Model
 				'updated_at' => date('Y-m-d H:i:s'),
 			]);
 
-		return $this->db->affected_rows() >= 0;
+		return $expected_hash!==null?$this->db->affected_rows()===1:$this->db->affected_rows()>=0;
 	}
 
 	public function load_roles($user_id)

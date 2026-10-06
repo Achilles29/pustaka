@@ -37,7 +37,7 @@ class Manuscript_model extends CI_Model
 	{
 		if (! $this->db->table_exists('ancient_manuscripts')) return null;
 		$this->db->from('ancient_manuscripts')->where('id',(int)$id);
-		if ($published_only) $this->db->where('status','published');
+		if ($published_only) $this->db->where('status','published')->where('permission_status','verified')->where('permission_file_path IS NOT NULL',null,false);
 		return $this->db->get()->row_array();
 	}
 
@@ -81,7 +81,7 @@ class Manuscript_model extends CI_Model
 
 	private function public_query(array $filters)
 	{
-		$this->db->from('ancient_manuscripts')->where('status','published')->where_in('access_level',['public','member']);
+		$this->db->from('ancient_manuscripts')->where('status','published')->where('permission_status','verified')->where('permission_file_path IS NOT NULL',null,false)->where_in('access_level',['public','member']);
 		if (! empty($filters['q'])) { $q=trim($filters['q']); $this->db->group_start()->like('inventory_number',$q)->or_like('title',$q)->or_like('origin',$q)->or_like('language',$q)->group_end(); }
 		if (! empty($filters['language'])) $this->db->where('language',$filters['language']);
 		if (! empty($filters['script'])) $this->db->where('script',$filters['script']);
@@ -118,12 +118,13 @@ class Manuscript_model extends CI_Model
 
 	private function clean_payload(array $data)
 	{
-		$keys=['inventory_number','title','alternate_title','language','script','material','page_count','dimensions','condition_state','estimated_period','author_scribe','origin','current_location','description','collection_history','conservation_notes','digitized_at','digitized_by','digitization_notes','rights_note','cover_path','preview_file_path','preview_original_name','preview_mime_type','access_level','status','is_featured'];
+		$keys=['inventory_number','title','alternate_title','language','script','material','page_count','dimensions','condition_state','estimated_period','author_scribe','origin','current_location','description','collection_history','conservation_notes','digitized_at','digitized_by','digitization_notes','rights_note','owner_name','permission_reference','permission_date','permission_notes','permission_file_path','permission_original_name','permission_mime_type','permission_file_size','permission_status','permission_verified_by','permission_verified_at','cover_path','preview_file_path','preview_original_name','preview_mime_type','access_level','status','is_featured'];
 		$out=[]; foreach($keys as $key) if(array_key_exists($key,$data)) $out[$key]=is_string($data[$key]) ? trim($data[$key]) : $data[$key];
 		$out['inventory_number']=strtoupper(substr((string)($out['inventory_number']??''),0,80));
 		$out['title']=substr((string)($out['title']??''),0,255);
 		$out['page_count']=!empty($out['page_count'])?max(1,min(9999,(int)$out['page_count'])):null;
 		$out['digitized_at']=!empty($out['digitized_at'])?$out['digitized_at']:null;
+		$out['permission_date']=!empty($out['permission_date'])?$out['permission_date']:null;
 		$out['access_level']=in_array($out['access_level']??'', ['public','member','internal'],true)?$out['access_level']:'public';
 		$out['status']=in_array($out['status']??'', ['draft','published','archived'],true)?$out['status']:'draft';
 		$out['is_featured']=!empty($out['is_featured'])?1:0;

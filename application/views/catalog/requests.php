@@ -149,7 +149,10 @@ foreach ($requests as $row) {
 									<div><?= html_escape($request['title'] ?: 'Katalog #' . $request['book_id']); ?></div>
 									<div class="text-secondary small"><code><?= html_escape($request['barcode'] ?: '-'); ?></code> <?= html_escape($request['call_number'] ?: ''); ?></div>
 									<?php if (! empty($request['message'])): ?>
-										<div class="queue-note mt-2"><?= html_escape($request['message']); ?></div>
+										<div class="queue-note mt-2"><small class="d-block text-secondary mb-1">Pesan pemohon</small><?= html_escape($request['message']); ?></div>
+									<?php endif; ?>
+									<?php if (! empty($request['admin_note'])): ?>
+										<div class="queue-note mt-2"><small class="d-block text-secondary mb-1">Tanggapan petugas</small><?= html_escape($request['admin_note']); ?></div>
 									<?php endif; ?>
 								</td>
 								<td data-label="Status"><span class="badge <?= in_array($display_status, ['active', 'returned'], true) ? 'bg-green-lt text-green' : ($display_status === 'completed_legacy' ? 'bg-secondary-lt' : (($request['status'] ?? '') === 'rejected' ? 'bg-red-lt text-red' : (($request['status'] ?? '') === 'approved' ? 'bg-yellow-lt text-yellow' : 'bg-blue-lt text-blue'))); ?>"><?= html_escape($status_labels[$display_status] ?? $display_status); ?></span><?php if (($request['status'] ?? '') === 'approved'): ?><div class="text-secondary small mt-1">Eksemplar ditahan untuk member</div><?php endif; ?></td>
@@ -172,7 +175,7 @@ foreach ($requests as $row) {
 												<option value="rejected">Tolak</option>
 												<option value="cancelled">Batalkan</option>
 											</select>
-											<input type="text" class="form-control form-control-sm" name="admin_note" placeholder="Catatan petugas">
+											<input type="text" class="form-control form-control-sm" name="admin_note" placeholder="Tanggapan/alasan untuk pemohon (ditampilkan di dashboard)">
 											<button class="btn btn-primary btn-sm w-100"><i class="ti ti-check me-1"></i>Simpan Keputusan</button>
 										<?= form_close(); ?>
 									<?php elseif (($request['status'] ?? '') === 'fulfilled' && ! empty($request['loan_transaction_item_id'])): ?>

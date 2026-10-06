@@ -65,11 +65,11 @@ CREATE TABLE IF NOT EXISTS `library_photos` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `library_types` (`code`, `name`, `description`, `marker_color`) VALUES
-('perpusda', 'Perpustakaan Daerah', 'Perpustakaan daerah/kabupaten sebagai simpul utama layanan.', '#0b6b86'),
+('umum', 'Perpustakaan Umum', 'Jenis induk perpustakaan kabupaten/kota, kecamatan, desa/kelurahan dan TBM.', '#2563eb'),
 ('sekolah', 'Perpustakaan Sekolah', 'Perpustakaan sekolah SD, SMP, SMA/SMK, dan sederajat.', '#2f8f66'),
-('desa', 'Perpustakaan Desa', 'Perpustakaan desa/kelurahan dan taman baca lokal.', '#c58a12'),
+('khusus', 'Perpustakaan Khusus', 'Perpustakaan instansi dan layanan khusus.', '#9333ea'),
 ('swasta', 'Perpustakaan Swasta', 'Perpustakaan swasta atau institusi non-pemerintah.', '#4263eb'),
-('komunitas', 'Komunitas Literasi', 'Komunitas, TBM, atau ruang baca masyarakat.', '#ae3ec9'),
+('perguruan_tinggi', 'Perpustakaan Perguruan Tinggi', 'Perpustakaan pada perguruan tinggi.', '#b45309'),
 ('mitra', 'Mitra Pojok Baca', 'Lokasi mitra untuk pojok baca digital dan layanan kolaborasi.', '#d9480f')
 ON DUPLICATE KEY UPDATE
   `name` = VALUES(`name`),

@@ -34,6 +34,7 @@ $member_name = $member['full_name'] ?? ($current_user['full_name'] ?? $current_u
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812h'); ?>">
+	<style>.member-card-side-switch{display:flex;justify-content:center;gap:.5rem;margin:0 0 1rem}.member-card-side-switch .btn.is-active{background:#086db6;color:#fff}.member-card-side{display:none}.member-card-side.is-active{display:block}</style>
 </head>
 <body class="user-page member-card-page">
 	<header class="user-topbar user-topbar-app">
@@ -70,34 +71,9 @@ $member_name = $member['full_name'] ?? ($current_user['full_name'] ?? $current_u
 				</div>
 			</div>
 
-			<section class="member-card-display <?= $is_active ? '' : 'is-inactive'; ?>">
-				<div class="member-card-orbit member-card-orbit-one"></div>
-				<div class="member-card-orbit member-card-orbit-two"></div>
-				<div class="member-card-grid"></div>
-				<div class="member-card-display-top">
-					<div class="member-card-brand">
-						<span class="member-card-logo"><img src="<?= base_url('img/logo-small.jpeg'); ?>" alt="Logo Kabupaten Rembang"></span>
-						<div><span>PEMERINTAH KABUPATEN REMBANG</span><strong>Pustaka Digital Rembang</strong></div>
-					</div>
-					<span class="member-card-live"><i class="ti ti-circle-check-filled"></i><?= html_escape($status_label); ?></span>
-				</div>
-				<div class="member-card-display-body">
-					<div class="member-card-photo">
-						<?php if ($photo_url): ?><img src="<?= html_escape($photo_url); ?>" alt="Foto <?= html_escape($member_name); ?>"><?php else: ?><i class="ti ti-user"></i><?php endif; ?>
-					</div>
-					<div class="member-card-person">
-						<span>NAMA ANGGOTA</span>
-						<h2><?= html_escape($member_name); ?></h2>
-						<strong><?= html_escape($member['member_no'] ?: $current_user['username']); ?></strong>
-						<p><?= html_escape($member['member_type_label'] ?: ($member['member_type'] ?: 'Pemustaka')); ?></p>
-					</div>
-				</div>
-				<div class="member-card-display-bottom">
-					<div><span>BERLAKU SAMPAI</span><strong><?= html_escape($member['expired_at'] ?: '-'); ?></strong></div>
-					<div><span>STATUS</span><strong><?= html_escape($status_label); ?></strong></div>
-					<div class="member-card-code"><i class="ti ti-scan"></i><span><?= html_escape(strtoupper(substr(basename((string) $verify_url), 0, 8))); ?></span></div>
-				</div>
-			</section>
+			<div class="member-card-side-switch" role="tablist" aria-label="Sisi kartu anggota"><button class="btn btn-outline-primary btn-sm is-active" type="button" data-card-side="front"><i class="ti ti-credit-card me-1"></i>Sisi depan</button><button class="btn btn-outline-primary btn-sm" type="button" data-card-side="back"><i class="ti ti-credit-card-off me-1"></i>Sisi belakang</button></div>
+			<div class="member-card-side is-active" data-card-side-panel="front"><?php $card_size = 'full'; $card_side = 'front'; include APPPATH . 'views/members/_digital_card.php'; ?></div>
+			<div class="member-card-side" data-card-side-panel="back"><?php $card_size = 'full'; $card_side = 'back'; include APPPATH . 'views/members/_digital_card.php'; ?></div>
 
 			<div class="member-card-notes">
 				<i class="ti ti-shield-lock"></i>
@@ -105,5 +81,7 @@ $member_name = $member['full_name'] ?? ($current_user['full_name'] ?? $current_u
 			</div>
 		</div>
 	</main>
+	<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+	<script>document.querySelectorAll('[data-card-qr]').forEach(function(el){new QRCode(el,{text:el.dataset.cardQr,width:140,height:140,correctLevel:QRCode.CorrectLevel.M});});document.querySelectorAll('[data-card-side]').forEach(function(button){button.addEventListener('click',function(){var side=this.dataset.cardSide;document.querySelectorAll('[data-card-side]').forEach(function(item){item.classList.toggle('is-active',item===button);});document.querySelectorAll('[data-card-side-panel]').forEach(function(panel){panel.classList.toggle('is-active',panel.dataset.cardSidePanel===side);});});});</script>
 </body>
 </html>

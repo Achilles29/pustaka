@@ -21,6 +21,8 @@ class Guestbook extends CI_Controller
 			'library_id' => $library_id,
 			'success' => $this->session->flashdata('success'),
 			'error' => $this->session->flashdata('error'),
+			'education_options' => $this->Visit_model->guest_reference_options(['master_pendidikan', 'master_jenjang_pendidikan']),
+			'profession_options' => $this->Visit_model->guest_reference_options(['master_pekerjaan']),
 		]);
 	}
 
@@ -105,6 +107,11 @@ class Guestbook extends CI_Controller
 			'purpose_label' => $this->input->post('purpose_label', true),
 			'address' => $this->input->post('address', true),
 			'information' => $this->input->post('information', true),
+			'demographic_gender' => (array) $this->input->post('demographic_gender', true),
+			'demographic_age_group' => (array) $this->input->post('demographic_age_group', true),
+			'demographic_education' => (array) $this->input->post('demographic_education', true),
+			'demographic_profession' => (array) $this->input->post('demographic_profession', true),
+			'demographic_count' => (array) $this->input->post('demographic_count', true),
 		];
 	}
 

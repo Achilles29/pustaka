@@ -3,6 +3,56 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Patron_feedback_model extends CI_Model
 {
+	public function contacts()
+	{
+		$defaults = ['whatsapp'=>'085165805518','instagram'=>'dinarpusrembang','tiktok'=>'perpustakaan.umum.rbg'];
+		if (!$this->db->table_exists('patron_feedback_contacts')) return $defaults;
+		$row = $this->db->where('id', 1)->get('patron_feedback_contacts')->row_array();
+		return $row ? array_intersect_key($row, $defaults) : $defaults;
+	}
+
+	public function validate_contacts(array $data)
+	{
+		$out = [];
+		foreach (['whatsapp','instagram','tiktok'] as $key) {
+			if (isset($data[$key]) && !is_scalar($data[$key])) throw new RuntimeException('Format kontak tidak valid.');
+			$out[$key] = trim((string) ($data[$key] ?? ''));
+		}
+		$out['whatsapp'] = preg_replace('/[\s()+-]/', '', $out['whatsapp']);
+		if ($out['whatsapp'] !== '' && !preg_match('/^(?:08[0-9]{8,11}|628[0-9]{8,11})$/D', $out['whatsapp'])) {
+			throw new RuntimeException('WhatsApp harus berupa nomor Indonesia dengan awalan 08 atau 628.');
+		}
+		foreach (['instagram'=>30,'tiktok'=>24] as $key=>$max) {
+			$out[$key] = ltrim($out[$key], '@');
+			if ($out[$key] !== '' && !preg_match('/^[a-zA-Z0-9_][a-zA-Z0-9_.]{0,'.($max-1).'}$/D', $out[$key])) {
+				throw new RuntimeException(ucfirst($key).' diisi nama pengguna saja (huruf, angka, titik, atau garis bawah; maksimal '.$max.' karakter).');
+			}
+		}
+		return $out;
+	}
+
+	public function save_contacts(array $data)
+	{
+		$payload = $this->validate_contacts($data);
+		if (!$this->db->table_exists('patron_feedback_contacts')) throw new RuntimeException('Tabel pengaturan kontak belum tersedia. Jalankan migrasi kontak pemustaka.');
+		$payload['updated_at'] = date('Y-m-d H:i:s');
+		if (!$this->db->query('INSERT INTO patron_feedback_contacts (id, whatsapp, instagram, tiktok, updated_at) VALUES (1, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE whatsapp=VALUES(whatsapp), instagram=VALUES(instagram), tiktok=VALUES(tiktok), updated_at=VALUES(updated_at)', array_values($payload))) throw new RuntimeException('Pengaturan kontak belum dapat disimpan.');
+		return $payload;
+	}
+
+	public function contact_links()
+	{
+		$c = $this->contacts(); $links = [];
+		if ($c['whatsapp'] !== '') {
+			$phone = $c['whatsapp'][0] === '0' ? '62'.substr($c['whatsapp'],1) : $c['whatsapp'];
+			$links[] = ['name'=>'WhatsApp','handle'=>$c['whatsapp'],'url'=>'https://wa.me/'.rawurlencode($phone),'icon'=>'brand-whatsapp','note'=>'Hubungi perpustakaan'];
+		}
+		foreach (['instagram'=>['Instagram','https://www.instagram.com/','brand-instagram','Cerita & kabar terbaru'], 'tiktok'=>['TikTok','https://www.tiktok.com/@','brand-tiktok','Temukan inspirasi membaca']] as $key=>$meta) {
+			if ($c[$key] !== '') $links[] = ['name'=>$meta[0],'handle'=>'@'.$c[$key],'url'=>$meta[1].rawurlencode($c[$key]),'icon'=>$meta[2],'note'=>$meta[3]];
+		}
+		return $links;
+	}
+
 	public function submit(array $data, $user_id = null)
 	{
 		$type = (string) ($data['feedback_type'] ?? '');

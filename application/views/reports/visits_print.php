@@ -67,6 +67,15 @@ $text = function ($value, $fallback = '-') {
 		<div><span>Rombongan</span><strong><?= number_format((int) $summary['groups'], 0, ',', '.'); ?></strong></div>
 	</section>
 
+	<section class="section" id="visit-purpose-report">
+		<h2>Kunjungan Berdasarkan Tujuan</h2>
+		<p>Orang mencakup peserta rombongan; entri adalah baris buku tamu. Tujuan kosong: Belum diisi. Akses dashboard member dan baca buku digital dikelompokkan sebagai “Layanan digital”; detail kunjungan tetap menampilkan tujuan asli.</p>
+		<table><thead><tr><th>Tujuan kunjungan</th><th>Orang</th><th>Entri</th><th>Persentase orang</th></tr></thead><tbody>
+		<?php foreach ($purpose_breakdown as $row): ?><tr><td><?=html_escape($row['label']);?></td><td class="number"><?=number_format((int)$row['people'],0,',','.');?></td><td class="number"><?=number_format((int)$row['entries'],0,',','.');?></td><td class="number"><?=number_format($summary['people']>0?(int)$row['people']/$summary['people']*100:0,1,',','.');?>%</td></tr><?php endforeach; ?>
+		<?php if (!$purpose_breakdown): ?><tr><td colspan="4">Belum ada kunjungan pada periode dan jenis kunjungan ini.</td></tr><?php endif; ?>
+		</tbody><tfoot><tr><th>Total</th><th class="number"><?=number_format((int)$summary['people'],0,',','.');?></th><th class="number"><?=number_format((int)$summary['entries'],0,',','.');?></th><th class="number"><?=$summary['people']>0?'100,0%':'0,0%';?></th></tr></tfoot></table>
+	</section>
+
 	<section class="grid">
 		<div class="section">
 			<h2>Kanal</h2>

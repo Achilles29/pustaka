@@ -40,6 +40,19 @@ class Quiz_sessions extends MY_Controller
             'can_edit'   => $this->can('quiz_sessions.index', 'edit'),
             'can_delete' => $this->can('quiz_sessions.index', 'delete'),
         ]);
+        $this->output->set_output($this->decorate_question_bank_actions($this->output->get_output()));
+    }
+
+    public function questions($id)
+    {
+        $this->require_permission('quiz_sessions.index', 'view');
+        $session = $this->Quiz_session_model->get_session((int) $id);
+        if (! $session || $session['type'] !== 'practice') { show_404(); return; }
+        $this->render('game/quiz_session_questions', [
+            'title' => 'Soal Terhubung — ' . $session['title'],
+            'session' => $session,
+            'questions' => $this->linked_session_questions($session),
+        ]);
     }
 
     public function create()
@@ -201,6 +214,44 @@ class Quiz_sessions extends MY_Controller
         ]);
     }
 
+    private function decorate_question_bank_actions($html)
+    {
+        return preg_replace_callback('/<tr>(.*?)<\\/tr>/s', function ($match) {
+            if (! preg_match('#quiz-sessions/attempts/(\\d+)#', $match[1], $id)) return $match[0];
+            $button = '<a href="' . base_url('quiz_sessions/questions/' . (int) $id[1]) . '" class="btn btn-sm btn-outline-primary" title="Lihat soal terhubung" aria-label="Lihat bank soal sesi"><i class="ti ti-library"></i></a>';
+            $row = preg_replace('/<div class="btn-list flex-nowrap">/', '<div class="btn-list flex-nowrap">' . $button, $match[0], 1);
+            return $row;
+        }, $html);
+    }
+
+    private function linked_session_questions(array $session)
+    {
+        $source = $session['question_source'] ?? 'bank_all';
+        $this->db->select('q.id,q.question_text,q.question_image,q.type,q.difficulty,q.explanation,q.correct_option_index,q.is_active,q.is_session_only,q.session_scope_id,sq.sort_order,sub.name subject_name,g.name grade_name')
+            ->from('quiz_questions q')
+            ->join('quiz_subjects sub','sub.id=q.subject_id','left')
+            ->join('quiz_grade_levels g','g.id=q.grade_level_id','left');
+        if ($source === 'bank_all') {
+            $this->db->join('quiz_session_questions sq','sq.question_id=q.id AND sq.session_id='.(int)$session['id'],'left',false)
+                ->where('q.is_session_only',0)->where('q.is_active',1);
+            if (! empty($session['subject_id'])) $this->db->where('q.subject_id',(int)$session['subject_id']);
+            if (! empty($session['grade_level_id'])) $this->db->where('q.grade_level_id',(int)$session['grade_level_id']);
+            if (($session['difficulty_filter']??'mixed') !== 'mixed') $this->db->where('q.difficulty',$session['difficulty_filter']);
+            $this->db->order_by('q.id','DESC');
+        } else {
+            $this->db->join('quiz_session_questions sq','sq.question_id=q.id')
+                ->where('sq.session_id',(int)$session['id']);
+            if ($source === 'session_only') $this->db->where('q.is_session_only',1)->where('q.session_scope_id',(int)$session['id']);
+            else $this->db->where('q.is_session_only',0);
+            $this->db->order_by('sq.sort_order','ASC');
+        }
+        $questions=$this->db->where('q.deleted_at IS NULL',null,false)->limit(1000)->get()->result_array();
+        $ids=array_column($questions,'id');$options=[];
+        if($ids){$rows=$this->db->where_in('question_id',$ids)->order_by('question_id')->order_by('option_index')->get('quiz_question_options')->result_array();foreach($rows as $row)$options[(int)$row['question_id']][]=$row;}
+        foreach($questions as &$question)$question['options']=$options[(int)$question['id']]??[];unset($question);
+        return $questions;
+    }
+
     private function session_input()
     {
         return [
@@ -229,3 +280,4 @@ class Quiz_sessions extends MY_Controller
         ];
     }
 }
+

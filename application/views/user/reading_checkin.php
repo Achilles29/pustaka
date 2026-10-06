@@ -22,6 +22,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812h'); ?>">
+	<?php $this->load->view('partials/network_map_styles'); ?>
 </head>
 <body class="user-page">
 	<header class="user-topbar user-topbar-app">
@@ -52,6 +53,8 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 		<div class="container-xl">
 			<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?= html_escape($this->session->flashdata('success')); ?></div><?php endif; ?>
 			<?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?= html_escape($this->session->flashdata('error')); ?></div><?php endif; ?>
+
+			<?php $this->load->view('partials/network_map', ['map_payload' => $map_payload ?? [], 'map_id' => 'reading-map', 'map_title' => 'Lokasi baca & posisi Anda', 'locatable' => true]); ?>
 
 			<section class="reading-checkin-shell">
 				<div class="reading-checkin-panel">
@@ -159,8 +162,9 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 		var lat = document.getElementById('checkin-latitude');
 		var lng = document.getElementById('checkin-longitude');
 		var state = document.getElementById('reading-gps-state');
-		if (! button || ! form || ! navigator.geolocation) {
-			if (state) state.textContent = 'Browser tidak mendukung GPS.';
+		if (! button || ! form || ! navigator.geolocation || !window.isSecureContext) {
+			if (button) button.disabled = true;
+			if (state) state.textContent = 'Check-in memerlukan HTTPS dan browser yang mendukung GPS. Peta lokasi baca tetap dapat dilihat.';
 			return;
 		}
 
@@ -170,6 +174,7 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 			navigator.geolocation.getCurrentPosition(function (position) {
 				lat.value = position.coords.latitude.toFixed(7);
 				lng.value = position.coords.longitude.toFixed(7);
+				window.dispatchEvent(new CustomEvent('pustaka:location', {detail: {latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy}}));
 				state.textContent = 'Lokasi terbaca: ' + lat.value + ', ' + lng.value + '. Mengirim check-in...';
 				form.submit();
 			}, function () {
@@ -183,5 +188,6 @@ $status_labels = ['active' => 'Aktif', 'used' => 'Terpakai', 'expired' => 'Kedal
 		});
 	});
 	</script>
+	<?php $this->load->view('partials/network_map_scripts'); ?>
 </body>
 </html>

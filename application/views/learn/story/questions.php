@@ -1,6 +1,7 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 $letters = ['A', 'B', 'C', 'D'];
 ?>
+<div class="container-xl pt-2 text-end"><a class="btn btn-outline-primary" href="<?= base_url('learn-progress/scope/story/'.$passage['id']); ?>"><i class="ti ti-users"></i> Progres Bacaan</a></div>
 
 <div class="container-xl">
     <div class="page-header mb-3">

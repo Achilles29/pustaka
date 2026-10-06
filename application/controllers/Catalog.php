@@ -6,7 +6,7 @@ class Catalog extends MY_Controller
 	public function __construct()
 	{
 		parent::__construct();
-		$this->load->model(['Catalog_model', 'Loan_model']);
+		$this->load->model(['Catalog_model', 'Loan_model', 'Digital_donation_model', 'Reader_model']);
 	}
 
 	public function index()
@@ -76,6 +76,134 @@ class Catalog extends MY_Controller
 		]);
 	}
 
+	private function report_filters()
+	{
+		$filters = [];
+		foreach (['q','status','content_category_id','content_classification_id','source_system','collection_type','category','media','rule','location_library','availability','publish_year'] as $key) {
+			$value = $this->input->get($key, true);
+			$filters[$key] = is_scalar($value) ? trim((string) $value) : '';
+		}
+		return $filters;
+	}
+
+	private function csv_stream($filename)
+	{
+		if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+		header('Content-Type: text/csv; charset=UTF-8');
+		header('Content-Disposition: attachment; filename="'.$filename.'"');
+		header('Cache-Control: private, no-store');
+		header('X-Content-Type-Options: nosniff');
+		$stream = fopen('php://output', 'w');
+		fwrite($stream, "\xEF\xBB\xBF");
+		return $stream;
+	}
+
+	private function csv_row($stream, array $row)
+	{
+		$row = array_map(function ($value) {
+			if (is_int($value) || is_float($value)) return $value;
+			$value = (string) ($value ?? '');
+			return preg_match('/^[\x00-\x20]*[=+@-]|^[\t\r\n]/u', $value) ? "'".$value : $value;
+		}, $row);
+		fputcsv($stream, $row, ',', '"', '');
+	}
+
+	public function export()
+	{
+		$this->require_permission('catalog.index', 'view');
+		$this->require_permission('catalog.index', 'export');
+		$filters = $this->report_filters(); $scope = $this->current_library_scope_id();
+		$fields = ['id'=>'ID katalog','title'=>'Judul','subtitle'=>'Subjudul','authors'=>'Pengarang',
+			'statement_responsibility'=>'Penanggung jawab','edition'=>'Edisi','publish_place'=>'Kota terbit',
+			'publisher'=>'Penerbit','publish_year'=>'Tahun terbit','isbn'=>'ISBN','classification'=>'Klasifikasi',
+			'content_category_name'=>'Kategori konten','content_classification_name'=>'Klasifikasi konten',
+			'call_number'=>'Nomor panggil','language'=>'Bahasa','physical_description'=>'Deskripsi fisik',
+			'subjects'=>'Subjek','abstract'=>'Abstrak','status'=>'Status','source_system'=>'Sumber data',
+			'source_id'=>'ID sumber','collection_types'=>'Jenis koleksi','libraries'=>'Perpustakaan',
+			'item_count'=>'Jumlah eksemplar sesuai filter','available_count'=>'Eksemplar tersedia sesuai filter',
+			'created_at'=>'Tanggal masuk aplikasi','updated_at'=>'Terakhir diperbarui'];
+		$rows = $this->catalog_export_rows($fields, $filters, $scope);
+		if ($this->input->get('format') === 'xlsx') {
+			$this->download_excel('katalog-detail-'.date('Y-m-d').'.xlsx','Katalog',array_values($fields),$rows);
+			return;
+		}
+		$rows->rewind(); // Fetch the first batch before sending CSV response headers.
+		$stream = $this->csv_stream('katalog-detail-'.date('Y-m-d').'.csv');
+		$this->csv_row($stream, array_values($fields));
+		foreach ($rows as $row) $this->csv_row($stream, $row);
+		fclose($stream);
+	}
+
+	private function catalog_export_rows(array $fields, array $filters, $scope)
+	{
+		$batch = $this->Catalog_model->export_batch($filters, $scope);
+		while ($batch) {
+			foreach ($batch as $book) {
+				$row = [];
+				foreach ($fields as $key=>$label) {
+					$value = $book[$key] ?? '';
+					$row[] = in_array($key,['id','item_count','available_count'],true) ? (int)$value : $value;
+				}
+				yield $row; $last_id = (int) $book['id'];
+			}
+			if (connection_aborted()) break;
+			$batch = $this->Catalog_model->export_batch($filters, $scope, $last_id);
+		}
+	}
+
+	private function download_excel($filename, $sheet_name, array $headers, iterable $rows)
+	{
+		if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+		$this->load->library('Catalog_xlsx');
+		try {
+			$path = $this->catalog_xlsx->build($sheet_name,$headers,$rows);
+		} catch (Throwable $e) {
+			log_message('error','Catalog Excel export: '.$e->getMessage());
+			show_error('Unduhan Excel belum dapat dibuat. Silakan coba kembali atau gunakan CSV.',500);
+			return;
+		}
+		try {
+			header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+			header('Content-Disposition: attachment; filename="'.$filename.'"');
+			header('Content-Length: '.filesize($path));
+			header('Cache-Control: private, no-store');
+			header('X-Content-Type-Options: nosniff');
+			readfile($path);
+		} finally { unlink($path); }
+	}
+
+	public function annual_report()
+	{
+		$this->require_permission('catalog.index', 'view');
+		$filters = $this->report_filters();
+		$format = $this->input->get('format');
+		if (in_array($format,['csv','xlsx'],true)) $this->require_permission('catalog.index', 'export');
+		$report = $this->Catalog_model->annual_development($filters, $this->current_library_scope_id());
+		if (in_array($format,['csv','xlsx'],true)) {
+			$headers = ['Tahun masuk katalog','Total judul unik','Judul fisik (termasuk keduanya)','Judul digital (termasuk keduanya)',
+				'Judul fisik & digital','Judul belum teridentifikasi','Eksemplar fisik saat ini','Seluruh rekaman item saat ini',
+				'Kumulatif judul unik','Kumulatif judul fisik','Kumulatif judul digital','Perubahan total judul tahunan (%)'];
+			$rows = [];
+			foreach ($report['rows'] as $row) $rows[] = [$row['year'],$row['titles'],$row['physical_titles'],$row['digital_titles'],
+				$row['hybrid_titles'],$row['unclassified_titles'],$row['physical_copies'],$row['copies'],
+				$row['cumulative'],$row['physical_cumulative'],$row['digital_cumulative'],$row['growth']];
+			if ($report['unknown']['titles']) {
+				$r = $report['unknown'];
+				$rows[] = ['Tanggal tidak diketahui',(int)$r['titles'],(int)$r['physical_titles'],(int)$r['digital_titles'],
+					(int)$r['hybrid_titles'],(int)$r['unclassified_titles'],(int)$r['physical_copies'],(int)$r['copies'],null,null,null,null];
+			}
+			if ($format === 'xlsx') {
+				$this->download_excel('perkembangan-katalog-'.date('Y-m-d').'.xlsx','Perkembangan tahunan',$headers,$rows);
+				return;
+			}
+			$stream = $this->csv_stream('perkembangan-katalog-'.date('Y-m-d').'.csv');
+			$this->csv_row($stream, $headers);
+			foreach ($rows as $row) $this->csv_row($stream, $row);
+			fclose($stream); return;
+		}
+		$this->render('catalog/annual_report', ['title'=>'Perkembangan Katalog per Tahun', 'report'=>$report, 'filters'=>$filters]);
+	}
+
 	public function detail($id)
 	{
 		$this->require_permission('catalog.index', 'view');
@@ -86,12 +214,13 @@ class Catalog extends MY_Controller
 			return;
 		}
 
+		$items=$this->Catalog_model->get_book_items((int) $id, 50, $this->current_library_scope_id());
 		$this->render('catalog/detail', [
 			'title' => 'Detail Buku',
 			'book' => $book,
 			'authors' => $this->Catalog_model->get_book_authors((int) $id),
 			'subjects' => $this->Catalog_model->get_book_subjects((int) $id),
-			'items' => $this->Catalog_model->get_book_items((int) $id, 50, $this->current_library_scope_id()),
+			'items' => $items,
 			'digital_assets' => $this->Catalog_model->get_book_digital_assets((int) $id),
 			'collection_types' => $this->Catalog_model->get_collection_types(true),
 			'reference_options' => $this->book_item_reference_options(),
@@ -99,6 +228,12 @@ class Catalog extends MY_Controller
 			'can_edit_item' => $this->can('catalog.index', 'edit'),
 			'can_delete_item' => $this->can('catalog.index', 'delete'),
 		]);
+		$this->output->set_output($this->decorate_catalog_qr($this->output->get_output(),$book,$items));
+	}
+
+	public function print_item_labels($book_id,$item_id=null)
+	{
+		$this->require_permission('catalog.index','view');$book=$this->Catalog_model->get_book((int)$book_id,$this->current_library_scope_id());if(!$book){show_404();return;}$items=$item_id!==null?array_filter([$this->Catalog_model->get_book_item((int)$item_id,(int)$book_id,$this->current_library_scope_id())]):$this->Catalog_model->get_book_items((int)$book_id,1000,$this->current_library_scope_id());if(!$items){show_error('Belum ada eksemplar yang dapat dicetak.',404,'Label Eksemplar');return;}$labels='';$scripts='';foreach(array_values($items) as $index=>$item){$qrId='item-qr-'.$index;$url=base_url('katalog/eksemplar/'.(int)$item['id']);$identity=$item['barcode']?:($item['inventory_number']?:$item['item_code']);$call=$item['call_number']?:'';$location=$item['location_room_name']?:($item['location_name']?:$item['location_library_name']);$labels.='<article class="label" data-item-id="'.(int)$item['id'].'"><div class="brand">PUSTAKA DIGITAL REMBANG · ITEM '.(int)$item['id'].'</div><div class="content"><div id="'.$qrId.'" class="qr"></div><div class="copy"><h2>'.html_escape($book['title']).'</h2><div class="call">'.html_escape($call?:'No. panggil belum diisi').'</div><div class="identity">'.html_escape($identity).'</div><div class="meta">Kode item: '.html_escape($item['item_code']?:'-').'<br>No. induk: '.html_escape($item['inventory_number']?:'-').'<br>Lokasi: '.html_escape($location?:'-').'</div></div></div></article>';$scripts.='new QRCode(document.getElementById('.json_encode($qrId).'),{text:'.json_encode($url).',width:92,height:92,colorDark:"#061a40",colorLight:"#fff",correctLevel:QRCode.CorrectLevel.M});';}$html='<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Label Eksemplar - '.html_escape($book['title']).'</title><style>@page{size:A4;margin:10mm}*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#061a40;font-family:Arial,sans-serif}.toolbar{position:sticky;top:0;z-index:2;display:flex;justify-content:center;gap:8px;padding:12px;background:#fff;border-bottom:1px solid #d8e1ec}.toolbar button,.toolbar a{border:1px solid #1767aa;border-radius:8px;padding:8px 14px;background:#fff;color:#075da7;text-decoration:none;font-weight:700}.toolbar button{background:#075da7;color:#fff}.sheet{display:grid;grid-template-columns:repeat(3,62mm);gap:5mm;margin:10mm auto;width:196mm}.label{width:62mm;height:40mm;padding:4mm;border:1px dashed #8ca2b8;border-radius:2mm;background:#fff;break-inside:avoid}.brand{margin-bottom:2mm;font-size:6.5pt;font-weight:800;letter-spacing:.06em}.content{display:flex;gap:3mm}.qr{flex:none;width:25mm;height:25mm;padding:1mm;border:1px solid #dbe4ed}.qr img{width:100%!important;height:100%!important}.copy{min-width:0;flex:1}.copy h2{display:-webkit-box;overflow:hidden;margin:0 0 1mm;font-size:7.5pt;line-height:1.15;-webkit-box-orient:vertical;-webkit-line-clamp:2}.call{font:800 9pt monospace}.identity{overflow-wrap:anywhere;margin-top:.7mm;font:700 7pt monospace}.meta{margin-top:.7mm;color:#52677e;font-size:5.6pt;line-height:1.2}@media(max-width:760px){.sheet{grid-template-columns:62mm;width:62mm}.toolbar{flex-wrap:wrap}}@media print{body{background:#fff}.toolbar{display:none}.sheet{margin:0;width:196mm}}</style></head><body><div class="toolbar"><a href="'.base_url('catalog/detail/'.(int)$book_id).'">Kembali</a><button onclick="window.print()">Cetak '.count($items).' Label Eksemplar</button></div><main class="sheet">'.$labels.'</main><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script>'.$scripts.'</script></body></html>';$this->output->set_output($html);
 	}
 
 	public function create()
@@ -120,20 +255,73 @@ class Catalog extends MY_Controller
 		]);
 	}
 
+	public function create_from_donation($id)
+	{
+		$this->require_permission('catalog.index', 'create');
+		$donation = $this->Digital_donation_model->find((int) $id);
+		if (! $donation) { show_404(); return; }
+		if ($donation['status'] !== 'accepted') {
+			$this->session->set_flashdata('error', 'Donasi harus berstatus Diterima sebelum dimasukkan ke katalog.');
+			redirect('digital-donations'); return;
+		}
+		if (! empty($donation['catalog_book_id'])) { redirect('catalog/detail/' . (int) $donation['catalog_book_id']); return; }
+		$book = ['id'=>0,'title'=>$donation['title'],'statement_responsibility'=>$donation['creator_names'],'publish_year'=>$donation['publication_year'],'language'=>$donation['language'],'abstract'=>$donation['description'],'status'=>'draft'];
+		$this->render('catalog/form', [
+			'title'=>'Katalogkan Donasi Digital','action'=>'catalog/store_from_donation/' . (int) $id,'book'=>$book,'authors'=>[],'subjects'=>[],'donation'=>$donation,
+			'content_categories'=>$this->Catalog_model->get_content_categories(true),'classification_masters'=>$this->Catalog_model->get_classification_masters(true),'collection_types'=>$this->Catalog_model->get_collection_types(true),
+			'textbook_grade_levels'=>$this->Catalog_model->get_textbook_grade_levels(),'textbook_subject_options'=>$this->Catalog_model->get_textbook_subjects(),'textbook_tags'=>['grades'=>[],'subjects'=>[]],
+		]);
+	}
+
 	public function store()
 	{
 		$this->require_permission('catalog.index', 'create');
-
 		try {
-			$book_id = $this->Catalog_model->create_book($this->book_input(), (int) ($this->current_user['id'] ?? 0));
+			$input = $this->book_input();
+			$input = $this->attach_uploaded_cover($input);
+			$book_id = $this->Catalog_model->create_book($input, (int) ($this->current_user['id'] ?? 0));
 			$this->Catalog_model->save_book_textbook_tags($book_id, (array) $this->input->post('textbook_grade_ids'), (array) $this->input->post('textbook_subject_ids'));
-			$this->audit_event('catalog.create', 'books', $book_id, null, $this->book_input());
+			$this->audit_event('catalog.create', 'books', $book_id, null, $input);
 			$this->session->set_flashdata('success', 'Katalog baru berhasil disimpan.');
 			redirect('catalog/detail/' . $book_id);
 		} catch (Throwable $e) {
 			$this->session->set_flashdata('error', $e->getMessage());
 			redirect('catalog/create');
 		}
+	}
+
+	public function store_from_donation($id)
+	{
+		$this->require_permission('catalog.index', 'create');
+		$donation = $this->Digital_donation_model->find((int) $id);
+		try {
+			if (! $donation || $donation['status'] !== 'accepted') throw new RuntimeException('Donasi tidak valid atau belum diterima.');
+			if (! empty($donation['catalog_book_id'])) throw new RuntimeException('Donasi ini sudah dimasukkan ke katalog.');
+			$this->db->trans_begin();
+			$input = $this->attach_uploaded_cover($this->book_input());
+			$input['status'] = 'draft';
+			$book_id = $this->Catalog_model->create_book($input, (int) ($this->current_user['id'] ?? 0));
+			$this->Catalog_model->save_book_textbook_tags($book_id, (array) $this->input->post('textbook_grade_ids'), (array) $this->input->post('textbook_subject_ids'));
+			$this->Digital_donation_model->link_catalog((int) $id, $book_id, (int) ($this->current_user['id'] ?? 0));
+			if (! empty($donation['file_path'])) {
+				if (strtolower((string)$donation['file_mime_type']) === 'application/pdf') $this->create_donation_reader_asset($donation, $book_id, (int)$id);
+			}
+			$this->db->trans_complete();
+			if (! $this->db->trans_status()) throw new RuntimeException('Gagal menautkan donasi dengan katalog.');
+			$this->audit_event('digital_donation.catalog', 'books', $book_id, null, ['digital_donation_id'=>(int)$id] + $input);
+			$this->session->set_flashdata('success', 'Donasi berhasil dimasukkan sebagai draft katalog.');
+			redirect('catalog/detail/' . $book_id);
+		} catch (Throwable $e) {
+			$this->db->trans_rollback();
+			$this->session->set_flashdata('error', $e->getMessage());
+			redirect('digital-donations/catalog/' . (int) $id);
+		}
+	}
+
+	private function create_donation_reader_asset(array $donation, $book_id, $donation_id)
+	{
+		$license_urls=['cc0'=>'https://creativecommons.org/publicdomain/zero/1.0/','cc_by'=>'https://creativecommons.org/licenses/by/4.0/','cc_by_sa'=>'https://creativecommons.org/licenses/by-sa/4.0/','public_domain'=>'https://creativecommons.org/publicdomain/mark/1.0/'];
+		$this->Reader_model->create_asset(['book_id'=>(int)$book_id,'source_system'=>'digital_donation','source_id'=>(string)$donation_id,'source_path'=>$donation['file_path'],'file_original_name'=>$donation['file_original_name'],'file_path'=>$donation['file_path'],'mime_type'=>'application/pdf','file_size'=>$donation['file_size'],'reader_audience'=>'internal','pdf_delivery'=>'render_locked','status'=>'draft','rights_basis'=>$donation['license_code']==='public_domain'?'public_domain':'licensed','rights_holder'=>$donation['donor_name'],'license_url'=>$license_urls[$donation['license_code']]??null,'permission_reference'=>$donation['rights_statement'],'access_notes'=>'Berasal dari donasi digital #' . (int)$donation_id], (int) ($this->current_user['id'] ?? 0));
 	}
 
 	public function edit($id)
@@ -172,9 +360,11 @@ class Catalog extends MY_Controller
 		}
 
 		try {
-			$this->Catalog_model->update_book((int) $id, $this->book_input(), (int) ($this->current_user['id'] ?? 0));
+			$input = $this->book_input();
+			$input = $this->attach_uploaded_cover($input);
+			$this->Catalog_model->update_book((int) $id, $input, (int) ($this->current_user['id'] ?? 0));
 			$this->Catalog_model->save_book_textbook_tags((int) $id, (array) $this->input->post('textbook_grade_ids'), (array) $this->input->post('textbook_subject_ids'));
-			$this->audit_event('catalog.update', 'books', (int) $id, $before, $this->book_input());
+			$this->audit_event('catalog.update', 'books', (int) $id, $before, $input);
 			$this->session->set_flashdata('success', 'Katalog berhasil diperbarui.');
 			redirect('catalog/detail/' . (int) $id);
 		} catch (Throwable $e) {
@@ -445,6 +635,7 @@ class Catalog extends MY_Controller
 	public function loans()
 	{
 		$this->require_permission('catalog.requests', 'view');
+		$this->load->add_package_path(APPPATH . 'controllers');
 		$filters = [
 			'q' => $this->input->get('q', true),
 			'status' => $this->input->get('status', true),
@@ -465,9 +656,24 @@ class Catalog extends MY_Controller
 			'filters' => array_merge($filters, ['per_page' => $per_page, 'page' => $page]),
 			'pagination' => ['total_rows' => $total_rows, 'total_pages' => $total_pages, 'page' => $page, 'per_page' => $per_page, 'offset' => ($page - 1) * $per_page],
 			'stats' => $this->Loan_model->stats(),
+			'loan_settings' => $this->Loan_model->get_settings(),
 			'can_create_loan' => $this->can('catalog.requests', 'create'),
 			'can_return_loan' => $this->can('catalog.requests', 'approve'),
+			'can_renew_loan' => $this->can('catalog.requests', 'approve'),
+			'can_send_overdue_wa' => $this->can('catalog.requests', 'approve') && $this->db->table_exists('wa_outbox'),
 		]);
+	}
+
+	public function manual_loan_lookup()
+	{
+		$this->require_permission('catalog.requests', 'create');
+		$type = (string) $this->input->get('type', true);
+		$query = trim((string) $this->input->get('q', true));
+		$data = $type === 'member' ? $this->Loan_model->search_members($query) : ($type === 'item' ? $this->Loan_model->search_loan_items($query) : []);
+		$settings = $this->Loan_model->get_settings();
+		$this->output->set_content_type('application/json')->set_output(json_encode([
+			'ok'=>true,'data'=>$data,'default_due_date'=>date('Y-m-d',strtotime('+' . max(1,min(60,(int)$settings['default_loan_days'])) . ' days')),
+		], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
 	}
 
 	public function issue_manual_loan()
@@ -508,6 +714,7 @@ class Catalog extends MY_Controller
 				'book_item_id' => $result['item']['id'],
 				'due_date' => $result['due_date'],
 			]);
+			$this->queue_request_status_whatsapp((int) $request_id, 'Buku diserahkan dan sedang dipinjam', null, (int) ($this->current_user['id'] ?? 0), $result['due_date']);
 			$this->session->set_flashdata('success', 'Buku diserahkan dan transaksi peminjaman dicatat. Referensi: ' . $result['reference'] . '.');
 		} catch (Throwable $e) {
 			$this->session->set_flashdata('error', $e->getMessage());
@@ -527,6 +734,41 @@ class Catalog extends MY_Controller
 			$this->session->set_flashdata('error', $e->getMessage());
 		}
 		redirect('catalog/loans');
+	}
+
+	/** Perpanjang jatuh tempo tanpa mengubah data mentah dari INLISLite. */
+	public function renew_loan($loan_item_id)
+	{
+		$this->require_permission('catalog.requests', 'approve');
+		try {
+			$result = $this->Loan_model->renew_loan(
+				(int) $loan_item_id,
+				$this->input->post('new_due_date', true),
+				(int) ($this->current_user['id'] ?? 0),
+				$this->input->post('renewal_note', true)
+			);
+			$this->audit_event('catalog.loan.renew', 'loan_transaction_items', (int) $loan_item_id, ['due_date'=>$result['old_due_date']], ['due_date'=>$result['new_due_date'],'renewal_count'=>$result['renewal_count'],'note'=>$result['note']]);
+			$this->session->set_flashdata('success', 'Peminjaman “' . $result['title'] . '” berhasil diperpanjang sampai ' . date('d M Y', strtotime($result['new_due_date'])) . '.');
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('catalog/loans');
+	}
+
+	/** Pesan keterlambatan manual dari daftar transaksi. */
+	public function notify_overdue_loan($loan_item_id)
+	{
+		$this->require_permission('catalog.requests', 'approve');
+		try {
+			if (! $this->db->table_exists('wa_outbox')) throw new RuntimeException('WA Center belum dipasang.');
+			$this->load->model('Whatsapp_model');
+			$result = $this->Whatsapp_model->queue_overdue_loan((int) $loan_item_id, (int) ($this->current_user['id'] ?? 0), true);
+			$this->audit_event('catalog.loan.overdue_whatsapp', 'loan_transaction_items', (int) $loan_item_id, null, $result);
+			$this->session->set_flashdata('success', $result['message']);
+		} catch (Throwable $e) {
+			$this->session->set_flashdata('error', $e->getMessage());
+		}
+		redirect('catalog/loans?status=overdue');
 	}
 
 	/** Cocokkan kembali status semua eksemplar dengan peminjaman efektif. */
@@ -565,18 +807,41 @@ class Catalog extends MY_Controller
 		$this->require_permission('catalog.requests', 'approve');
 
 		try {
+			$new_status = (string) $this->input->post('status', true);
+			$admin_note = $this->input->post('admin_note', true);
 			$this->Catalog_model->update_book_request_status(
 				(int) $id,
-				(string) $this->input->post('status', true),
-				$this->input->post('admin_note', true),
+				$new_status,
+				$admin_note,
 				(int) ($this->current_user['id'] ?? 0)
 			);
+			$this->queue_request_status_whatsapp((int) $id, $this->request_status_label($new_status), $admin_note, (int) ($this->current_user['id'] ?? 0));
 			$this->audit_event('catalog.request_update', 'book_requests', (int) $id, null, $this->input->post(null, true));
 			$this->session->set_flashdata('success', 'Status request buku diperbarui.');
 		} catch (Throwable $e) {
 			$this->session->set_flashdata('error', $e->getMessage());
 		}
 		redirect('catalog/requests');
+	}
+
+	private function queue_request_status_whatsapp($requestId, $status, $note = null, $createdBy = null, $dueDate = null)
+	{
+		if (! $this->db->table_exists('wa_outbox')) return;
+		$this->load->model('Whatsapp_model');
+		$row = $this->db->select('br.request_code,br.requester_name,br.requester_phone,b.title,m.id AS member_id,m.full_name,m.phone')
+			->from('book_requests br')->join('books b','b.id=br.book_id','left')->join('members m','m.id=br.member_id','left')->where('br.id',(int)$requestId)->get()->row_array();
+		if (! $row) return;
+		$this->Whatsapp_model->queue_template('loan_request_status', $row['phone'] ?: $row['requester_phone'], [
+			'member_name' => $row['full_name'] ?: $row['requester_name'], 'book_title' => $row['title'] ?: 'Koleksi perpustakaan',
+			'request_code' => $row['request_code'], 'status' => $status, 'staff_note' => trim((string) $note) ?: '',
+			'due_date' => $dueDate ? date('d M Y', strtotime($dueDate)) : '',
+		], (int) ($row['member_id'] ?? 0) ?: null, $createdBy ?: null);
+	}
+
+	private function request_status_label($status)
+	{
+		$labels=['approved'=>'Buku sedang disiapkan','rejected'=>'Ditolak','cancelled'=>'Dibatalkan','fulfilled'=>'Buku diserahkan'];
+		return $labels[$status] ?? ucfirst((string) $status);
 	}
 
 	private function book_input()
@@ -603,6 +868,49 @@ class Catalog extends MY_Controller
 			'cover_path' => $this->input->post('cover_path', true),
 			'status' => $this->input->post('status', true),
 		];
+	}
+
+	/** Simpan cover manual secara aman; hanya gambar valid yang dapat diakses publik. */
+	private function attach_uploaded_cover(array $input)
+	{
+		$file = $_FILES['cover_file'] ?? [];
+		if (empty($file['name']) && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return $input;
+		if ((int) ($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+			$messages = [UPLOAD_ERR_INI_SIZE => 'Ukuran cover melebihi batas server.', UPLOAD_ERR_FORM_SIZE => 'Ukuran cover melebihi batas formulir.', UPLOAD_ERR_PARTIAL => 'Upload cover belum selesai. Coba unggah ulang.', UPLOAD_ERR_NO_FILE => 'Pilih berkas cover terlebih dahulu.'];
+			throw new RuntimeException($messages[(int) $file['error']] ?? 'Upload cover gagal. Kode: ' . (int) $file['error']);
+		}
+		if (empty($file['tmp_name']) || ! is_uploaded_file($file['tmp_name'])) throw new RuntimeException('Cover tidak dapat dibaca dari upload. Pilih ulang berkas gambar.');
+		if ((int) ($file['size'] ?? 0) < 1 || (int) $file['size'] > 5 * 1024 * 1024) throw new RuntimeException('Ukuran cover maksimal 5 MB.');
+		$info = @getimagesize($file['tmp_name']);
+		$mime = (string) ($info['mime'] ?? '');
+		$extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+		if (! isset($extensions[$mime])) throw new RuntimeException('Cover harus berupa gambar JPG, PNG, atau WebP yang valid.');
+		if ((int) ($info[0] ?? 0) < 80 || (int) ($info[1] ?? 0) < 80) throw new RuntimeException('Ukuran cover minimal 80 × 80 piksel.');
+		$relative = 'assets/uploads/catalog/covers/' . date('Y/m') . '/';
+		$directory = FCPATH . $relative;
+		if (! is_dir($directory) && ! mkdir($directory, 0755, true)) throw new RuntimeException('Folder cover tidak dapat dibuat. Periksa permission folder upload.');
+		$name = 'cover-' . bin2hex(random_bytes(16)) . '.' . $extensions[$mime];
+		if (! move_uploaded_file($file['tmp_name'], $directory . $name)) throw new RuntimeException('Server tidak dapat menyimpan cover. Periksa permission folder upload.');
+		$input['uploaded_cover_path'] = $relative . $name;
+		return $input;
+	}
+
+	private function decorate_catalog_qr($html,array $book,array $items=[])
+	{
+		$published=($book['status']??'')==='published';$allLabels=base_url('catalog/detail/'.(int)$book['id'].'/labels');
+		$card='<div class="card admin-card mb-3"><div class="card-body d-flex flex-wrap align-items-center gap-3"><div class="avatar avatar-lg bg-blue-lt text-blue"><i class="ti ti-qrcode fs-1"></i></div><div class="flex-fill"><div class="section-kicker">QR katalog per eksemplar</div><h2 class="h3 mb-1">Satu eksemplar, satu QR unik</h2><p class="text-secondary mb-2">QR tampil pada identitas setiap eksemplar dan memuat tujuan yang berbeda. '.(!$published?'Tautan publik aktif setelah judul diterbitkan dan eksemplar masuk OPAC.':'Saat dipindai, katalog menyorot identitas, lokasi, dan status eksemplar terkait.').'</p>'.($items?'<a class="btn btn-primary btn-sm" target="_blank" href="'.html_escape($allLabels).'"><i class="ti ti-printer me-1"></i>Cetak Semua Label Eksemplar</a>':'<span class="badge bg-secondary-lt">Belum ada eksemplar</span>').'</div></div></div>';
+		foreach($items as $item){
+			$barcode='<code>'.html_escape($item['barcode']?:'-').'</code>';
+			$target='<div class="fw-semibold">'.$barcode.'</div>';
+			$itemUrl=base_url('katalog/eksemplar/'.(int)$item['id']);
+			$labelUrl=base_url('catalog/detail/'.(int)$book['id'].'/label/'.(int)$item['id']);
+			$identity=$item['barcode']?:($item['inventory_number']?:$item['item_code']);
+			$qr='<div class="catalog-item-qr-wrap"><div class="catalog-item-qr" data-catalog-item-qr data-url="'.html_escape($itemUrl).'" aria-label="QR eksemplar '.html_escape($identity).'"></div><a class="btn btn-sm btn-outline-primary" target="_blank" href="'.html_escape($labelUrl).'" title="Cetak label eksemplar"><i class="ti ti-printer me-1"></i>Cetak QR</a>'.((int)($item['is_public']??0)!==1?'<span class="text-secondary small">Aktif setelah masuk OPAC</span>':'').'</div>';
+			$html=preg_replace_callback('/'.preg_quote($target,'/').'/',function()use($target,$qr){return str_replace('class="fw-semibold"','class="fw-semibold catalog-item-identity"',$target).$qr;},$html,1);
+		}
+		$html=preg_replace('/<div class="card admin-card mb-3">/',$card.'<div class="card admin-card mb-3">',$html,1);
+		$script='<style>.catalog-item-qr-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:5px;margin-top:8px}.catalog-item-qr{width:76px;height:76px;padding:4px;border:1px solid #d8e3ee;border-radius:8px;background:#fff}.catalog-item-qr img,.catalog-item-qr canvas{display:block;width:66px!important;height:66px!important}</style><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script>(function(){if(!window.QRCode)return;document.querySelectorAll("[data-catalog-item-qr]").forEach(function(el){if(el.dataset.rendered)return;new QRCode(el,{text:el.dataset.url,width:66,height:66,colorDark:"#062d62",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});el.dataset.rendered="1";});})();</script>';
+		return str_replace('</body>',$script.'</body>',$html);
 	}
 
 	private function book_item_input()

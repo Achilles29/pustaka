@@ -1,0 +1,19 @@
+{
+    "applied": true,
+    "schools": 1339,
+    "before": 832,
+    "school_statuses": {
+        "IMPORT": 869,
+        "PADANAN": 470
+    },
+    "gps_from_portal": 814,
+    "legacy_statuses": {
+        "PADANAN": 795,
+        "TAHAN_GANDA": 6,
+        "TAHAN_VERIFIKASI": 33
+    },
+    "surveys_imported": 795,
+    "backup": "\/www\/backup\/pustaka-network\/before-network-20261006-115709-b706f469.sql.gz",
+    "after": 1701,
+    "portal_available": 900
+}

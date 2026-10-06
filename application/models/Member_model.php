@@ -196,7 +196,7 @@ class Member_model extends CI_Model
 		}
 
 		$months = (int) ($data['requested_months'] ?? 12);
-		$months = in_array($months, [6, 12, 24], true) ? $months : 12;
+		$months = in_array($months, [6, 12, 24, 36, 48, 60], true) ? $months : 12;
 		$payload = [
 			'request_code' => $this->next_renewal_code(),
 			'member_id' => (int) $member_id,
@@ -1076,11 +1076,9 @@ class Member_model extends CI_Model
 
 	private function map_member_status($status_id, $end_date = null)
 	{
-		$expired_at = $this->datetime_or_null($end_date);
-		if ($expired_at !== null && strtotime($expired_at) < strtotime(date('Y-m-d 00:00:00'))) {
-			return 'expired';
-		}
-
+		// Status operasional INLISLite adalah sumber utama. Tanggal akhir tetap
+		// disimpan sebagai informasi, tetapi tidak boleh menimpa status Aktif yang
+		// secara eksplisit sudah ditetapkan petugas pada INLISLite.
 		switch ((int) $status_id) {
 			case 3:
 				return 'active';
@@ -1088,9 +1086,12 @@ class Member_model extends CI_Model
 				return 'blocked';
 			case 2:
 				return 'inactive';
-			default:
-				return 'unknown';
 		}
+
+		$expired_at = $this->datetime_or_null($end_date);
+		return $expired_at !== null && strtotime($expired_at) < strtotime(date('Y-m-d 00:00:00'))
+			? 'expired'
+			: 'unknown';
 	}
 
 	private function source_id($value)

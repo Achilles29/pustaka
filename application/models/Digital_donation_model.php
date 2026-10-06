@@ -50,6 +50,17 @@ class Digital_donation_model extends CI_Model
 		return $payload;
 	}
 
+	public function link_catalog($id, $book_id, $cataloged_by)
+	{
+		$item = $this->find((int) $id);
+		if (! $item || $item['status'] !== 'accepted') throw new RuntimeException('Hanya donasi yang sudah diterima yang dapat dimasukkan ke katalog.');
+		if (! empty($item['catalog_book_id'])) throw new RuntimeException('Donasi ini sudah terhubung ke katalog.');
+		$payload = ['catalog_book_id'=>(int)$book_id,'cataloged_by'=>$cataloged_by?(int)$cataloged_by:null,'cataloged_at'=>date('Y-m-d H:i:s')];
+		$this->db->where('id',(int)$id)->where('catalog_book_id IS NULL',null,false)->update('digital_donation_submissions',$payload);
+		if ($this->db->affected_rows() !== 1) throw new RuntimeException('Donasi sudah diproses oleh petugas lain. Muat ulang halaman.');
+		return $payload;
+	}
+
 	private function admin_query(array $filters)
 	{
 		$this->db->from('digital_donation_submissions d');
@@ -75,10 +86,53 @@ class Digital_donation_model extends CI_Model
 		if (empty($file['name'])) return [];
 		if ((int)($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK) throw new RuntimeException('Upload berkas gagal. Periksa ukuran berkas dan koneksi, lalu coba lagi.');
 		$size=(int)($file['size']??0); if($size<=0||$size>self::MAX_UPLOAD_BYTES)throw new RuntimeException('Berkas digital maksimal 200 MB.');
-		$tmp=(string)($file['tmp_name']??''); $finfo=finfo_open(FILEINFO_MIME_TYPE); $mime=$finfo?finfo_file($finfo,$tmp):''; if($finfo)finfo_close($finfo);
+		$tmp=(string)($file['tmp_name']??'');
+		if ($tmp === '' || ! is_uploaded_file($tmp)) throw new RuntimeException('Berkas upload tidak valid. Silakan pilih ulang berkas lalu coba lagi.');
+		$mime=$this->detect_mime_type($tmp,(string)$file['name']);
 		$allowed=['application/pdf'=>'pdf','application/epub+zip'=>'epub','application/msword'=>'doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document'=>'docx','application/vnd.oasis.opendocument.text'=>'odt','text/plain'=>'txt']; if(!isset($allowed[$mime]))throw new RuntimeException('Format berkas belum didukung. Gunakan PDF, EPUB, DOC/DOCX, ODT, atau TXT.');
 		$dir='storage/digital-donations/'.date('Y/m');$absolute=FCPATH.str_replace('/',DIRECTORY_SEPARATOR,$dir);if(!is_dir($absolute)&&!mkdir($absolute,0775,true))throw new RuntimeException('Folder penerimaan donasi tidak dapat dibuat.');$name='donasi-'.date('His').'-'.bin2hex(random_bytes(6)).'.'.$allowed[$mime];if(!move_uploaded_file($tmp,$absolute.DIRECTORY_SEPARATOR.$name))throw new RuntimeException('Berkas donasi tidak dapat disimpan.');
 		return ['file_path'=>$dir.'/'.$name,'file_original_name'=>$this->clip(basename((string)$file['name']),255),'file_mime_type'=>$mime,'file_size'=>$size];
+	}
+	private function detect_mime_type($path,$original_name)
+	{
+		$mime='';
+		if (function_exists('finfo_open')) {
+			$finfo=finfo_open(FILEINFO_MIME_TYPE);
+			if ($finfo) { $mime=(string)finfo_file($finfo,$path); finfo_close($finfo); }
+		} elseif (function_exists('mime_content_type')) {
+			$mime=(string)mime_content_type($path);
+		}
+		$extension=strtolower((string)pathinfo($original_name,PATHINFO_EXTENSION));
+		if ($mime==='' || $mime==='application/octet-stream' || $mime==='application/zip') {
+			$mime=$this->detect_mime_from_content($path,$extension);
+		}
+		if ($mime==='application/zip') {
+			$zip_types=['epub'=>'application/epub+zip','docx'=>'application/vnd.openxmlformats-officedocument.wordprocessingml.document','odt'=>'application/vnd.oasis.opendocument.text'];
+			if (isset($zip_types[$extension])) $mime=$zip_types[$extension];
+		}
+		if ($mime==='application/octet-stream' && $extension==='doc') $mime='application/msword';
+		return strtolower(trim($mime));
+	}
+	private function detect_mime_from_content($path,$extension)
+	{
+		$handle=@fopen($path,'rb');
+		$header=$handle?(string)fread($handle,8192):'';
+		if ($handle) fclose($handle);
+		if (strncmp($header,'%PDF-',5)===0) return 'application/pdf';
+		if (strncmp($header,"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1",8)===0) return 'application/msword';
+		if (strncmp($header,"PK\x03\x04",4)===0 && class_exists('ZipArchive')) {
+			$zip=new ZipArchive();
+			if ($zip->open($path)===true) {
+				$mimetype=trim((string)$zip->getFromName('mimetype'));
+				$is_docx=$zip->locateName('[Content_Types].xml')!==false && $zip->locateName('word/document.xml')!==false;
+				$zip->close();
+				if ($mimetype==='application/epub+zip') return 'application/epub+zip';
+				if ($mimetype==='application/vnd.oasis.opendocument.text') return 'application/vnd.oasis.opendocument.text';
+				if ($is_docx) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+			}
+		}
+		if ($extension==='txt' && strpos($header,"\0")===false && ($header==='' || preg_match('//u',$header))) return 'text/plain';
+		return '';
 	}
 	private function clip($value,$length){return substr(trim((string)$value),0,$length);} private function blank($value,$length){$v=$this->clip($value,$length);return $v===''?null:$v;} private function blank_text($value){$v=trim((string)$value);return $v===''?null:$v;}
 }

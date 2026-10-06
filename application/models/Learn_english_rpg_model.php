@@ -34,12 +34,30 @@ class Learn_english_rpg_model extends CI_Model
         ];
     }
 
-    public function episodes($active_only=false,$user_id=null)
+    public function seasons($active_only=false,$user_id=null)
     {
-        $this->ensure_seeded();$this->db->select('e.*,(SELECT COUNT(*) FROM learn_english_rpg_scenes s WHERE s.episode_id=e.id) scene_count',false)->from('learn_english_rpg_episodes e');if($user_id)$this->db->select('p.current_scene,p.xp,p.is_completed')->join('learn_english_rpg_progress p','p.episode_code=e.code AND p.user_id='.(int)$user_id,'left');if($active_only)$this->db->where('e.is_active',1);$rows=$this->db->order_by('e.id')->get()->result_array();if($user_id){$unlocked=true;foreach($rows as &$row){$row['is_unlocked']=$unlocked;$unlocked=$unlocked&&!empty($row['is_completed']);}unset($row);}return $rows;
+        $this->ensure_seeded();
+        $this->db->select('s.*,(SELECT COUNT(*) FROM learn_english_rpg_episodes e WHERE e.season_id=s.id AND e.is_active=1) episode_count,(SELECT COUNT(*) FROM learn_english_rpg_progress p JOIN learn_english_rpg_episodes e ON e.code=p.episode_code WHERE e.season_id=s.id AND p.user_id='.(int)$user_id.' AND p.is_completed=1) completed_count',false)->from('learn_english_rpg_seasons s');
+        if($active_only)$this->db->where('s.is_active',1);
+        return $this->db->order_by('s.sort_order')->order_by('s.id')->get()->result_array();
+    }
+
+    public function season($id,$active_only=false)
+    {
+        $this->ensure_seeded();$this->db->where('id',(int)$id);if($active_only)$this->db->where('is_active',1);return $this->db->get('learn_english_rpg_seasons')->row_array();
+    }
+
+    public function episodes($active_only=false,$user_id=null,$season_id=null)
+    {
+        $this->ensure_seeded();$this->db->select('e.*,(SELECT COUNT(*) FROM learn_english_rpg_scenes s WHERE s.episode_id=e.id) scene_count',false)->from('learn_english_rpg_episodes e');if($user_id)$this->db->select('p.current_scene,p.xp,p.is_completed')->join('learn_english_rpg_progress p','p.episode_code=e.code AND p.user_id='.(int)$user_id,'left');if($active_only)$this->db->where('e.is_active',1);if($season_id!==null)$this->db->where('e.season_id',(int)$season_id);$rows=$this->db->order_by('e.id')->get()->result_array();if($user_id){$unlocked=true;foreach($rows as &$row){$row['is_unlocked']=$unlocked;$unlocked=$unlocked&&!empty($row['is_completed']);}unset($row);}return $rows;
     }
 
     public function admin_episode($id=null){$this->ensure_seeded();return $id?$this->db->get_where('learn_english_rpg_episodes',['id'=>(int)$id])->row_array():$this->db->get_where('learn_english_rpg_episodes',['code'=>self::EPISODE])->row_array();}
+
+    public function save_season(array $data)
+    {
+        $this->db->insert('learn_english_rpg_seasons',['code'=>trim($data['code']),'title'=>trim($data['title']),'subtitle'=>trim($data['subtitle']??''),'description'=>trim($data['description']??''),'cover_emoji'=>trim($data['cover_emoji']??'map')?:'map','color'=>trim($data['color']??'#6750b7')?:'#6750b7','is_active'=>!empty($data['is_active'])?1:0,'sort_order'=>max(1,(int)($data['sort_order']??100))]);return (int)$this->db->insert_id();
+    }
 
     public function admin_scenes($episode_id)
     {
@@ -48,14 +66,14 @@ class Learn_english_rpg_model extends CI_Model
 
     public function save_episode(array $data,$id=null)
     {
-        $payload=['title'=>trim($data['title']),'subtitle'=>trim($data['subtitle']),'description'=>trim($data['description']),'is_active'=>!empty($data['is_active'])?1:0];if($id){$this->db->where('id',(int)$id)->update('learn_english_rpg_episodes',$payload);return (int)$id;}$payload['code']=trim($data['code']);$this->db->insert('learn_english_rpg_episodes',$payload);return (int)$this->db->insert_id();
+        $season_id=(int)($data['season_id']??0);if($season_id<1){$season=$this->db->select('id')->where('code','season_1')->get('learn_english_rpg_seasons')->row_array();$season_id=(int)($season['id']??1);} $payload=['season_id'=>$season_id,'title'=>trim($data['title']),'subtitle'=>trim($data['subtitle']),'description'=>trim($data['description']),'is_active'=>!empty($data['is_active'])?1:0];if($id){$this->db->where('id',(int)$id)->update('learn_english_rpg_episodes',$payload);return (int)$id;}$payload['code']=trim($data['code']);$this->db->insert('learn_english_rpg_episodes',$payload);return (int)$this->db->insert_id();
     }
 
     public function save_scene($id,array $data,$episode_id=null)
     {
         $episode=$this->admin_episode($episode_id);$correct=max(0,min(2,(int)($data['correct_choice']??0)));$choices=[];
         for($i=0;$i<3;$i++)$choices[]=['text'=>trim((string)($data['choice_text'][$i]??'')),'correct'=>$i===$correct?1:0,'feedback'=>trim((string)($data['choice_feedback'][$i]??''))];
-        $old=$id?$this->db->get_where('learn_english_rpg_scenes',['id'=>(int)$id])->row_array():[];$type=$data['challenge_type']??($old['challenge_type']??'choice');if(!in_array($type,['choice','listening','sentence'],true))$type='choice';$payload=['episode_id'=>(int)$episode['id'],'sort_order'=>max(1,(int)$data['sort_order']),'place'=>trim($data['place']),'speaker'=>trim($data['speaker']),'emoji'=>trim($data['emoji'])?:'🧙','dialogue'=>trim($data['dialogue']),'translation'=>trim($data['translation']),'prompt'=>trim($data['prompt']),'challenge_type'=>$type,'audio_text'=>array_key_exists('audio_text',$data)?(trim($data['audio_text'])?:null):($old['audio_text']??null),'sentence_answer'=>array_key_exists('sentence_answer',$data)?(trim($data['sentence_answer'])?:null):($old['sentence_answer']??null),'choices_json'=>json_encode($choices,JSON_UNESCAPED_UNICODE),'vocabulary_word'=>trim($data['vocabulary_word']),'vocabulary_meaning'=>trim($data['vocabulary_meaning']),'is_active'=>!empty($data['is_active'])?1:0];
+        $old=$id?$this->db->get_where('learn_english_rpg_scenes',['id'=>(int)$id])->row_array():[];$type=$data['challenge_type']??($old['challenge_type']??'choice');if(!in_array($type,['choice','listening','sentence','story'],true))$type='choice';$stored_choices=($type==='story'&&$old)?(string)$old['choices_json']:json_encode($choices,JSON_UNESCAPED_UNICODE);$payload=['episode_id'=>(int)$episode['id'],'sort_order'=>max(1,(int)$data['sort_order']),'place'=>trim($data['place']),'speaker'=>trim($data['speaker']),'emoji'=>trim($data['emoji'])?:'🧙','dialogue'=>trim($data['dialogue']),'translation'=>trim($data['translation']),'prompt'=>trim($data['prompt']),'challenge_type'=>$type,'audio_text'=>array_key_exists('audio_text',$data)?(trim($data['audio_text'])?:null):($old['audio_text']??null),'sentence_answer'=>array_key_exists('sentence_answer',$data)?(trim($data['sentence_answer'])?:null):($old['sentence_answer']??null),'choices_json'=>$stored_choices,'vocabulary_word'=>trim($data['vocabulary_word']),'vocabulary_meaning'=>trim($data['vocabulary_meaning']),'is_active'=>!empty($data['is_active'])?1:0];
         if($id)$this->db->where('id',(int)$id)->update('learn_english_rpg_scenes',$payload);else $this->db->insert('learn_english_rpg_scenes',$payload);
     }
 
@@ -97,7 +115,18 @@ class Learn_english_rpg_model extends CI_Model
 
     public function reset($user_id,$code=self::EPISODE)
     {
-        return $this->db->where(['user_id'=>(int)$user_id,'episode_code'=>$code])->update('learn_english_rpg_progress',['current_scene'=>0,'xp'=>0,'hearts'=>3,'correct_answers'=>0,'wrong_answers'=>0,'vocabulary_json'=>'[]','is_completed'=>0,'completed_at'=>null,'updated_at'=>date('Y-m-d H:i:s')]);
+        $scope=['user_id'=>(int)$user_id,'episode_code'=>$code];
+        $this->db->trans_start();
+        // A story choice is unique per scene. It must be cleared together with the
+        // chapter progress or a replay will stop on the old choice.
+        if($this->db->table_exists('learn_english_rpg_story_choices')){
+            $old=$this->db->select('COALESCE(SUM(reputation_delta),0) total',false)->where($scope)->get('learn_english_rpg_story_choices')->row_array();
+            $this->db->where($scope)->delete('learn_english_rpg_story_choices');
+            if((int)($old['total']??0)!==0)$this->db->set('reputation','reputation - ('.(int)$old['total'].')',false)->where('user_id',(int)$user_id)->update('learn_english_rpg_profiles');
+        }
+        $this->db->where($scope)->update('learn_english_rpg_progress',['current_scene'=>0,'xp'=>0,'hearts'=>3,'correct_answers'=>0,'wrong_answers'=>0,'vocabulary_json'=>'[]','is_completed'=>0,'completed_at'=>null,'updated_at'=>date('Y-m-d H:i:s')]);
+        $this->db->trans_complete();
+        return $this->db->trans_status();
     }
 
     public function answer_sentence($user_id,$scene_index,$sentence,$code)
@@ -112,7 +141,11 @@ class Learn_english_rpg_model extends CI_Model
 
     public function answer_story($user_id,$scene_index,$choice_index,$code)
     {
-        $progress=$this->get_progress($user_id,$code);$scenes=$this->scenes($code,$user_id);if((int)$progress['current_scene']!==(int)$scene_index||!isset($scenes[$scene_index])||$scenes[$scene_index]['challenge_type']!=='story'||!isset($scenes[$scene_index]['choices'][$choice_index]))return ['ok'=>false,'message'=>'Pilihan cerita tidak valid atau adegan sudah berubah.'];$choice=$scenes[$scene_index]['choices'][$choice_index];if($this->db->get_where('learn_english_rpg_story_choices',['user_id'=>(int)$user_id,'episode_code'=>$code,'scene_number'=>$scene_index+1])->row_array())return ['ok'=>false,'message'=>'Pilihan cerita ini sudah dibuat.'];$delta=(int)($choice['reputation_delta']??0);$next=$scene_index+1;$completed=$next>=count($scenes);$this->db->trans_start();$this->db->insert('learn_english_rpg_story_choices',['user_id'=>(int)$user_id,'episode_code'=>$code,'scene_number'=>$scene_index+1,'choice_code'=>$choice['choice_code']??'path','choice_text'=>$choice['text'],'reputation_delta'=>$delta]);$this->db->set('reputation','reputation+'.$delta,false)->where('user_id',(int)$user_id)->update('learn_english_rpg_profiles');$this->db->where('id',(int)$progress['id'])->update('learn_english_rpg_progress',['current_scene'=>$next,'xp'=>(int)$progress['xp']+10,'is_completed'=>$completed?1:0,'completed_at'=>$completed?date('Y-m-d H:i:s'):null,'updated_at'=>date('Y-m-d H:i:s')]);$this->db->trans_complete();return ['ok'=>true,'feedback'=>$choice['feedback']??'Your choice changes the journey.','path'=>$choice['choice_code']??'path','reputation_delta'=>$delta,'completed'=>$completed,'progress'=>$this->get_progress($user_id,$code)];
+        $progress=$this->get_progress($user_id,$code);$scenes=$this->scenes($code,$user_id);if((int)$progress['current_scene']!==(int)$scene_index||!isset($scenes[$scene_index])||$scenes[$scene_index]['challenge_type']!=='story'||!isset($scenes[$scene_index]['choices'][$choice_index]))return ['ok'=>false,'message'=>'Pilihan cerita tidak valid atau adegan sudah berubah.'];$choice=$scenes[$scene_index]['choices'][$choice_index];$scope=['user_id'=>(int)$user_id,'episode_code'=>$code,'scene_number'=>$scene_index+1];$existing=$this->db->get_where('learn_english_rpg_story_choices',$scope)->row_array();$next=$scene_index+1;$completed=$next>=count($scenes);
+        // Repair progress left behind by the old reset implementation. The choice
+        // and reputation were already recorded, so only advance the scene once.
+        if($existing){$this->db->where('id',(int)$progress['id'])->update('learn_english_rpg_progress',['current_scene'=>$next,'xp'=>(int)$progress['xp']+10,'is_completed'=>$completed?1:0,'completed_at'=>$completed?date('Y-m-d H:i:s'):null,'updated_at'=>date('Y-m-d H:i:s')]);return ['ok'=>true,'feedback'=>'Pilihan tersimpan. Petualangan dilanjutkan.','path'=>$existing['choice_code'],'reputation_delta'=>0,'completed'=>$completed,'progress'=>$this->get_progress($user_id,$code)];}
+        $delta=(int)($choice['reputation_delta']??0);$this->db->trans_start();$this->db->insert('learn_english_rpg_story_choices',$scope+['choice_code'=>$choice['choice_code']??'path','choice_text'=>$choice['text'],'reputation_delta'=>$delta]);$this->db->set('reputation','reputation+'.$delta,false)->where('user_id',(int)$user_id)->update('learn_english_rpg_profiles');$this->db->where('id',(int)$progress['id'])->update('learn_english_rpg_progress',['current_scene'=>$next,'xp'=>(int)$progress['xp']+10,'is_completed'=>$completed?1:0,'completed_at'=>$completed?date('Y-m-d H:i:s'):null,'updated_at'=>date('Y-m-d H:i:s')]);$this->db->trans_complete();return ['ok'=>true,'feedback'=>$choice['feedback']??'Your choice changes the journey.','path'=>$choice['choice_code']??'path','reputation_delta'=>$delta,'completed'=>$completed,'progress'=>$this->get_progress($user_id,$code)];
     }
 
     public function get_profile($user_id,$display_name='Hero')

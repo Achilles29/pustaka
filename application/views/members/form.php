@@ -27,6 +27,8 @@ $status_labels = [
 	'expired' => 'Kedaluwarsa',
 	'unknown' => 'Belum Dipetakan',
 ];
+$districts = $districts ?? [];
+$villages = $villages ?? [];
 ?>
 <div class="page-header d-print-none">
 	<div class="container-xl">
@@ -113,12 +115,25 @@ $status_labels = [
 							</div>
 							<div class="row">
 								<div class="col-md-6 mb-3">
-									<label class="form-label">Kecamatan</label>
-									<input type="text" class="form-control" name="district" value="<?= html_escape($field('district')); ?>">
+									<label class="form-label" for="member-district-id">Kecamatan</label>
+									<input type="hidden" name="existing_district" value="<?= html_escape($field('district')); ?>">
+									<select id="member-district-id" class="form-select" name="district_id" <?= $is_edit ? '' : 'required'; ?>>
+										<option value=""><?= $field('district') && ! $field('district_id') ? 'Tersimpan: ' . html_escape($field('district')) . ' — pilih dari daftar' : 'Pilih kecamatan'; ?></option>
+										<?php foreach ($districts as $district): ?>
+											<option value="<?= (int) $district['id']; ?>" <?= (int) $field('district_id') === (int) $district['id'] ? 'selected' : ''; ?>><?= html_escape($district['name']); ?></option>
+										<?php endforeach; ?>
+									</select>
 								</div>
 								<div class="col-md-6 mb-3">
-									<label class="form-label">Desa / Kelurahan</label>
-									<input type="text" class="form-control" name="village" value="<?= html_escape($field('village')); ?>">
+									<label class="form-label" for="member-village-id">Desa / Kelurahan</label>
+									<input type="hidden" name="existing_village" value="<?= html_escape($field('village')); ?>">
+									<select id="member-village-id" class="form-select" name="village_id" data-current="<?= (int) $field('village_id'); ?>" <?= $field('district_id') ? '' : 'disabled'; ?> <?= $is_edit ? '' : 'required'; ?>>
+										<option value=""><?= $field('village') && ! $field('village_id') ? 'Tersimpan: ' . html_escape($field('village')) . ' — pilih kecamatan dahulu' : 'Pilih desa / kelurahan'; ?></option>
+										<?php foreach ($villages as $village): ?>
+											<option value="<?= (int) $village['id']; ?>" <?= (int) $field('village_id') === (int) $village['id'] ? 'selected' : ''; ?>><?= html_escape($village['name']); ?></option>
+										<?php endforeach; ?>
+									</select>
+									<div id="member-region-feedback" class="form-hint">Desa/kelurahan akan mengikuti kecamatan yang dipilih.</div>
 								</div>
 							</div>
 							<div class="mb-3">
@@ -223,6 +238,56 @@ $status_labels = [
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+	var districtSelect = document.getElementById('member-district-id');
+	var villageSelect = document.getElementById('member-village-id');
+	var regionFeedback = document.getElementById('member-region-feedback');
+	var selectedVillage = villageSelect ? parseInt(villageSelect.dataset.current || '0', 10) : 0;
+	var regionBaseUrl = <?= json_encode(base_url('membership/regions/villages/'), JSON_UNESCAPED_SLASHES); ?>;
+	var resetVillages = function (message) {
+		villageSelect.innerHTML = '<option value="">' + message + '</option>';
+		villageSelect.disabled = !districtSelect.value;
+	};
+	var loadVillages = function (keepSelection) {
+		if (!districtSelect || !villageSelect) return;
+		if (!districtSelect.value) {
+			resetVillages('Pilih kecamatan dahulu');
+			regionFeedback.textContent = 'Desa/kelurahan akan mengikuti kecamatan yang dipilih.';
+			return;
+		}
+		resetVillages('Memuat desa / kelurahan...');
+		villageSelect.disabled = true;
+		regionFeedback.textContent = 'Memuat daftar wilayah...';
+		fetch(regionBaseUrl + encodeURIComponent(districtSelect.value), { credentials: 'same-origin' })
+			.then(function (response) {
+				if (!response.ok) throw new Error('HTTP ' + response.status);
+				return response.json();
+			})
+			.then(function (payload) {
+				resetVillages('Pilih desa / kelurahan');
+				(payload.data || []).forEach(function (village) {
+					var option = document.createElement('option');
+					option.value = village.id;
+					option.textContent = village.name;
+					option.selected = keepSelection && parseInt(village.id, 10) === selectedVillage;
+					villageSelect.appendChild(option);
+				});
+				villageSelect.disabled = false;
+				regionFeedback.textContent = (payload.data || []).length ? 'Pilih desa/kelurahan sesuai alamat member.' : 'Belum ada desa/kelurahan aktif untuk kecamatan ini.';
+			})
+			.catch(function () {
+				resetVillages('Gagal memuat — pilih ulang kecamatan');
+				villageSelect.disabled = true;
+				regionFeedback.textContent = 'Daftar desa/kelurahan gagal dimuat. Periksa koneksi lalu pilih ulang kecamatan.';
+			});
+	};
+	if (districtSelect && villageSelect) {
+		districtSelect.addEventListener('change', function () {
+			selectedVillage = 0;
+			loadVillages(false);
+		});
+		if (districtSelect.value && villageSelect.options.length <= 1) loadVillages(true);
+	}
+
 	var identityInput = document.getElementById('identity-number-input');
 	var memberNoInput = document.getElementById('member-no-input');
 	var previewInput = document.getElementById('member-login-username-preview');

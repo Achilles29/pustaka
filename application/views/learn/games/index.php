@@ -3,6 +3,7 @@
 $can_manage = ! empty($can_manage);
 $difficulty_labels = ['easy' => 'Mudah', 'medium' => 'Sedang', 'hard' => 'Sulit'];
 ?>
+<?php $tab='content';$config=['base'=>'learn-games'];include APPPATH.'views/learn/module_progress/_tabs.php'; ?>
 
 <div class="container-xl">
     <div class="page-header mb-3">

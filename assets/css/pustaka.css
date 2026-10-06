@@ -2466,7 +2466,6 @@ body.admin-body,
 	transition: transform .16s ease;
 }
 
-.admin-menu-item.active > .admin-menu-link .admin-menu-caret,
 .admin-menu-link[aria-expanded="true"] .admin-menu-caret {
 	transform: rotate(90deg);
 }

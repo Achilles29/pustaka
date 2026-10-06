@@ -50,6 +50,10 @@ $source_labels = [
 			</div>
 			<div class="col-auto ms-auto">
 				<div class="btn-list">
+					<?php if (!empty($current_user['is_superadmin']) || !empty($user_perms['catalog.index']['can_export'])): ?>
+					<a class="btn btn-success" href="<?= html_escape(base_url('catalog/export?'.http_build_query(array_merge($filters,['format'=>'xlsx'])))); ?>" title="Unduh katalog Excel (.xlsx)" aria-label="Unduh katalog Excel (.xlsx)"><i class="ti ti-download me-1" aria-hidden="true"></i>Excel</a>
+					<a class="btn btn-primary" href="<?= html_escape(base_url('catalog/export?'.http_build_query($filters))); ?>" title="Unduh katalog CSV" aria-label="Unduh katalog CSV"><i class="ti ti-download me-1" aria-hidden="true"></i>CSV</a><?php endif; ?>
+					<a class="btn btn-outline-primary" href="<?= html_escape(base_url('catalog/annual-report?'.http_build_query($filters))); ?>"><i class="ti ti-chart-bar me-1"></i>Perkembangan tahunan</a>
 					<a href="<?= base_url('catalog/create'); ?>" class="btn btn-outline-primary">
 						<i class="ti ti-plus me-1"></i>Tambah
 					</a>

@@ -8,6 +8,11 @@
             .then(function (response) { return response.json(); })
             .then(function (payload) {
                 if (!payload.ok) return;
+                if (payload.state.status === 'waiting') {
+                    timer.textContent = '--:--';
+                    timer.parentElement.classList.remove('bg-danger');
+                    return;
+                }
                 var seconds = Math.max(0, Number(payload.state.remaining) || 0);
                 timer.textContent = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
                 timer.parentElement.classList.toggle('bg-danger', seconds <= 30 && payload.state.status === 'playing');
@@ -15,5 +20,5 @@
             .catch(function () {});
     }
     document.addEventListener('DOMContentLoaded', refreshTimer);
-    window.setInterval(refreshTimer, 1000);
+    window.setInterval(refreshTimer, 2000);
 })();

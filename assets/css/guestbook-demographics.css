@@ -1,0 +1,16 @@
+.demographic-row .row {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.demographic-row .demographic-field { min-width: 0; }
+.demographic-gender,
+.demographic-age,
+.demographic-total { grid-column: span 2; }
+.demographic-education,
+.demographic-profession { grid-column: span 3; }
+.demographic-row .form-select,
+.demographic-row .form-control { min-width: 0; width: 100%; }
+@media (max-width: 575.98px) {
+	.demographic-row .row { grid-template-columns: 1fr; }
+	.demographic-row .demographic-field { grid-column: 1; }
+}

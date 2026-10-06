@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
-    <link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260810j'); ?>">
+    <link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260814a'); ?>">
 </head>
 <body class="learning-arena-page">
     <header class="learning-arena-topbar">
@@ -38,9 +38,9 @@
     <main class="learning-arena-shell">
         <section class="learning-arena-hero">
             <div class="learning-arena-hero-copy">
-                <span class="learning-arena-kicker"><i class="ti ti-sparkles"></i> Ruang belajar interaktif</span>
-                <h1>Belajar, bermain,<br>dan terus bertumbuh.</h1>
-                <p>Pilih aktivitas yang kamu sukai, kumpulkan poin, lalu tukarkan dengan manfaat membaca.</p>
+                <span class="learning-arena-kicker"><i class="ti ti-sparkles"></i> Arena pembelajaran Pustaka Rembang</span>
+                <h1>Belajar dengan arah.<br>Bertumbuh dengan seru.</h1>
+                <p>Pilih latihan sesuai tujuanmu, lanjutkan progres yang sudah dimulai, lalu tukarkan poin menjadi manfaat baca digital.</p>
                 <?php if (! $user): ?>
                 <a href="<?= base_url('login'); ?>" class="btn btn-light learning-arena-login">
                     <i class="ti ti-login me-1"></i>Login untuk mengumpulkan poin
@@ -51,11 +51,16 @@
                 </a>
                 <?php endif; ?>
             </div>
-            <div class="learning-arena-hero-visual" aria-hidden="true">
-                <span class="learning-orbit learning-orbit-one"><i class="ti ti-bulb"></i></span>
-                <span class="learning-orbit learning-orbit-two"><i class="ti ti-trophy"></i></span>
-                <span class="learning-orbit learning-orbit-three"><i class="ti ti-book-2"></i></span>
-                <div class="learning-arena-mascot">🎮</div>
+            <div class="learning-arena-hero-visual">
+                <?php if ($user && $learning_summary): ?>
+                <aside class="learning-arena-passport" aria-label="Ringkasan progres belajar">
+                    <div class="learning-arena-passport-head"><span class="learning-arena-avatar"><i class="ti ti-user-star"></i></span><div><small>PROGRES BELAJARMU</small><strong><?= html_escape($user['full_name'] ?? ($user['username'] ?? 'Pemelajar')); ?></strong></div></div>
+                    <div class="learning-arena-passport-stats"><span><b><?= number_format($learning_summary['points'], 0, ',', '.'); ?></b><small>Poin</small></span><span><b><?= $learning_summary['quiz_attempts']; ?></b><small>Latihan</small></span><span><b><?= $learning_summary['badges']; ?></b><small>Lencana</small></span></div>
+                    <a href="<?= base_url('belajar/raport'); ?>">Buka raport belajar <i class="ti ti-arrow-up-right"></i></a>
+                </aside>
+                <?php else: ?>
+                <div class="learning-arena-discovery" aria-label="Pilihan aktivitas belajar"><span class="learning-orbit learning-orbit-one"><i class="ti ti-bulb"></i></span><span class="learning-orbit learning-orbit-two"><i class="ti ti-trophy"></i></span><span class="learning-orbit learning-orbit-three"><i class="ti ti-book-2"></i></span><div class="learning-arena-mascot"><i class="ti ti-mood-smile-beam"></i></div><small>Latihan · Cerita · Game · Kompetisi</small></div>
+                <?php endif; ?>
             </div>
         </section>
 
@@ -64,12 +69,18 @@
             <div>
                 <span class="learning-arena-eyebrow">BELAJAR HARI INI</span>
                 <h2>Halo, <?= html_escape($user['full_name'] ?? ($user['username'] ?? 'Pemain')); ?>!</h2>
-                <p>Setiap latihan kecil adalah kemajuan untuk dirayakan.</p>
+                <p>Setiap latihan kecil adalah kemajuan. Pilih satu aktivitas dan mulai dari sana.</p>
             </div>
             <div class="learning-arena-quick-links">
                 <a href="<?= base_url('belajar/raport'); ?>"><i class="ti ti-file-analytics"></i> Lihat perkembangan</a>
                 <a href="<?= base_url('belajar/tukar'); ?>"><i class="ti ti-gift"></i> Tukar poin</a>
             </div>
+        </section>
+        <section class="learning-arena-progress-strip" aria-label="Ringkasan aktivitas belajar">
+            <div><i class="ti ti-cards"></i><span><b><?= number_format($learning_summary['flashcards_known'], 0, ',', '.'); ?></b><small>Kartu dikuasai</small></span></div>
+            <div><i class="ti ti-device-gamepad-2"></i><span><b><?= number_format($learning_summary['games_played'], 0, ',', '.'); ?></b><small>Game selesai</small></span></div>
+            <div><i class="ti ti-target-arrow"></i><span><b><?= number_format($learning_summary['quiz_attempts'], 0, ',', '.'); ?></b><small>Sesi latihan</small></span></div>
+            <a href="<?= base_url('belajar/raport'); ?>">Detail progres <i class="ti ti-chevron-right"></i></a>
         </section>
         <?php endif; ?>
 
@@ -77,16 +88,16 @@
             <div class="learning-arena-section-heading">
                 <div>
                     <span class="learning-arena-eyebrow">PILIH CARA BELAJAR</span>
-                    <h2>Quiz &amp; latihan</h2>
+                    <h2>Mulai dari tujuanmu</h2>
                 </div>
-                <p>Uji pemahamanmu sendiri atau ikut kompetisi.</p>
+                <p>Uji pemahaman sendiri atau ikuti tantangan resmi.</p>
             </div>
             <div class="learning-arena-feature-grid">
                 <a href="<?= base_url('belajar/latihan'); ?>" class="learning-arena-feature-card is-blue">
                     <span class="learning-arena-feature-icon"><i class="ti ti-clipboard-list"></i></span>
                     <span class="learning-arena-feature-arrow"><i class="ti ti-arrow-up-right"></i></span>
                     <h3>Latihan Soal</h3>
-                    <p>Kerjakan soal dari bank latihan kapan saja dan lihat pembahasannya.</p>
+                    <p>Filter berdasarkan jenjang dan mapel, lalu lihat hasil serta pembahasannya langsung.</p>
                     <small><i class="ti ti-coin"></i> +10 poin per sesi</small>
                 </a>
                 <a href="<?= base_url('quiz/login'); ?>" class="learning-arena-feature-card is-purple">
@@ -112,11 +123,16 @@
             <div class="learning-arena-section-heading">
                 <div>
                     <span class="learning-arena-eyebrow">BELAJAR MANDIRI</span>
-                    <h2>Asah kemampuanmu</h2>
+                    <h2>Pilih aktivitas hari ini</h2>
                 </div>
-                <p>Aktivitas singkat yang bisa kamu ulangi setiap hari.</p>
+                <p>Aktivitas singkat untuk membangun kebiasaan belajar setiap hari.</p>
             </div>
             <div class="learning-arena-activity-grid">
+                <a href="<?= base_url('belajar/bahasa-inggris'); ?>" class="learning-arena-activity-card">
+                    <span class="learning-arena-activity-icon is-teal"><i class="ti ti-language"></i></span>
+                    <span><h3>Kelas Bahasa Inggris</h3><p>Belajar terarah dari Beginner sampai Expert dengan audio, hint, situasi nyata, dan tes tiap level.</p></span>
+                    <b>COURSE <i class="ti ti-arrow-up-right"></i></b>
+                </a>
                 <a href="<?= base_url('belajar/english-quest'); ?>" class="learning-arena-activity-card">
                     <span class="learning-arena-activity-icon is-violet"><i class="ti ti-sword"></i></span>
                     <span><h3>English Quest</h3><p>Jelajahi dunia RPG, berbicara dengan karakter, dan kuasai bahasa Inggris dari cerita.</p></span>
@@ -136,6 +152,11 @@
                     <span class="learning-arena-activity-icon is-rose"><i class="ti ti-swords"></i></span>
                     <span><h3>Mode Battle</h3><p>Tantang teman dan adu cepat menjawab pertanyaan.</p></span>
                     <b>+20 <i class="ti ti-trophy"></i></b>
+                </a>
+                <a href="<?= base_url('belajar/matematika'); ?>" class="learning-arena-activity-card">
+                    <span class="learning-arena-activity-icon is-teal"><i class="ti ti-map-2"></i></span>
+                    <span><h3>Math Expedition</h3><p>Naik level matematika bertahap dengan hint, pembahasan, dan tips tiap soal.</p></span>
+                    <b>LEVEL <i class="ti ti-arrow-up-right"></i></b>
                 </a>
             </div>
         </section>

@@ -18,7 +18,8 @@ class Manuscript_collection extends CI_Controller
 		if (empty($pages)) { redirect('naskah-kuno/detail/' . (int) $id); return; }
 		$user = (array) $this->session->userdata('auth_user');
 		$this->Manuscript_model->record_preview((int) $id, (int) ($user['id'] ?? 0), 'viewer');
-		$this->load->view('manuscripts/viewer', ['title'=>$item['title'], 'item'=>$item, 'pages'=>$pages]);
+		$html=$this->load->view('manuscripts/viewer', ['title'=>$item['title'], 'item'=>$item, 'pages'=>$pages],true);
+		$this->output->set_output($this->decorate_fit_page_viewer($html));
 	}
 
 	public function page($manuscript_id, $page_id)
@@ -50,6 +51,18 @@ class Manuscript_collection extends CI_Controller
 			redirect('naskah-kuno/baca/' . (int) $id); return;
 		}
 		redirect('naskah-kuno/detail/' . (int) $id);
+	}
+
+	private function decorate_fit_page_viewer($html)
+	{
+		$html=str_replace('<span class="zoom" id="zoom">100%</span>','<span class="zoom" id="zoom">Pas</span>',$html);
+		$html=str_replace('Perbesar lalu gulir citra untuk melihat detail.','Halaman ditampilkan utuh. Gunakan zoom hanya saat ingin melihat detail.',$html);
+		$old="touchX=0;function apply(){image.style.width=(scale*100)+'%';zoom.textContent=Math.round(scale*100)+'%'}function turn";
+		$new="touchX=0,baseWidth=0;function fit(){if(!image.naturalWidth)return;var pad=window.innerWidth<=720?26:60,availableWidth=Math.max(240,stage.clientWidth-pad),availableHeight=Math.max(320,window.innerHeight-stage.getBoundingClientRect().top-24);baseWidth=Math.min(image.naturalWidth,availableWidth,image.naturalWidth*(availableHeight/image.naturalHeight));apply()}function apply(){if(!baseWidth){zoom.textContent='Pas';return}image.style.width=Math.round(baseWidth*scale)+'px';image.style.maxWidth='none';zoom.textContent=scale===1?'Pas':Math.round(scale*100)+'%'}function turn";
+		$html=str_replace($old,$new,$html);
+		$html=str_replace("label.textContent='Halaman '+page.number;scale=1;apply();","label.textContent='Halaman '+page.number;scale=1;baseWidth=0;zoom.textContent='Pas';",$html);
+		$html=str_replace("image.addEventListener('contextmenu'","image.addEventListener('load',fit);window.addEventListener('resize',function(){if(scale===1)fit()});document.addEventListener('keydown',function(event){if(event.key==='ArrowLeft'&&index>0){event.preventDefault();index--;render(-1)}else if(event.key==='ArrowRight'&&index<pages.length-1){event.preventDefault();index++;render(1)}});image.addEventListener('contextmenu'",$html);
+		return $html;
 	}
 
 	private function content_manuscript($id, $redirect_after_login)

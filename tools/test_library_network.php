@@ -1,0 +1,66 @@
+<?php
+require __DIR__.'/library_network_bootstrap.php';
+$directory=$argv[1]??'';
+network_check(preg_match('#^/tmp/pustaka_network_test_[a-zA-Z0-9_]+$#D',$directory)&&is_file($directory.'/connection.php'),'Pass a private prepared test directory.');
+$params=require $directory.'/connection.php';network_check(strpos($params['database'],'pustaka_network_test_')===0,'Only isolated test databases allowed.');
+$db=DB($params);$db->db_debug=false;
+require APPPATH.'models/Library_network_model.php';require APPPATH.'libraries/Catalog_xlsx.php';require APPPATH.'libraries/Network_xlsx.php';
+$n=new Library_network_model();$n->db=$db;$checks=0;$actor=9000000;$a=4;$b=6;
+function ok($condition,$message){global $checks;network_check($condition,'FAIL '.$message);$checks++;echo 'PASS '.$message,"\n";}
+function reject($fn,$message){$failed=false;try{$fn();}catch(Throwable $e){$failed=true;}ok($failed,$message);}
+$book=['title'=>'Fixture A <script>alert(1)</script>','format'=>'physical','status'=>'published'];
+$bookA=$n->save($a,'books',0,$book,$actor);$bookB=$n->save($b,'books',0,['title'=>'Fixture B PRIVATE','format'=>'physical','status'=>'draft'],9000002);
+$digital=$n->save($a,'books',0,['title'=>'Digital A','format'=>'digital','digital_url'=>'https://example.org/read','status'=>'published'],$actor);
+$member=['member_no'=>'001','full_name'=>'Anggota Uji A','gender'=>'L','status'=>'active'];
+$ma=$n->save($a,'members',0,$member,$actor);$mb=$n->save($b,'members',0,array_replace($member,['full_name'=>'Anggota Uji B PRIVATE']),9000002);
+$auto=$n->save($a,'members',0,['full_name'=>'Auto Number','status'=>'active'],$actor);
+ok(strpos($n->find($a,'members',$auto)['member_no'],'L4-M')===0,'Automatic member number belongs to library');
+$ia=$n->save($a,'items',0,['book_id'=>$bookA,'barcode'=>'0001','status'=>'available'],$actor);
+$ib=$n->save($b,'items',0,['book_id'=>$bookB,'barcode'=>'0001','status'=>'available'],9000002);
+ok($n->listing($a,'books')['total']===2&&$n->listing($b,'books')['total']===1,'Scoped listing counts');
+ok($n->find($a,'books',$bookB)===null&&$n->find($a,'members',$mb)===null,'Cross-library read denied');
+foreach([null,0,-1,'4 OR 1=1','4.0']as$scope)reject(function()use($n,$scope){$n->listing($scope,'books');},'Invalid scope rejected');
+reject(function()use($n,$a,$bookB,$book,$actor){$n->save($a,'books',$bookB,$book,$actor);},'Cross-library update denied');
+reject(function()use($n,$a,$mb,$actor){$n->archive($a,'members',$mb,$actor);},'Cross-library archive denied');
+reject(function()use($n,$a,$bookB,$actor){$n->save($a,'items',0,['book_id'=>$bookB,'barcode'=>'foreign','status'=>'available'],$actor);},'Cross-library book binding denied');
+reject(function()use($n,$a,$digital,$actor){$n->save($a,'items',0,['book_id'=>$digital,'barcode'=>'digital','status'=>'available'],$actor);},'Digital book cannot have physical item');
+reject(function()use($n,$a,$bookA,$actor){$n->save($a,'items',0,['book_id'=>$bookA,'barcode'=>'0001','status'=>'available'],$actor);},'Duplicate local barcode rejected');
+reject(function()use($n,$a,$member,$actor){$n->save($a,'members',0,$member,$actor);},'Duplicate local member number rejected');
+$loan=$n->issue($a,'001','0001',$actor);
+ok($n->find($a,'items',$ia)['status']==='loaned','Issue changes item status atomically');
+reject(function()use($n,$a,$actor){$n->issue($a,'001','0001',$actor);},'Duplicate issue denied');
+reject(function()use($n,$b,$loan){$n->loan_action($b,$loan,'return',9000002);},'Cross-library return denied');
+reject(function()use($n,$a,$ma,$actor){$n->archive($a,'members',$ma,$actor);},'Active borrower cannot be archived');
+reject(function()use($n,$a,$ia,$actor){$n->archive($a,'items',$ia,$actor);},'Loaned item cannot be archived');
+$n->loan_action($a,$loan,'renew',$actor);reject(function()use($n,$a,$loan,$actor){$n->loan_action($a,$loan,'renew',$actor);},'Renewal limit enforced');
+$n->loan_action($a,$loan,'return',$actor);ok($n->find($a,'items',$ia)['status']==='available'&&$n->loans($a,'returned')['total']===1,'Return restores availability and preserves history');
+reject(function()use($n,$a,$loan,$actor){$n->loan_action($a,$loan,'return',$actor);},'Repeated return rejected');
+$n->save_settings($a,['loan_days'=>14,'max_loans'=>1,'max_renewals'=>0],$actor);
+ok((int)$n->settings($a)['loan_days']===14&&(int)$n->settings($b)['loan_days']===7,'Rules independent by library');
+$second=$n->save($a,'items',0,['book_id'=>$bookA,'barcode'=>'0002','status'=>'available'],$actor);
+$loan2=$n->issue($a,'001','0001',$actor);reject(function()use($n,$a,$actor){$n->issue($a,'001','0002',$actor);},'Member active-loan limit enforced');
+$n->loan_action($a,$loan2,'return',$actor);
+foreach(['offline','online']as$channel)$n->visit($a,['member_no'=>'001','purpose'=>'Layanan digital','channel'=>$channel],$actor);
+ok($n->visits($a)['total']===2&&$n->visits($b)['total']===0,'Digital service can be offline or online; scoped visits');
+$report=$n->report($a,(int)date('Y'));ok($report['stats']['physical']===1&&$report['stats']['digital']===1&&count($report['months'])===12,'Physical/digital report separation');
+ok(array_sum(array_column($report['months'],'offline'))===1&&array_sum(array_column($report['months'],'online'))===1,'Monthly offline/online counts reconcile');
+$before=$n->listing($a,'members')['total'];reject(function()use($n,$a,$member,$actor){$n->import_rows($a,'members',[array_replace($member,['member_no'=>'NEW']),$member],$actor);},'Failed batch import rejected');
+ok($n->listing($a,'members')['total']===$before,'Failed import rolls back every row');
+reject(function()use($n,$book){$n->validate('books',array_replace($book,['title'=>['bad']]));},'Array input rejected');
+reject(function()use($n){$n->validate('books',['title'=>'Unsafe','format'=>'digital','digital_url'=>'javascript:alert(1)','status'=>'published']);},'Unsafe digital URL rejected');
+reject(function()use($n){$n->validate('members',['full_name'=>'Invalid','birth_date'=>'2026-02-31','status'=>'active']);},'Invalid calendar date rejected');
+$foreign=$db->insert('network_loans',['library_id'=>$a,'member_id'=>$mb,'item_id'=>$ia,'loaned_at'=>date('Y-m-d H:i:s'),'due_at'=>date('Y-m-d H:i:s'),'created_by'=>$actor]);ok($foreign===false,'Database composite foreign key rejects cross-library loan');
+$admin=$n->create_admin($a,['full_name'=>'Admin Kedua','username'=>'test-second-admin','password'=>'PrivateTest!54321'],$actor);
+ok(count($n->admins($a))===2&&count($n->admins($b))===1,'Multiple equal admins supported');
+reject(function()use($n,$a,$actor){$n->toggle_admin($a,$actor,$actor);},'Self-deactivation rejected');
+reject(function()use($n,$a,$actor){$n->toggle_admin($a,9000002,$actor);},'Foreign admin toggle denied');
+$n->toggle_admin($a,$admin,$actor);ok($db->where('id',$admin)->get('auth_user')->row()->status==='inactive','Same-library admin deactivation');
+reject(function()use($n,$a,$actor){$n->toggle_admin($a,$actor,9000004);},'Last active admin protected');
+$profile=$n->library($a);$n->save_profile($a,array_replace($profile,['name'=>'FORGED','code'=>'FORGED','library_id'=>$b,'status'=>'inactive','description'=>'Updated locally']),$actor);
+ok($n->library($a)['name']===$profile['name']&&$n->library($a)['status']==='active'&&$n->library($b)['description']!=='Updated locally','Identity fields cannot be mass assigned');
+// Excel round-trip and parser boundaries; all files remain private.
+$writer=new Catalog_xlsx();$reader=new Network_xlsx();$headers=array_keys($n->definitions()['members']['fields']);$values=[];foreach($headers as$h)$values[]=$member[$h]??'';
+$file=$writer->build('Data',$headers,[$values]);
+try{ok($reader->read($file,$headers)[0]['member_no']==='001','XLSX template preserves leading-zero member number');reject(function()use($reader,$file){$reader->read($file,['wrong']);},'Wrong Excel template rejected');$z=new ZipArchive();$z->open($file);$xml=$z->getFromName('xl/worksheets/sheet1.xml');$z->addFromString('xl/worksheets/sheet1.xml',str_replace('<row r="2">','<row r="2"><c r="A2"><f>1+1</f><v>2</v></c>',$xml));$z->close();reject(function()use($reader,$file,$headers){$reader->read($file,$headers);},'Excel formulas rejected');}finally{unlink($file);}
+file_put_contents($directory.'/ids.json',json_encode(['book_a'=>$bookA,'book_b'=>$bookB,'member_a'=>$ma,'member_b'=>$mb,'item_a'=>$ia,'loan_a'=>$loan,'second_admin'=>$admin]));
+echo $checks," model/import checks passed.\n";

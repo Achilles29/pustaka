@@ -1,0 +1,51 @@
+<?php
+require __DIR__.'/library_network_bootstrap.php';require APPPATH.'models/Iplm_model.php';require APPPATH.'models/Library_type_model.php';require APPPATH.'libraries/Iplm_analysis.php';
+$directory=$argv[1]??'';network_check(preg_match('#^/tmp/pustaka_network_test_[a-zA-Z0-9_]+$#D',$directory)&&is_file($directory.'/connection.php'),'Private runtime required.');$params=require $directory.'/connection.php';network_check(strpos($params['database'],'pustaka_network_test_')===0,'Test database required.');$db=DB($params);$db->db_debug=false;$m=new Iplm_model();$m->db=$db;$t=new Library_type_model();$t->db=$db;$checks=0;
+function ok($value,$message){global$checks;network_check($value,'FAIL '.$message);$checks++;echo 'PASS '.$message,PHP_EOL;}
+function reject(callable $fn,$message){$failed=false;try{$fn();}catch(Throwable$e){$failed=true;}ok($failed,$message);}
+ok(count($m->fields())===43,'All 43 template columns seeded');
+ok((int)$db->query("SELECT COUNT(*) n FROM libraries WHERE source_system='school_xlsx' AND library_subtype_id IS NOT NULL")->row()->n===410,'All 410 imported schools classified');
+ok(!array_diff(['umum','sekolah','khusus','perguruan_tinggi','swasta','mitra'],array_column($t->types(),'code'))&&count($t->subtypes())>=9,'Canonical types and requested/local subtypes remain available');
+$school=$m->library(4);$other=$m->library(6);$original=$db->where('id',4)->get('libraries')->row_array();$p=$m->periods()[0];
+$m->save_period(['id'=>$p['id'],'version'=>$p['version'],'year'=>2026,'title'=>'Fixture IPLM','start_date'=>'2025-10-01','end_date'=>'2026-09-30','dates_confirmed'=>1,'state'=>'open','population'=>'100','population_note'=>'Fixture only'],9000004);$p=$m->period($p['id']);
+$id=$m->create(4,$p['id'],9000000,'Pengisi A');$foreign=$m->create(6,$p['id'],9000002,'Pengisi B');$row=$m->find($id,4);
+ok($m->create(4,$p['id'],9000000,'Pengisi A')===$id,'Duplicate library/period resumes existing entry');
+ok($m->find($id,6)===null&&$m->find($foreign,4)===null,'Cross-library entry reads blocked');
+ok($row['values']['npsn']===$school['code']&&$row['values']['library_name']===$school['name'],'Identity and NPSN auto-filled from master');
+ok(!isset($row['values']['library_users'])&&!isset($row['values']['print_titles']),'Unknown counts not converted to zero or simulated visits');
+$input=['action'=>'draft','version'=>$row['version']];foreach($row['schema']as$f)$input['f_'.$f['code']]=$row['values'][$f['code']]??'';
+$input['f_library_name']='Nama koreksi IPLM';$input['e_print_titles']='https://drive.google.com/fixture-support';$m->save($id,4,9000000,$input);$row=$m->find($id,4);
+ok(count($m->differences($row))===1,'Changed identity produces verification warning');
+ok($original===$db->where('id',4)->get('libraries')->row_array(),'Local correction never changes master row');
+reject(function()use($m,$id,$input){$m->save($id,6,9000002,$input);},'Cross-library writes blocked');
+reject(function()use($m,$id,$input){$m->save($id,4,9000000,$input);},'Stale version blocked');
+$input['version']=$row['version'];$input['f_print_titles']='-1';reject(function()use($m,$row,$input){$m->validate($row['schema'],$input);},'Negative count rejected');
+$input['f_print_titles']='1e9';reject(function()use($m,$row,$input){$m->validate($row['schema'],$input);},'Scientific notation rejected');
+$input['f_print_titles']='0';$input['e_print_titles']='javascript:alert(1)';reject(function()use($m,$row,$input){$m->validate($row['schema'],$input);},'Unsafe evidence scheme rejected');$input['e_print_titles']='https://drive.google.com/fixture';
+$input['f_library_subtype_id']=$db->where('code','kabupaten')->get('library_subtypes')->row()->id;reject(function()use($m,$row,$input){$m->validate($row['schema'],$input);},'Invalid dependent subtype rejected');$input['f_library_subtype_id']=$school['library_subtype_id'];
+$input['action']='submit';reject(function()use($m,$id,$input){$m->save($id,4,9000000,$input);},'Incomplete submission rejected');
+foreach($row['schema']as$f)if(in_array($f['kind'],['number','money'],true))$input['f_'.$f['code']]='0';$input['f_respondent_phone']='081234567890';$m->save($id,4,9000000,$input);$row=$m->find($id,4);
+ok($row['status']==='submitted'&&$row['values']['print_titles']==='0','Complete zeros remain valid values and submit successfully');
+reject(function()use($m,$row,$id,$input){$input['version']=$row['version'];$m->save($id,4,9000000,$input);},'Submitted local entry locked');
+reject(function()use($m,$id,$row){$m->review($id,9000004,['action'=>'verify','version'=>$row['version'],'note'=>'Fixture check']);},'Unresolved identity blocks approval');
+$m->review($id,9000004,['action'=>'resolve','version'=>$row['version'],'field'=>'library_name','choice'=>'form','note'=>'Compared with fixture evidence']);$row=$m->find($id,4);
+ok($m->differences($row)['library_name']['resolved'],'Explicit verification resolves correction without overwriting master');
+$m->review($id,9000004,['action'=>'verify','version'=>$row['version'],'note'=>'All fixture evidence checked']);$row=$m->find($id,4);ok($row['status']==='verified','Resolved complete form verified');
+ok($original===$db->where('id',4)->get('libraries')->row_array(),'Approval also leaves master unchanged');
+$db->where('id',4)->update('libraries',['name'=>'New master identity']);ok(!$m->differences($row)['library_name']['resolved'],'Later master changes invalidate old resolution');$db->where('id',4)->update('libraries',['name'=>$original['name']]);
+$f=$m->fields()[0];$oldLabel=$row['schema'][0]['label'];$m->save_field(['id'=>$f['id'],'version'=>$f['version'],'label'=>'Fixture renamed field','section'=>'identity','definition'=>'Fixture definition','is_required'=>1,'is_active'=>1,'sort_order'=>1],9000004);ok($m->find($id,4)['schema'][0]['label']===$oldLabel,'Field edits preserve existing form version');
+$f=$db->where('id',$f['id'])->get('iplm_fields')->row_array();$m->save_field(['id'=>$f['id'],'version'=>$f['version'],'label'=>$oldLabel,'section'=>'identity','definition'=>'','is_required'=>1,'is_active'=>1,'sort_order'=>1],9000004);
+reject(function()use($m,$p){$m->save_period(['id'=>$p['id'],'version'=>$p['version'],'year'=>2026,'title'=>'Illegal period change','start_date'=>'2026-01-01','end_date'=>'2026-12-31','dates_confirmed'=>1,'state'=>'open'],9000004);},'Used period dates cannot silently change');
+$type=$db->where('code','sekolah')->get('library_types')->row_array();reject(function()use($t,$type){$t->save('type',array_replace($type,['is_active'=>0]),9000004);},'Used type cannot be removed');
+$sub=$db->where('code','sd')->get('library_subtypes')->row_array();$sub['is_active']=0;reject(function()use($t,$sub){$t->save('subtype',$sub,9000004);},'Used subtype cannot be removed');
+$a=new Iplm_analysis();ok(abs($a->transform(10,1)-10)<1e-8&&abs($a->transform(10,0)-log(11))<1e-8,'Yeo-Johnson identity and log branches');
+$v=[];foreach(array_merge(...array_values($a->groups()))as$k)$v[$k]='0';$testRows=[];foreach([0,10,100]as$i=>$n){$values=array_map(function()use($n){return (string)$n;},$v);$testRows[]=['id'=>$i+1,'library_name'=>'Fixture '.$i,'values'=>$values];}
+$result=$a->calculate($testRows,['population'=>100]);ok($result['minimum']===68&&abs($result['adjusted']-$result['raw']*3/68)<1e-8,'68 percent coverage and adjustment match formula');
+ok(abs($result['rows'][0]['score'])<1e-8&&abs($result['rows'][2]['score']-100)<1e-8,'Min/max scores in 0 to 100');
+$constant=$a->calculate([$testRows[0],$testRows[0]],['population'=>100]);ok($constant['raw']===null,'All-constant sample does not fabricate index');
+ok($a->calculate($testRows,['population'=>null])['adjusted']===null,'Missing population never yields adjusted score');
+$m->review($id,9000004,['action'=>'delete','version'=>$row['version'],'note'=>'Archive fixture']);ok($m->find($id,4)===null&&count($m->history_rows($id))>=5,'Deletion archives without removing audit history');
+$m->save_field(['code'=>'fixture_extra','label'=>'Fixture extra','definition'=>'Fixture optional choice','section'=>'management','kind'=>'select','options'=>"Satu\nDua",'is_active'=>1,'sort_order'=>100],9000004);$new=$db->where('code','fixture_extra')->get('iplm_fields')->row_array();ok($new&&json_decode($new['options_json'],true)===['Satu','Dua'],'Admin can create enum component');
+$m->save_field(['id'=>$new['id'],'version'=>$new['version'],'label'=>'Fixture extra','definition'=>'Fixture archived','section'=>'management','options'=>"Satu\nDua",'is_active'=>0,'sort_order'=>100],9000004);ok(count($m->fields())===43,'Component soft deletion removes it from new forms only');
+$t->save('type',['code'=>'fixture_custom','name'=>'Fixture Custom','description'=>'Fixture only','sort_order'=>500,'marker_color'=>'#123456','is_active'=>1],9000004);$custom=$db->where('code','fixture_custom')->get('library_types')->row_array();$t->save('type',array_replace($custom,['is_active'=>0]),9000004);ok(!$db->where('id',$custom['id'])->get('library_types')->row()->is_active,'Unused taxonomy can be created and archived');
+file_put_contents($directory.'/iplm-model.json',json_encode(['foreign'=>$foreign,'period'=>$p['id'],'checks'=>$checks]));echo $checks," IPLM model checks passed.\n";

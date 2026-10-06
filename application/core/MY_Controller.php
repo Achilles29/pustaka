@@ -11,6 +11,8 @@ class MY_Controller extends CI_Controller
 	public function __construct()
 	{
 		parent::__construct();
+		$this->load->library('Library_access');
+		$this->library_access->enforce();
 		$this->ensure_authenticated();
 	}
 
@@ -82,6 +84,20 @@ class MY_Controller extends CI_Controller
 		$data['user_perms'] = $this->user_perms;
 		$data['library_scope_id'] = $this->library_scope_id;
 		$data['menu_items'] = $this->Menu_model->get_sidebar_tree($this->user_perms, $this->is_superadmin());
+		$data['library_sidebar_ready']=false;
+		if (!empty($this->current_user['is_library_admin'])) {
+			$registered_local=$this->Menu_model->get_sidebar_tree($this->user_perms,false,'LIBRARY');
+			if ($registered_local) {$data['menu_items']=$registered_local;$data['library_sidebar_ready']=true;}
+			$local_menu = function (array $items) use (&$local_menu) {
+				$result=[];
+				foreach ($items as $item) {
+					$item['children']=$local_menu($item['children']??[]);
+					if (in_array(($item['page_code']??''),['library.workspace','iplm.local'],true) || $item['children']) $result[]=$item;
+				}
+				return $result;
+			};
+			$data['menu_items']=$local_menu($data['menu_items']);
+		}
 		$data['admin_inbox'] = $this->admin_inbox_summary();
 		$data['content'] = $this->load->view($view, $data, true);
 
@@ -127,6 +143,7 @@ class MY_Controller extends CI_Controller
 
 	private function admin_inbox_summary()
 	{
+		if (! empty($this->current_user['is_library_admin'])) return ['total' => 0, 'items' => []];
 		$items = [
 			[
 				'label' => 'Pendaftaran',
@@ -160,6 +177,12 @@ class MY_Controller extends CI_Controller
 			],
 		];
 
+		if ($this->can('iplm.manage','view') && $this->db->table_exists('iplm_submissions')) {
+			$this->load->model('Iplm_model');
+			$iplm_pending=$this->Iplm_model->pending_summary();
+			$items[]=['label'=>'IPLM: perbedaan identitas','url'=>'iplm','count'=>$iplm_pending['differences']];
+			$items[]=['label'=>'IPLM: menunggu verifikasi','url'=>'iplm','count'=>$iplm_pending['submitted']];
+		}
 		$total = 0;
 		foreach ($items as $item) {
 			$total += (int) $item['count'];

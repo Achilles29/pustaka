@@ -938,7 +938,8 @@ class Catalog_model extends CI_Model
 	public function get_member_book_requests($member_id, $limit = 5)
 	{
 		return $this->db
-			->select("br.*, b.title, li.loan_status AS linked_loan_status, li.actual_return_at AS linked_actual_return_at,
+			->select("br.*, b.title, li.loan_status AS linked_loan_status, li.actual_return_at AS linked_actual_return_at, li.local_return_note AS return_note,
+				COALESCE(NULLIF(br.admin_note, ''), NULLIF(li.local_return_note, '')) AS staff_note,
 				CASE
 					WHEN br.status = 'fulfilled' AND br.loan_transaction_item_id IS NULL THEN 'completed_legacy'
 					WHEN br.status = 'fulfilled' AND (li.actual_return_at IS NOT NULL OR UPPER(COALESCE(li.loan_status, '')) = 'RETURN') THEN 'returned'
@@ -1186,7 +1187,7 @@ class Catalog_model extends CI_Model
 			->where('book_id', (int) $book_id)
 			->where('deleted_at IS NULL', null, false)
 			->order_by('id', 'ASC')
-			->limit(max(1, min(100, (int) $limit)));
+			->limit(max(1, min(1000, (int) $limit)));
 
 		if (! empty($scope_library_id)) {
 			$this->db->where('library_id', (int) $scope_library_id);
@@ -1237,8 +1238,7 @@ class Catalog_model extends CI_Model
 		}
 
 		$payload = $this->book_item_payload((int) $book_id, $data);
-		$this->db->where('id', (int) $item_id)->update('book_items', $payload);
-		return true;
+		return (bool)$this->db->where('id', (int) $item_id)->update('book_items', $payload);
 	}
 
 	public function soft_delete_book_item($item_id, $book_id, $scope_library_id = null)
@@ -1263,7 +1263,8 @@ class Catalog_model extends CI_Model
 		$payload = $this->book_payload($data);
 		$payload['source_system'] = 'manual';
 		$payload['source_id'] = null;
-		$payload['cover_migration_status'] = empty($payload['cover_path']) ? 'skipped' : 'pending';
+		$payload['cover_migration_status'] = ! empty($payload['cover_local_path']) ? 'copied' : (empty($payload['cover_path']) ? 'skipped' : 'pending');
+		if (! empty($payload['cover_local_path'])) $payload['cover_migrated_at'] = date('Y-m-d H:i:s');
 		$payload['created_by'] = $created_by ? (int) $created_by : null;
 		$payload['updated_by'] = $created_by ? (int) $created_by : null;
 
@@ -1292,7 +1293,12 @@ class Catalog_model extends CI_Model
 		$payload = $this->book_payload($data);
 		$payload['updated_by'] = $updated_by ? (int) $updated_by : null;
 
-		if ((string) ($book['cover_path'] ?? '') !== (string) ($payload['cover_path'] ?? '')) {
+		if (! empty($payload['cover_local_path'])) {
+			$payload['cover_path'] = $payload['cover_local_path'];
+			$payload['cover_source_path'] = null;
+			$payload['cover_migration_status'] = 'copied';
+			$payload['cover_migrated_at'] = date('Y-m-d H:i:s');
+		} elseif ((string) ($book['cover_path'] ?? '') !== (string) ($payload['cover_path'] ?? '')) {
 			$payload['cover_source_path'] = $payload['cover_path'];
 			$payload['cover_local_path'] = null;
 			$payload['cover_migration_status'] = empty($payload['cover_path']) ? 'skipped' : 'pending';
@@ -1322,6 +1328,67 @@ class Catalog_model extends CI_Model
 		];
 
 		return $this->db->where('id', (int) $id)->update('books', $payload);
+	}
+
+	/** Keyset pagination bounds memory for downloads of the entire filtered catalog. */
+	public function export_batch(array $filters, $scope_library_id, $after_id = 0, $limit = 250)
+	{
+		$this->apply_book_filters($filters, $scope_library_id);
+		return $this->db->select("b.*, cc.name AS content_category_name, cm.name AS content_classification_name,
+			COUNT(DISTINCT i.id) AS item_count,
+			COUNT(DISTINCT CASE WHEN i.status = 'available' THEN i.id END) AS available_count,
+			GROUP_CONCAT(DISTINCT COALESCE(NULLIF(i.location_library_name, ''), l.name) SEPARATOR ' | ') AS libraries,
+			GROUP_CONCAT(DISTINCT NULLIF(i.collection_type, '') SEPARATOR ' | ') AS collection_types,
+			(SELECT GROUP_CONCAT(a.name ORDER BY a.sort_order SEPARATOR ' | ') FROM book_authors a WHERE a.book_id=b.id) AS authors,
+			(SELECT GROUP_CONCAT(s.subject ORDER BY s.id SEPARATOR ' | ') FROM book_subjects s WHERE s.book_id=b.id) AS subjects", false)
+			->join('book_content_categories cc', 'cc.id=b.content_category_id', 'left')
+			->join('book_classification_masters cm', 'cm.id=b.content_classification_id', 'left')
+			->where('b.id >', (int) $after_id)->group_by('b.id')->order_by('b.id', 'ASC')
+			->limit(max(1, min(500, (int) $limit)))->get()->result_array();
+	}
+
+	public function annual_development(array $filters, $scope_library_id)
+	{
+		$this->apply_book_filters($filters, $scope_library_id);
+		// Use the original INLIS cataloguing date, not the later migration date.
+		$this->db->join('inlislite_v3.catalogs original', "b.source_system='inlislite_v3' AND original.ID=CAST(b.source_id AS UNSIGNED)", 'left', false);
+		$date = "CASE WHEN b.source_system='inlislite_v3' THEN original.CreateDate ELSE b.created_at END";
+		$year = "CASE WHEN YEAR($date) BETWEEN 1900 AND ".(int) date('Y')." THEN YEAR($date) ELSE 0 END";
+		// Ebook item records are not physical copies. Asset existence must not multiply items.
+		$digital_item = "(LOWER(TRIM(COALESCE(i.collection_type,''))) IN ('ebook','e-book','e book','buku digital','digital','audiobook') OR LOWER(TRIM(COALESCE(i.media_name,''))) IN ('digital','pdf','epub','ebook','e-book','audiobook'))";
+		$physical_item = "(i.id IS NOT NULL AND NOT $digital_item)";
+		$digital_asset = "EXISTS (SELECT 1 FROM digital_assets report_asset WHERE report_asset.book_id=b.id AND report_asset.status='active')";
+		$per_book = $this->db->select("b.id, $year AS year, COUNT(DISTINCT i.id) AS copies,
+			COUNT(DISTINCT CASE WHEN $physical_item THEN i.id END) AS physical_copies,
+			MAX(CASE WHEN $physical_item THEN 1 ELSE 0 END) AS has_physical,
+			CASE WHEN MAX(CASE WHEN i.id IS NOT NULL AND $digital_item THEN 1 ELSE 0 END)=1 OR $digital_asset THEN 1 ELSE 0 END AS has_digital", false)
+			->group_by('b.id')->group_by($year,false)->get_compiled_select();
+		$raw = $this->db->query("SELECT year, COUNT(*) titles, SUM(copies) copies, SUM(physical_copies) physical_copies,
+			SUM(has_physical) physical_titles, SUM(has_digital) digital_titles,
+			SUM(has_physical=1 AND has_digital=1) hybrid_titles,
+			SUM(has_physical=0 AND has_digital=0) unclassified_titles
+			FROM ($per_book) classified GROUP BY year ORDER BY year ASC")->result_array();
+		$zero = array_fill_keys(['titles','copies','physical_copies','physical_titles','digital_titles','hybrid_titles','unclassified_titles'],0);
+		$known = []; $unknown = $zero;
+		foreach ($raw as $row) {
+			if (!(int) $row['year']) $unknown = $row;
+			else $known[(int) $row['year']] = $row;
+		}
+		$rows = []; $cumulative = 0; $physical_cumulative = 0; $digital_cumulative = 0; $previous = null;
+		if ($known) {
+			for ($y = min(array_keys($known)); $y <= (int) date('Y'); $y++) {
+				$row = $known[$y] ?? array_merge(['year'=>$y],$zero);
+				foreach ($zero as $key=>$value) $row[$key] = (int)$row[$key];
+				$cumulative += $row['titles']; $row['cumulative'] = $cumulative;
+				$physical_cumulative += $row['physical_titles']; $row['physical_cumulative'] = $physical_cumulative;
+				$digital_cumulative += $row['digital_titles']; $row['digital_cumulative'] = $digital_cumulative;
+				$row['growth'] = $previous > 0 ? round(($row['titles'] - $previous) / $previous * 100, 1) : null;
+				$previous = $row['titles']; $rows[] = $row;
+			}
+		}
+		$out = ['rows'=>$rows, 'unknown'=>$unknown];
+		foreach ($zero as $key=>$value) $out['total_'.$key] = array_sum(array_column($rows,$key)) + (int)$unknown[$key];
+		return $out;
 	}
 
 	private function apply_book_filters(array $filters = [], $scope_library_id = null)
@@ -1356,7 +1423,7 @@ class Catalog_model extends CI_Model
 		$source_system = trim((string) ($filters['source_system'] ?? ''));
 		if ($source_system !== '') {
 			if ($source_system === 'manual') {
-				$this->db->where('(b.source_system IS NULL OR b.source_system = \'\')', null, false);
+				$this->db->where('(b.source_system IS NULL OR b.source_system = \'\' OR b.source_system = \'manual\')', null, false);
 			} else {
 				$this->db->where('b.source_system', $source_system);
 			}
@@ -1954,7 +2021,7 @@ class Catalog_model extends CI_Model
 
 	private function book_payload(array $data)
 	{
-		return [
+		$payload = [
 			'title' => $this->clip($data['title'] ?? '', 255) ?: 'Tanpa Judul',
 			'subtitle' => $this->clip($data['subtitle'] ?? null, 255),
 			'statement_responsibility' => $this->clip($data['statement_responsibility'] ?? null, 255),
@@ -1974,6 +2041,13 @@ class Catalog_model extends CI_Model
 			'cover_source_path' => $this->clip($data['cover_path'] ?? null, 500),
 			'status' => in_array(($data['status'] ?? 'draft'), ['draft', 'published', 'hidden'], true) ? $data['status'] : 'draft',
 		];
+		$uploaded_cover = $this->clip($data['uploaded_cover_path'] ?? null, 500);
+		if ($uploaded_cover !== null) {
+			$payload['cover_path'] = $uploaded_cover;
+			$payload['cover_source_path'] = null;
+			$payload['cover_local_path'] = $uploaded_cover;
+		}
+		return $payload;
 	}
 
 	private function sync_manual_book_terms($book_id, array $data)
@@ -2004,12 +2078,16 @@ class Catalog_model extends CI_Model
 		if ($type === null) {
 			return;
 		}
+		$primary_source_id = 'catalog-primary-' . (int) $book_id;
 
 		$item = $this->db
 			->from('book_items')
 			->where('book_id', (int) $book_id)
 			->where('source_system', 'manual')
-			->where('source_id', 'catalog-primary')
+			->group_start()
+				->where('source_id', $primary_source_id)
+				->or_where('source_id', 'catalog-primary')
+			->group_end()
 			->limit(1)
 			->get()
 			->row_array();
@@ -2025,6 +2103,7 @@ class Catalog_model extends CI_Model
 		];
 
 		if ($item) {
+			$common['source_id'] = $primary_source_id;
 			$this->db->where('id', (int) $item['id'])->update('book_items', $common);
 			return;
 		}
@@ -2032,7 +2111,7 @@ class Catalog_model extends CI_Model
 		$this->db->insert('book_items', array_merge($common, [
 			'book_id' => (int) $book_id,
 			'source_system' => 'manual',
-			'source_id' => 'catalog-primary',
+			'source_id' => $primary_source_id,
 			'item_code' => 'CAT-' . (int) $book_id,
 			'location_name' => 'Belum ditentukan',
 			'rule_name' => 'Belum ditentukan',

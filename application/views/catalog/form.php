@@ -18,7 +18,17 @@ $status_labels = [
 	'published' => 'Tayang',
 	'hidden' => 'Disembunyikan',
 ];
+$url_path = function ($path) {
+	return implode('/', array_map('rawurlencode', explode('/', str_replace('\\', '/', trim((string) $path, '/')))));
+};
+$cover_url = '';
+if (! empty($book['cover_local_path'])) {
+	$cover_url = base_url($url_path($book['cover_local_path']));
+} elseif (! empty($book['cover_source_path'])) {
+	$cover_url = base_url($url_path('assets/uploads/inlislite/source_mirror/' . $book['cover_source_path']));
+}
 ?>
+<style>.catalog-cover-upload{display:grid;grid-template-columns:4.5rem minmax(0,1fr);gap:.8rem;align-items:start}.catalog-cover-preview{display:grid;width:4.5rem;aspect-ratio:2/3;place-items:center;overflow:hidden;border:1px dashed #b9d6ea;border-radius:10px;background:#f1f8fd;color:#5c88aa}.catalog-cover-preview img{width:100%;height:100%;object-fit:cover}.catalog-cover-preview i{font-size:1.5rem}.catalog-cover-upload .form-hint{margin-top:.35rem}@media(max-width:575px){.catalog-cover-upload{grid-template-columns:1fr}.catalog-cover-preview{width:5rem}}</style>
 <div class="page-header d-print-none">
 	<div class="container-xl">
 		<div class="row g-2 align-items-center">
@@ -41,7 +51,7 @@ $status_labels = [
 			<div class="alert alert-danger"><?= html_escape($this->session->flashdata('error')); ?></div>
 		<?php endif; ?>
 
-		<?= form_open($action); ?>
+		<?= form_open_multipart($action); ?>
 			<div class="row row-cards">
 				<div class="col-lg-8">
 					<div class="card admin-card">
@@ -190,9 +200,8 @@ $status_labels = [
 								<div class="form-hint">Gunakan Ctrl/Cmd saat memilih beberapa pilihan. Tag ini menjadi filter pada halaman Buku Pelajaran.</div>
 							</div>
 							<div class="mb-3">
-								<label class="form-label">Nama File Cover</label>
-								<input type="text" class="form-control" name="cover_path" value="<?= html_escape($field('cover_path')); ?>" placeholder="contoh: cover.jpg">
-								<div class="form-hint">Untuk data hasil migrasi, file fisik tetap diproses dari modul Migrasi Aset.</div>
+								<label class="form-label">Cover Buku</label>
+								<div class="catalog-cover-upload"><div class="catalog-cover-preview" id="catalog-cover-preview"><?php if ($cover_url): ?><img src="<?= html_escape($cover_url); ?>" alt="Preview cover"><?php else: ?><i class="ti ti-photo"></i><?php endif; ?></div><div><input type="file" class="form-control" name="cover_file" id="catalog-cover-file" accept="image/jpeg,image/png,image/webp"><div class="form-hint">JPG, PNG, atau WebP; maksimal 5 MB. Cover baru menggantikan cover yang aktif saat ini.</div><details class="mt-2"><summary class="small text-secondary">Referensi file cover hasil migrasi</summary><input type="text" class="form-control form-control-sm mt-2" name="cover_path" value="<?= html_escape($field('cover_path')); ?>" placeholder="contoh: cover.jpg"><div class="form-hint">Gunakan hanya untuk referensi cover legacy yang akan diproses oleh modul Migrasi Aset.</div></details></div></div>
 							</div>
 							<?php if ($is_edit): ?>
 								<div class="datagrid mb-3">
@@ -218,3 +227,6 @@ $status_labels = [
 		<?= form_close(); ?>
 	</div>
 </div>
+<script>
+(function(){var input=document.getElementById('catalog-cover-file'),preview=document.getElementById('catalog-cover-preview');if(!input||!preview)return;input.addEventListener('change',function(){var file=this.files&&this.files[0];if(!file)return;if(!/^image\/(jpeg|png|webp)$/.test(file.type)){preview.innerHTML='<i class="ti ti-photo-off"></i>';return;}var reader=new FileReader();reader.onload=function(event){preview.innerHTML='<img src="'+event.target.result+'" alt="Preview cover baru">';};reader.readAsDataURL(file);});})();
+</script>

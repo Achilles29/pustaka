@@ -1,0 +1,5 @@
+-- Default studio composition: one shared visual language for admin, print and member cards.
+UPDATE `membership_card_settings`
+SET `config_json` = '{"primary":"#062D62","secondary":"#087D82","accent":"#F6C85F","surface":"grid","photo_position":"left","org_label":"PEMERINTAH KABUPATEN REMBANG","card_title":"Pustaka Digital Rembang","footer_label":"KARTU ANGGOTA DIGITAL","show_photo":true,"show_qr":true,"show_status":true,"show_expiry":true,"show_member_type":true,"corner_style":"rounded","tagline":"Merawat Ingatan, Membuka Pengetahuan.","layout":{"brand":{"x":6,"y":8,"w":56,"h":14},"status":{"x":77,"y":9,"w":17,"h":9},"photo":{"x":6,"y":29,"w":17,"h":37},"member_label":{"x":27,"y":29,"w":52,"h":5},"member_name":{"x":27,"y":34,"w":56,"h":22},"member_number":{"x":27,"y":58,"w":54,"h":5},"member_type":{"x":27,"y":64,"w":38,"h":5},"expiry":{"x":6,"y":82,"w":27,"h":11},"footer":{"x":42,"y":82,"w":30,"h":11},"qr":{"x":86,"y":79,"w":9,"h":14}},"custom_objects":[{"id":"heritage_line","type":"line","text":"","color":"#F6C85F","fill":"#F6C85F","font_size":14,"opacity":55,"x":5,"y":77,"w":90,"h":0.45}]}',
+    `updated_at` = NOW()
+WHERE `id` = 1;

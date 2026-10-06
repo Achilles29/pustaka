@@ -1,0 +1,11 @@
+<?php $this->load->view('library_workspace/header'); ?>
+<div class="card card-body mb-3"><h2>Pendataan tambahan perpustakaan</h2><p class="mb-0">Data profil dan kondisi layanan. Isian di sini tidak dihitung sebagai nilai IPLM. Angka pendataan lama harus diperiksa tahun acuannya; kosong berarti belum diketahui, 0 berarti benar-benar nol. <a href="<?= html_escape($network_url('guide')); ?>">Panduan pengisian</a></p></div>
+<?php if($survey_error): ?><div class="alert alert-danger" role="alert"><?= html_escape($survey_error); ?> <a href="<?= html_escape($network_url('survey')); ?>">Muat ulang data terbaru</a></div><?php endif; ?>
+<form method="post" class="card"><input type="hidden" name="network_csrf" value="<?= html_escape($csrf); ?>"><input type="hidden" name="survey_version" value="<?= (int)$survey['version']; ?>"><div class="card-body row g-3">
+<?php foreach($survey_fields as$key=>$spec): $value=$survey['values'][$key]??''; $choices=$spec[1]==='boolean'?[''=>'Belum diisi','unknown'=>'Belum diketahui','yes'=>'Ya','no'=>'Tidak']:($spec[2]??null); ?>
+<div class="<?= $spec[1]==='textarea'?'col-12':'col-md-6'; ?>"><label class="form-label" for="survey-<?= $key; ?>"><?= html_escape($spec[0]); ?></label>
+<?php if($choices!==null): ?><select class="form-select" id="survey-<?= $key; ?>" name="<?= $key; ?>"><?php foreach($choices as$k=>$label): ?><option value="<?= html_escape($k); ?>" <?= (string)$value===(string)$k?'selected':''; ?>><?= html_escape($label); ?></option><?php endforeach; ?></select>
+<?php elseif($spec[1]==='textarea'): ?><textarea class="form-control" id="survey-<?= $key; ?>" name="<?= $key; ?>" maxlength="5000" rows="3"><?= html_escape($value); ?></textarea>
+<?php else: ?><input class="form-control" id="survey-<?= $key; ?>" name="<?= $key; ?>" type="<?= in_array($spec[1],['number','year'],true)?'number':($spec[1]==='date'?'date':'text'); ?>" <?= in_array($spec[1],['number','year'],true)?'min="0" step="1"':''; ?> maxlength="250" value="<?= html_escape($value); ?>"><?php endif; ?></div>
+<?php endforeach; ?></div><div class="card-footer"><button class="btn btn-primary">Simpan pendataan tambahan</button></div></form>
+<?php $this->load->view('library_workspace/footer'); ?>

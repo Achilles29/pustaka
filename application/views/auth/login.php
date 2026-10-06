@@ -73,6 +73,7 @@ $tabler_js = 'https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min
 						</div>
 					<?= form_close(); ?>
 					<div class="auth-secondary-link">
+						Pengelola sekolah/perpustakaan? <a href="<?= base_url('aktivasi-perpustakaan'); ?>">Temukan perpustakaan Anda</a><br>
 						Belum punya akun member? <a href="<?= base_url('membership/register'); ?>">Daftar online sekarang</a><br>
 						Sudah mendaftar? <a href="<?= base_url('membership/registration-status'); ?>">Cek status pendaftaran</a>
 					</div>

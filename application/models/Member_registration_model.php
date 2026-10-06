@@ -5,6 +5,7 @@ class Member_registration_model extends CI_Model
 {
 	const MAX_UPLOAD_BYTES = 2097152;
 	const MAX_IMAGE_PIXELS_FOR_COMPRESSION = 16000000;
+	const PDF_COMPRESSION_TIMEOUT_SECONDS = 12;
 
 	public function __construct()
 	{
@@ -479,9 +480,15 @@ class Member_registration_model extends CI_Model
 		}
 
 		$last_size = 0;
+		$timeout = '/usr/bin/timeout';
+		if (! is_executable($timeout)) {
+			@unlink($output);
+			throw new RuntimeException('Berkas PDF ' . $label . ' melebihi 2 MB. Perkecil PDF terlebih dahulu agar pendaftaran dapat diproses dengan cepat.');
+		}
 		foreach (['/ebook', '/screen'] as $profile) {
 			@unlink($output);
-			$command = escapeshellarg($ghostscript)
+			$command = escapeshellarg($timeout) . ' --signal=TERM ' . self::PDF_COMPRESSION_TIMEOUT_SECONDS . 's '
+				. escapeshellarg($ghostscript)
 				. ' -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dNOPAUSE -dQUIET -dBATCH'
 				. ' -dPDFSETTINGS=' . escapeshellarg($profile)
 				. ' ' . escapeshellarg('-sOutputFile=' . $output)
@@ -489,6 +496,10 @@ class Member_registration_model extends CI_Model
 			$output_lines = [];
 			$status = 1;
 			@exec($command, $output_lines, $status);
+			if ($status === 124) {
+				@unlink($output);
+				throw new RuntimeException('Kompresi PDF ' . $label . ' dihentikan karena terlalu lama. Perkecil PDF hingga maksimal 2 MB lalu unggah kembali.');
+			}
 			if ($status === 0 && is_file($output)) {
 				$last_size = (int) filesize($output);
 				if ($last_size <= self::MAX_UPLOAD_BYTES) {

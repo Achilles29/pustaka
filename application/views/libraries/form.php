@@ -69,6 +69,7 @@ if ($opening_hours_raw !== '') {
 		<?php endif; ?>
 
 		<?= form_open_multipart($action); ?>
+			<input type="hidden" name="libraries_csrf" value="<?= html_escape($this->session->userdata('libraries_csrf')); ?>">
 			<div class="row row-cards">
 				<div class="col-lg-7">
 					<div class="card">
@@ -78,7 +79,7 @@ if ($opening_hours_raw !== '') {
 						<div class="card-body">
 							<div class="row">
 								<div class="col-md-4 mb-3">
-									<label class="form-label">Kode</label>
+									<label class="form-label">Kode / NPSN untuk sekolah</label>
 									<input type="text" class="form-control" name="code" value="<?= html_escape($field('code')); ?>" required>
 								</div>
 								<div class="col-md-8 mb-3">
@@ -89,7 +90,7 @@ if ($opening_hours_raw !== '') {
 							<div class="row">
 								<div class="col-md-6 mb-3">
 									<label class="form-label">Jenis</label>
-									<select name="library_type_id" class="form-select" required>
+									<select name="library_type_id" id="library-type" class="form-select" required>
 										<option value="">Pilih jenis</option>
 										<?php foreach ($types as $type): ?>
 											<option value="<?= (int) $type['id']; ?>" <?= (int) $field('library_type_id') === (int) $type['id'] ? 'selected' : ''; ?>>
@@ -97,10 +98,15 @@ if ($opening_hours_raw !== '') {
 											</option>
 										<?php endforeach; ?>
 									</select>
+									<label class="form-label mt-2">Subjenis</label>
+									<select name="library_subtype_id" id="library-subtype" class="form-select"><option value="">Pilih subjenis</option><?php foreach(($subtypes??[]) as $subtype): ?><option value="<?= (int)$subtype['id']; ?>" data-type="<?= (int)$subtype['library_type_id']; ?>" <?= (int)$field('library_subtype_id')===(int)$subtype['id']?'selected':''; ?>><?= html_escape($subtype['name']); ?></option><?php endforeach; ?></select>
+									<label class="form-label mt-2">Nama institusi/sekolah</label><input class="form-control" name="institution_name" maxlength="180" value="<?= html_escape($field('institution_name')); ?>">
+									<label class="form-label mt-2">Nomor Pokok Perpustakaan (NPP)</label><input class="form-control" name="npp" maxlength="80" value="<?= html_escape($field('npp')); ?>">
+									<label class="form-label mt-2">Status institusi sekolah</label><select class="form-select" name="institution_status"><?php foreach([''=>'Tidak berlaku / belum ditetapkan','negeri'=>'Negeri','swasta'=>'Swasta','belum_diketahui'=>'Perlu verifikasi']as$key=>$label): ?><option value="<?= $key; ?>" <?= $field('institution_status')===$key?'selected':''; ?>><?= $label; ?></option><?php endforeach; ?></select>
 								</div>
 								<div class="col-md-6 mb-3">
 									<label class="form-label">Pengelola/PIC</label>
-									<input type="text" class="form-control" name="manager_name" value="<?= html_escape($field('manager_name')); ?>">
+									<input type="text" class="form-control" name="manager_name" required value="<?= html_escape($field('manager_name')); ?>">
 								</div>
 							</div>
 							<div class="mb-3">
@@ -131,7 +137,7 @@ if ($opening_hours_raw !== '') {
 							<div class="row">
 								<div class="col-md-4 mb-3">
 									<label class="form-label">Telepon</label>
-									<input type="text" class="form-control" name="phone" value="<?= html_escape($field('phone')); ?>">
+									<input type="text" class="form-control" name="phone" required value="<?= html_escape($field('phone')); ?>">
 								</div>
 								<div class="col-md-4 mb-3">
 									<label class="form-label">Email</label>
@@ -261,12 +267,19 @@ if ($opening_hours_raw !== '') {
 					</div>
 				</div>
 			</div>
-		<?= form_close(); ?>
+		<div class="card card-body mt-3"><label class="form-label" for="iplm-population-status">Seleksi populasi IPLM</label><select class="form-select" id="iplm-population-status" name="iplm_population_status"><?php foreach(['pending'=>'Belum dipilih / perlu verifikasi','included'=>'Dipilih: memiliki perpustakaan dan sesuai kewenangan','excluded'=>'Dikecualikan dari populasi'] as $key=>$label): ?><option value="<?= $key; ?>" <?= ($library['iplm_population_status']??'pending')===$key?'selected':''; ?>><?= $label; ?></option><?php endforeach; ?></select><small class="text-secondary mt-2">Unit baru tidak otomatis dihitung. Mode otomatis periode hanya menghitung unit dipilih yang memenuhi cakupan. Perubahan ini tidak mengubah snapshot periode yang sudah disimpan.</small></div>
+<?= form_close(); ?>
 	</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+document.addEventListener('DOMContentLoaded',function(){
+    var type=document.getElementById('library-type'),sub=document.getElementById('library-subtype');
+    if(!type||!sub)return;
+    function refresh(reset){var count=0;Array.from(sub.options).forEach(function(option){var match=!option.value||option.dataset.type===type.value;option.hidden=!match;option.disabled=!match;if(option.value&&match)count++;});sub.required=count>0;if(reset&&sub.selectedOptions[0]&&sub.selectedOptions[0].disabled)sub.value='';}
+    refresh(false);type.addEventListener('change',function(){refresh(true);});
+});
 (function () {
 	var latInput = document.getElementById('latitude');
 	var lngInput = document.getElementById('longitude');

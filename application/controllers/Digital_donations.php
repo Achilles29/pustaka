@@ -7,12 +7,12 @@ class Digital_donations extends MY_Controller
 	public function index()
 	{
 		$this->require_permission('digital_donations.index','view');$filters=['q'=>$this->input->get('q',true),'status'=>$this->input->get('status',true),'type'=>$this->input->get('type',true)];$per=(int)$this->input->get('per_page',true);$per=in_array($per,[10,25,50,100],true)?$per:25;$page=max(1,(int)$this->input->get('page',true));$total=$this->Digital_donation_model->count_admin($filters);$pages=max(1,(int)ceil($total/$per));$page=min($page,$pages);
-		$this->render('digital_donations/index',['title'=>'Donasi Digital','stats'=>$this->Digital_donation_model->stats(),'items'=>$this->Digital_donation_model->get_admin($filters,$per,($page-1)*$per),'filters'=>array_merge($filters,['per_page'=>$per]),'pagination'=>['total'=>$total,'pages'=>$pages,'page'=>$page,'offset'=>($page-1)*$per,'per_page'=>$per],'can_review'=>$this->can('digital_donations.index','approve')]);
+		$this->render('digital_donations/index',['title'=>'Donasi Digital','stats'=>$this->Digital_donation_model->stats(),'items'=>$this->Digital_donation_model->get_admin($filters,$per,($page-1)*$per),'filters'=>array_merge($filters,['per_page'=>$per]),'pagination'=>['total'=>$total,'pages'=>$pages,'page'=>$page,'offset'=>($page-1)*$per,'per_page'=>$per],'can_review'=>$this->can('digital_donations.index','approve'),'can_create_catalog'=>$this->can('catalog.index','create')]);
 	}
 	public function review($id)
 	{
 		if (strtoupper((string) $this->input->method(true)) !== 'POST') { show_error('Metode pengiriman tidak diizinkan.', 405); return; }
-		$this->require_permission('digital_donations.index','approve');$before=$this->Digital_donation_model->find((int)$id);if(!$before){show_404();return;}try{$result=$this->Digital_donation_model->review((int)$id,$this->input->post('status',true),$this->input->post('admin_note',true),(int)($this->current_user['id']??0));$this->audit_event('digital_donation.review','digital_donation_submissions',(int)$id,$before,$result);$this->session->set_flashdata('success','Status donasi diperbarui.');}catch(Throwable $e){$this->session->set_flashdata('error',$e->getMessage());}redirect('digital-donations');
+		$this->require_permission('digital_donations.index','approve');$before=$this->Digital_donation_model->find((int)$id);if(!$before){show_404();return;}$status=$this->input->post('status',true);try{$result=$this->Digital_donation_model->review((int)$id,$status,$this->input->post('admin_note',true),(int)($this->current_user['id']??0));$this->audit_event('digital_donation.review','digital_donation_submissions',(int)$id,$before,$result);$this->session->set_flashdata('success','Status donasi diperbarui.');if($status==='accepted'&&$this->can('catalog.index','create')){redirect('digital-donations/catalog/'.(int)$id);return;}}catch(Throwable $e){$this->session->set_flashdata('error',$e->getMessage());}redirect('digital-donations');
 	}
 	public function file($id)
 	{

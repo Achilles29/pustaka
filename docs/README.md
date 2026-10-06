@@ -12,10 +12,17 @@ Dokumentasi ini menjadi catatan kerja utama untuk proyek perpustakaan digital te
 - [CODING_STANDARDS.md](CODING_STANDARDS.md) - aturan coding, struktur modul, migrasi SQL, CSS, dan Git.
 - [HANDOVER.md](HANDOVER.md) - catatan pindah device: lokasi proyek, database, route penting, akun demo, dan checklist validasi.
 - [LIBRARIES_GIS.md](LIBRARIES_GIS.md) - schema dan implementasi awal direktori perpustakaan berbasis GIS.
+- [PERPUSTAKAAN_TERPADU_DEVELOPMENT_PLAN.md](PERPUSTAKAAN_TERPADU_DEVELOPMENT_PLAN.md) - rancangan multi-admin, pemisahan data per perpustakaan, katalog/sirkulasi lokal, migrasi, dan tahapan pilot Kabupaten Rembang.
+- [LIBRARY_NETWORK_OPERATIONS.md](LIBRARY_NETWORK_OPERATIONS.md) - implementasi operasional inti, satu role Admin Perpustakaan, onboarding akun sekolah, pengamanan, pengujian, dan batas rilis.
+- [PETA_FITUR_KABUPATEN_DAN_PERPUSTAKAAN.md](PETA_FITUR_KABUPATEN_DAN_PERPUSTAKAAN.md) - audit fitur yang belum ada di kedua level dan fitur kabupaten yang dapat diadopsi sekolah.
+- [NETWORK_REPORTS.md](NETWORK_REPORTS.md) - laporan gabungan kabupaten, definisi indikator lintas dataset, filter/ekspor, dan sidebar admin sekolah.
+- [LIBRARY_SERVICES.md](LIBRARY_SERVICES.md) - stok opname kedua dataset, label/kartu sekolah, reservasi petugas, pendaftaran/perpanjangan dan buku tamu mandiri; batas fitur dan keputusan lanjutan.
+- [LIBRARY_EXCHANGE_AND_FINES.md](LIBRARY_EXCHANGE_AND_FINES.md) - peminjaman antarlembaga dengan persetujuan/serah-terima dua pihak, pengaman inventaris dan pencatatan denda manual kedua level.
 - [SCAN_SUMMARY.md](SCAN_SUMMARY.md) - hasil scan ulang folder aplikasi INLISLite, database, aset, dan kesiapan CodeIgniter.
 - [THEME_REFERENCES.md](THEME_REFERENCES.md) - kandidat theme/admin template gratis untuk aplikasi.
 - [PROGRESS.md](PROGRESS.md) - catatan progress harian.
 - [ENGLISH_RPG_DEVELOPMENT_PLAN.md](ENGLISH_RPG_DEVELOPMENT_PLAN.md) - baseline, roadmap lengkap, quality gate, dan rencana pengembangan lanjutan English Quest RPG.
+- [english_rpg_story/](english_rpg_story/README.md) - story bible English Quest RPG; konsep chapter, karakter, quest, scene, dan tujuan belajar sebelum implementasi.
 
 ## Struktur Dokumentasi
 

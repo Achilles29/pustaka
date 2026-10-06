@@ -29,17 +29,20 @@
     </div>
 
     <div class="bt-wrap">
-        <div class="bt-note"><i class="ti ti-info-circle"></i><span>Battle dimainkan bergantian dalam satu room. Bagikan kode room hanya kepada teman yang ingin kamu ajak bermain.</span></div>
+        <?php if(empty($requested_room)): ?><div class="bt-note"><i class="ti ti-info-circle"></i><span><?= !empty($requested_session)?'QR sesi berhasil dipindai. Sesi tujuan sudah dipilih otomatis—tentukan peran lalu buat room.':'Battle dimainkan bergantian dalam satu room. Bagikan kode room hanya kepada teman yang ingin kamu ajak bermain.'; ?></span></div><?php endif; ?>
+        <?php if(!empty($requested_denied)): ?><div class="alert alert-warning"><i class="ti ti-lock me-1"></i>Sesi dari QR tidak tersedia, belum dibuka, atau khusus untuk member perpustakaan aktif.</div><?php endif; ?>
         <?php if ($e = $this->session->flashdata('error')): ?>
         <div class="alert alert-danger"><i class="ti ti-alert-circle me-1"></i><?= html_escape($e); ?></div>
         <?php endif; ?>
 
-        <?php if (! $user): ?>
-        <div class="bt-card text-center">
-            <div class="bt-ic mx-auto" style="background:#fee2e2;color:#e11d48"><i class="ti ti-login"></i></div>
-            <h3 class="fw-bold">Login dulu, yuk!</h3>
-            <p class="text-secondary">Mode Battle butuh akun untuk mengenali kamu dan lawanmu.</p>
-            <a href="<?= base_url('login'); ?>" class="btn btn-danger"><i class="ti ti-login me-1"></i>Login</a>
+        <?php if(!empty($requested_room)): ?>
+        <div class="bt-card" style="max-width:520px;margin:auto">
+            <?php if(!empty($qr_room_error)): ?><div class="text-center"><div class="bt-ic mx-auto" style="background:#fee2e2;color:#dc2626"><i class="ti ti-door-off"></i></div><h3 class="fw-bold">Tidak dapat bergabung</h3><p class="text-secondary"><?= html_escape($qr_room_error); ?></p><?php if(!$user&&($qr_session['access_mode']??'public')==='member'): ?><a href="<?= base_url('login'); ?>" class="btn btn-primary"><i class="ti ti-login"></i> Login sebagai Member</a><?php else: ?><a href="<?= base_url('belajar/battle'); ?>" class="btn btn-outline-primary">Kembali ke Lobby</a><?php endif; ?></div>
+            <?php else: ?><div class="text-center mb-4"><div class="bt-ic mx-auto" style="background:#ede9fe;color:#7c3aed"><i class="ti ti-swords"></i></div><div class="bt-kicker" style="color:#7c3aed">UNDANGAN BATTLE</div><h2 class="fw-black mb-1"><?= html_escape($qr_session['title']??'Mode Battle'); ?></h2><div class="d-flex justify-content-center gap-2 mt-2"><span class="badge bg-purple-lt">Room <?= html_escape($requested_room); ?></span><span class="badge bg-<?= ($qr_room['play_mode']??'sprint')==='paced'?'cyan':'orange'; ?>-lt"><?= ($qr_room['play_mode']??'sprint')==='paced'?'🎮 Per Soal':'⚡ Sprint'; ?></span></div></div>
+            <?= form_open('belajar/battle/join'); ?><input type="hidden" name="code" value="<?= html_escape($requested_room); ?>">
+            <?php if(empty($is_active_member)): ?><label class="form-label">Username Battle <span class="text-danger">*</span></label><input name="battle_username" class="form-control form-control-lg mb-2" maxlength="40" autocomplete="nickname" autofocus placeholder="Masukkan nama untuk ranking" required><small class="text-secondary d-block mb-3"><i class="ti ti-user"></i> Tidak perlu login. Username ini akan terlihat oleh peserta lain.</small><?php else: ?><div class="alert alert-success"><i class="ti ti-circle-check me-1"></i>Kamu masuk sebagai member aktif.</div><?php endif; ?>
+            <button type="submit" class="btn btn-primary btn-lg w-100"><i class="ti ti-door-enter me-1"></i>Gabung &amp; Masuk Ruang Tunggu</button><?= form_close(); ?>
+            <?php endif; ?>
         </div>
         <?php elseif (! $pool_ready): ?>
         <div class="bt-card text-center">
@@ -54,13 +57,17 @@
                     <div class="bt-ic" style="background:#fce7f3;color:#9333ea"><i class="ti ti-plus"></i></div>
                     <h3 class="fw-bold mb-1">Buat Room</h3>
                     <p class="text-secondary" style="font-size:.9rem">Buat room baru dan bagikan kodenya ke temanmu.</p>
-                    <?= form_open('belajar/battle/create'); ?>
+                    <?php if(!$user): ?><div class="alert alert-info">Pembuatan room hanya untuk host yang login. Peserta publik dapat langsung bergabung tanpa akun.</div><a href="<?= base_url('login'); ?>" class="btn btn-primary w-100"><i class="ti ti-login me-1"></i>Login sebagai Host</a><?php else: ?><?= form_open('belajar/battle/create'); ?>
                     <label class="form-label">Pilih sesi / judul Battle</label>
                     <select name="battle_session_id" class="form-select mb-3" required>
-                        <option value="">Pilih sesi…</option><?php foreach($battle_sessions as $bs): ?><option value="<?= (int)$bs['id']; ?>"><?= html_escape($bs['title']); ?> · <?= (int)$bs['question_count']; ?> soal · <?= ceil($bs['time_limit_seconds']/60); ?> menit · <?= $bs['max_players']===null?'tanpa batas':(int)$bs['max_players'].' pemain'; ?></option><?php endforeach; ?>
+                        <option value="">Pilih sesi…</option><?php foreach($battle_sessions as $bs): ?><option value="<?= (int)$bs['id']; ?>" data-play-mode="<?= html_escape($bs['play_mode']??'sprint'); ?>" <?= (int)($requested_session??0)===(int)$bs['id']?'selected':''; ?>><?= ($bs['access_mode']??'public')==='member'?'◆ MEMBER · ':'◉ PUBLIK · '; ?><?= ($bs['play_mode']??'sprint')==='paced'?'🎮 PER SOAL · ':'⚡ SPRINT · '; ?><?= html_escape($bs['title']); ?> · <?= (int)$bs['question_count']; ?> soal · <?= ceil($bs['time_limit_seconds']/60); ?> menit · <?= $bs['max_players']===null?'tanpa batas':(int)$bs['max_players'].' pemain'; ?></option><?php endforeach; ?>
                     </select>
+                    <?php if(!empty($is_active_member)): ?><div class="text-purple mb-3" style="font-size:.78rem"><i class="ti ti-rosette-discount-check"></i> Keanggotaan aktif — sesi eksklusif terbuka untukmu.</div><?php endif; ?>
+                    <?php if(empty($is_active_member)): ?><label class="form-label">Username Battle <span class="text-danger">*</span></label><input name="battle_username" class="form-control mb-3" maxlength="40" autocomplete="nickname" placeholder="Nama yang tampil di ranking" required><?php endif; ?>
+                    <label class="form-label">Peran pembuat room</label><div class="mb-3" id="host-role-options"><label class="form-check"><input class="form-check-input" type="radio" name="host_mode" value="player" checked><span class="form-check-label"><b>Ikut sebagai pemain</b><small class="d-block text-secondary">Host ikut menjawab dan masuk ranking. Tersedia untuk mode Sprint.</small></span></label><label class="form-check mt-2"><input class="form-check-input" type="radio" name="host_mode" value="moderator"><span class="form-check-label"><b>Moderator saja</b><small class="d-block text-secondary">Host mengatur jalannya battle dan memantau ranking live tanpa ikut bertanding.</small></span></label><div class="alert alert-info mt-3 mb-0 py-2" id="paced-role-note" hidden><i class="ti ti-info-circle me-1"></i>Mode Per Soal membutuhkan moderator sebagai operator untuk membuka setiap soal. Host tidak ikut ranking.</div></div>
                     <button type="submit" class="btn btn-primary w-100"><i class="ti ti-swords me-1"></i>Buat &amp; Tunggu Lawan</button>
                     <?= form_close(); ?>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="col-12 col-md-6">
@@ -70,7 +77,8 @@
                     <p class="text-secondary" style="font-size:.9rem">Punya kode dari temanmu? Masukkan di sini.</p>
                     <?= form_open('belajar/battle/join'); ?>
                     <label class="form-label">Kode Room</label>
-                    <input type="text" name="code" class="form-control code-input mb-3" maxlength="12" placeholder="ABCDE" required>
+                    <input type="text" name="code" class="form-control code-input mb-3" maxlength="12" placeholder="ABCDE" value="<?= html_escape($requested_room??''); ?>" required>
+                    <?php if(empty($is_active_member)): ?><label class="form-label">Username Battle <span class="text-danger">*</span></label><input name="battle_username" class="form-control mb-3" maxlength="40" autocomplete="nickname" placeholder="Nama yang tampil di ranking" required><?php endif; ?>
                     <button type="submit" class="btn btn-outline-primary w-100"><i class="ti ti-arrow-right me-1"></i>Gabung Battle</button>
                     <?= form_close(); ?>
                 </div>
@@ -79,5 +87,6 @@
         <?php endif; ?>
     </div>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.4.0/dist/js/tabler.min.js"></script>
+<script>(function(){var session=document.querySelector('select[name="battle_session_id"]'),roles=document.getElementById('host-role-options'),note=document.getElementById('paced-role-note');if(!session||!roles)return;var player=roles.querySelector('[value="player"]'),moderator=roles.querySelector('[value="moderator"]');function syncRole(){var option=session.options[session.selectedIndex],paced=option&&option.dataset.playMode==='paced';player.disabled=paced;if(paced)moderator.checked=true;else if(!player.checked&&!moderator.checked)player.checked=true;if(note)note.hidden=!paced;}session.addEventListener('change',syncRole);syncRole();})();</script>
 </body>
 </html>

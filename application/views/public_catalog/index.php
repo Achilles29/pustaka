@@ -55,6 +55,7 @@ $dashboard_url = (in_array('SUPERADMIN', $role_codes, true) || in_array('ADMIN',
 		<nav class="public-links">
 			<a href="<?= base_url(); ?>">Beranda</a>
 			<a href="<?= base_url('katalog'); ?>">Katalog</a>
+			<a href="<?= base_url('jejaring/katalog'); ?>">Katalog Jejaring</a>
 			<a href="<?= base_url('agenda'); ?>">Agenda</a>
 			<?php if ($is_logged_in): ?>
 				<a href="<?= $dashboard_url; ?>">Dashboard</a>

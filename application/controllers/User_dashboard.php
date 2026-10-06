@@ -20,7 +20,7 @@ class User_dashboard extends CI_Controller
 		}
 
 		$this->load->model('Catalog_model');
-		$this->load->model('Member_model');
+		$this->load->model(['Member_model', 'Membership_card_model']);
 		$this->load->model('Loan_model');
 		$this->load->model('Reading_point_model');
 		$this->load->model('Visit_model');
@@ -48,10 +48,12 @@ class User_dashboard extends CI_Controller
 			$highlight_categories = $this->Catalog_model->get_top_content_categories(6);
 		}
 
-		$this->load->view('user/dashboard', [
+		$dashboard_html=$this->load->view('user/dashboard', [
 			'title' => 'Dashboard Pemustaka',
+			'map_payload' => $this->Reading_point_model->member_map_payload(),
 			'current_user' => $user,
 			'member' => $member,
+			'design' => $this->Membership_card_model->get_design(),
 			'verify_url' => $verify_url,
 			'catalog_count' => $this->Catalog_model->count_public_books(['availability' => 'with_items']),
 			'catalog_total_count' => $this->Catalog_model->count_public_books(),
@@ -77,7 +79,16 @@ class User_dashboard extends CI_Controller
 			'learn_game_history' => $user_id ? $this->Learn_games_model->get_user_game_history($user_id, 5) : [],
 			'digital_donations' => $user_id ? $this->Digital_donation_model->get_member_submissions($user_id, 5) : [],
 			'patron_feedback_items' => $user_id ? $this->Patron_feedback_model->get_member_items($user_id, 5) : [],
-		]);
+		], true);
+		$marker="\t\t\t\t\t</div>\n\t\t\t\t\t<div class=\"member-status-stack\">";
+		$review_card="\t\t\t\t\t\t<a href=\"".base_url('suara-pemustaka?type=service_review')."\" class=\"member-action\"><i class=\"ti ti-stars\"></i><span>Review Pelayanan</span></a>\n";
+		$dashboard_html=str_replace($marker,$review_card.$marker,$dashboard_html);
+		$dashboard_html=str_replace(
+			'<option value="24">24 bulan</option>',
+			'<option value="24">24 bulan (2 tahun)</option><option value="36">36 bulan (3 tahun)</option><option value="48">48 bulan (4 tahun)</option><option value="60">60 bulan (5 tahun)</option>',
+			$dashboard_html
+		);
+		echo $dashboard_html;
 	}
 
 	public function reading_checkin()
@@ -92,6 +103,7 @@ class User_dashboard extends CI_Controller
 
 		$this->load->view('user/reading_checkin', [
 			'title' => 'Check-in Pojok Baca',
+			'map_payload' => $this->Reading_point_model->member_map_payload(),
 			'current_user' => $user,
 			'member' => $member,
 			'active_token' => $this->Reading_point_model->get_member_active_token((int) $member['id']),
@@ -105,7 +117,7 @@ class User_dashboard extends CI_Controller
 	public function member_card()
 	{
 		$user = $this->require_member_user();
-		$this->load->model('Member_model');
+		$this->load->model(['Member_model', 'Membership_card_model']);
 		$member = $this->Member_model->get_member_by_auth_user_id((int) ($user['id'] ?? 0));
 		if (! $member) {
 			$this->session->set_flashdata('error', 'Data kartu anggota belum terhubung dengan akun login ini.');
@@ -116,6 +128,7 @@ class User_dashboard extends CI_Controller
 			'title' => 'Kartu Anggota Digital',
 			'current_user' => $user,
 			'member' => $member,
+			'design' => $this->Membership_card_model->get_design(),
 			'verify_url' => base_url('membership/verify/' . (int) $member['id'] . '/' . $this->Member_model->digital_card_token($member)),
 		]);
 	}

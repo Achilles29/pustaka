@@ -9,6 +9,7 @@ class Libraries extends MY_Controller
 		$this->load->model('Library_model');
 		$this->load->model('Region_model');
 		$this->load->library('upload');
+		if (!$this->session->userdata('libraries_csrf')) $this->session->set_userdata('libraries_csrf',bin2hex(random_bytes(32)));
 	}
 
 	public function index()
@@ -18,10 +19,14 @@ class Libraries extends MY_Controller
 		$filters = [
 			'q' => $this->input->get('q', true),
 			'type_id' => $this->input->get('type_id', true),
+			'subtype_id' => $this->input->get('subtype_id', true),
 			'district_id' => $this->input->get('district_id', true),
 			'status' => $this->input->get('status', true),
 			'library_id' => $this->current_library_scope_id(),
 		];
+		foreach (['q', 'type_id', 'subtype_id', 'district_id', 'status'] as $key) {
+			if (!is_scalar($filters[$key])) $filters[$key] = '';
+		}
 		$per_page = (int) $this->input->get('per_page', true);
 		$per_page = in_array($per_page, [10, 25, 50, 100], true) ? $per_page : 25;
 		$page = max(1, (int) $this->input->get('page', true));
@@ -30,13 +35,26 @@ class Libraries extends MY_Controller
 		$page = min($page, $total_pages);
 		$offset = ($page - 1) * $per_page;
 		$libraries = $this->Library_model->get_libraries($filters, $per_page, $offset);
+		$map_libraries = $this->Library_model->get_map_libraries($this->current_library_scope_id(), false, $filters);
+		$this->load->model('Library_survey_model','survey_model');
+		$survey_profiles=[]; foreach($libraries as $library) $survey_profiles[$library['id']]=$this->survey_model->get($library['id']);
+        $iplm_profiles=[];
+        if($libraries && $this->can('iplm.manage','view')){
+            foreach($this->db->select('s.id,s.library_id,s.status,s.schema_json,s.values_json,s.evidence_json,p.title period_title')->from('iplm_submissions s')->join('iplm_periods p','p.id=s.period_id')->where_in('s.library_id',array_column($libraries,'id'))->where('s.deleted_at IS NULL',null,false)->order_by('p.year','DESC')->get()->result_array() as $submission){
+                $iplm_profiles[$submission['library_id']][]=['id'=>$submission['id'],'period'=>$submission['period_title'],'status'=>$submission['status'],'schema'=>json_decode($submission['schema_json'],true),'values'=>json_decode($submission['values_json'],true),'evidence'=>json_decode($submission['evidence_json'],true)];
+            }
+        }
+		$map_payload = $this->Library_model->map_payload($map_libraries, true);
 
 		$this->render('libraries/index', [
 			'title' => 'Perpustakaan GIS',
+			'subtypes' => $this->Library_model->get_subtypes(),
 			'types' => $this->Library_model->get_types(),
 			'districts' => $this->Region_model->get_districts(),
 			'libraries' => $libraries,
-			'map_payload' => $this->Library_model->map_payload($libraries),
+			'map_payload' => $map_payload,
+            'iplm_profiles'=>$iplm_profiles,'survey_profiles'=>$survey_profiles,'survey_fields'=>$this->survey_model->fields(),
+			'map_missing_coordinates' => count($map_libraries) - count($map_payload),
 			'filters' => $filters,
 			'per_page' => $per_page,
 			'page' => $page,
@@ -53,6 +71,7 @@ class Libraries extends MY_Controller
 
 		$this->render('libraries/form', [
 			'title' => 'Tambah Perpustakaan',
+			'subtypes' => $this->Library_model->get_subtypes(),
 			'types' => $this->Library_model->get_types(),
 			'districts' => $this->Region_model->get_districts(),
 			'villages' => $this->Region_model->village_payload(),
@@ -65,7 +84,9 @@ class Libraries extends MY_Controller
 	public function store()
 	{
 		$this->require_permission('libraries.index', 'create');
-		$library_id = $this->Library_model->create_library($this->payload_from_post('create'));
+		$this->check_identity_post();
+		try { $library_id = $this->Library_model->create_library($this->payload_from_post('create')); }
+		catch (InvalidArgumentException $e) { $this->session->set_flashdata('error',$e->getMessage()); redirect('libraries/create'); return; }
 		$photo_id = $this->handle_photo_upload($library_id);
 
 		$this->audit_event('library.created', 'library', $library_id, null, $this->Library_model->get_library($library_id));
@@ -88,6 +109,7 @@ class Libraries extends MY_Controller
 
 		$this->render('libraries/form', [
 			'title' => 'Edit Perpustakaan',
+			'subtypes' => $this->Library_model->get_subtypes(),
 			'types' => $this->Library_model->get_types(),
 			'districts' => $this->Region_model->get_districts(),
 			'villages' => $this->Region_model->village_payload(),
@@ -100,13 +122,15 @@ class Libraries extends MY_Controller
 	public function update($id)
 	{
 		$this->require_permission('libraries.index', 'edit');
+		$this->check_identity_post();
 		$library = $this->Library_model->get_library((int) $id, $this->current_library_scope_id());
 		if (! $library) {
 			show_404();
 			return;
 		}
 
-		$this->Library_model->update_library((int) $id, $this->payload_from_post('update'));
+		try { $this->Library_model->update_library((int) $id, $this->payload_from_post('update')); }
+		catch (InvalidArgumentException $e) { $this->session->set_flashdata('error',$e->getMessage()); redirect('libraries/edit/'.(int)$id); return; }
 		$photo_id = $this->handle_photo_upload((int) $id);
 		$updated = $this->Library_model->get_library((int) $id);
 
@@ -122,6 +146,7 @@ class Libraries extends MY_Controller
 	public function toggle($id)
 	{
 		$this->require_permission('libraries.index', 'edit');
+		$this->check_identity_post();
 		$library = $this->Library_model->get_library((int) $id, $this->current_library_scope_id());
 		if (! $library) {
 			show_404();
@@ -199,6 +224,11 @@ class Libraries extends MY_Controller
 
 		return [
 			'library_type_id' => $this->input->post('library_type_id', true),
+			'library_subtype_id' => $this->input->post('library_subtype_id', true),
+			'institution_name' => $this->input->post('institution_name', true),
+			'npp' => $this->input->post('npp', true),
+			'institution_status' => $this->input->post('institution_status', true),
+            'iplm_population_status'=>$this->input->post('iplm_population_status',true),
 			'code' => $this->input->post('code', true),
 			'name' => $this->input->post('name', true),
 			'manager_name' => $this->input->post('manager_name', true),
@@ -221,6 +251,15 @@ class Libraries extends MY_Controller
 			'created_by' => $mode === 'create' ? (int) $this->current_user['id'] : null,
 			'updated_by' => (int) $this->current_user['id'],
 		];
+	}
+
+	private function check_identity_post()
+	{
+		if ($this->input->method(true)!=='POST') { show_error('Gunakan formulir tindakan.',405); exit; }
+		$token=$this->input->post('libraries_csrf',false);
+		if (!is_string($token)||!hash_equals((string)$this->session->userdata('libraries_csrf'),$token)) { show_error('Formulir kedaluwarsa. Muat ulang.',403); exit; }
+		foreach ((array)$this->input->post(null,false) as $v) if(!is_scalar($v)&&$v!==null) { show_error('Isian tidak valid.',400); exit; }
+		$this->session->set_userdata('libraries_csrf',bin2hex(random_bytes(32)));
 	}
 
 	private function handle_photo_upload($library_id)

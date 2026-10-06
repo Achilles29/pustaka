@@ -14,9 +14,10 @@ $role_labels = array_map(function ($role) {
 	return $role['code'];
 }, $user_roles);
 $current_path = trim(uri_string(), '/');
-$is_active_menu = function ($item) use (&$is_active_menu, $current_path) {
-	$url = trim((string) ($item['url'] ?? ''), '/');
-	if ($url !== '' && ($current_path === $url || strpos($current_path . '/', $url . '/') === 0)) {
+$this->load->helper('sidebar');
+$active_menu_id = pustaka_sidebar_active_id($menu_items, $current_path);
+$is_active_menu = function ($item) use (&$is_active_menu, $active_menu_id) {
+	if ((int) $item['id'] === $active_menu_id) {
 		return true;
 	}
 	foreach (($item['children'] ?? []) as $child) {
@@ -37,7 +38,7 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 		$link_classes = 'admin-menu-link' . ($has_children ? ' admin-menu-toggle' : '');
 		?>
 		<li class="<?= $item_classes; ?>">
-			<a class="<?= $link_classes; ?>" href="<?= $has_children ? '#' : $url; ?>"<?= $has_children ? ' data-bs-toggle="collapse" data-bs-target="#menu-' . (int) $item['id'] . '" role="button" aria-expanded="' . ($is_active ? 'true' : 'false') . '"' : ''; ?>>
+			<a class="<?= $link_classes; ?>" href="<?= $has_children ? '#' : $url; ?>"<?= $has_children ? ' data-bs-toggle="collapse" data-bs-target="#menu-' . (int) $item['id'] . '" aria-controls="menu-' . (int) $item['id'] . '" role="button" aria-expanded="' . ($is_active ? 'true' : 'false') . '"' : ($is_active ? ' aria-current="page"' : ''); ?>>
 				<span class="admin-menu-icon"><i class="<?= html_escape($icon); ?>"></i></span>
 				<span class="admin-menu-title"><?= html_escape($item['title']); ?></span>
 				<?php if ($has_children): ?>
@@ -69,7 +70,7 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 	<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,650;9..144,750;9..144,850&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="<?= $tabler_css; ?>">
 	<link rel="stylesheet" href="<?= $tabler_icons_css; ?>">
-	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css'); ?>">
+	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka.css?v=20261005-sidebar'); ?>">
 	<link rel="stylesheet" href="<?= base_url('assets/css/pustaka-polish.css?v=20260812e'); ?>">
 </head>
 <body class="admin-body">
@@ -79,7 +80,7 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Toggle navigation">
 					<span class="navbar-toggler-icon"></span>
 				</button>
-				<a class="navbar-brand admin-brand" href="<?= base_url('admin'); ?>" aria-label="Pustaka Digital Rembang">
+				<a class="navbar-brand admin-brand" href="<?= base_url(!empty($current_user['is_library_admin'])?'library-workspace':'admin'); ?>" aria-label="Pustaka Digital Rembang">
 					<span class="brand-logo-shell">
 						<img class="brand-logo" src="<?= base_url('img/logo-small.jpeg'); ?>" alt="Logo Kabupaten Rembang">
 					</span>
@@ -102,10 +103,11 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 			<header class="navbar navbar-expand-md d-print-none admin-topbar">
 				<div class="container-xl">
 					<div>
-						<div class="page-pretitle mb-0">Admin Panel</div>
+						<div class="page-pretitle mb-0"><?= !empty($current_user['is_library_admin'])?'Admin Perpustakaan':'Admin Panel'; ?></div>
 						<div class="fw-semibold"><?= html_escape($title); ?></div>
 					</div>
 					<div class="navbar-nav flex-row ms-auto">
+						<?php if(empty($current_user['is_library_admin'])): ?>
 						<div class="nav-item dropdown me-3 admin-inbox-dropdown">
 							<a href="#" class="admin-inbox-trigger <?= (int) ($admin_inbox['total'] ?? 0) > 0 ? 'has-pending' : ''; ?>" data-bs-toggle="dropdown" aria-label="Buka kotak masuk layanan">
 								<i class="ti ti-inbox"></i>
@@ -122,12 +124,13 @@ $render_sidebar_items = function ($items, $depth = 0) use (&$render_sidebar_item
 								<?php endforeach; ?>
 							</div>
 						</div>
+						<?php endif; ?>
 						<div class="nav-item dropdown">
 							<a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="Buka menu user">
 								<span class="avatar avatar-sm"><?= html_escape(strtoupper(substr($current_user['full_name'] ?? 'PU', 0, 2))); ?></span>
 								<div class="d-none d-xl-block ps-2">
 									<div><?= html_escape($current_user['full_name'] ?? 'Pustaka'); ?></div>
-									<div class="mt-1 small text-secondary"><?= html_escape(implode(', ', $role_labels)); ?></div>
+									<div class="mt-1 small text-secondary"><?= !empty($current_user['is_library_admin'])?'Admin Perpustakaan':html_escape(implode(', ', $role_labels)); ?></div>
 								</div>
 							</a>
 							<div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">

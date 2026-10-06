@@ -1,0 +1,29 @@
+.network-map-card { min-width: 0; margin: 20px 0; border: 1px solid #dbe6ef; border-radius: 12px; overflow: hidden; background: #fff; color: #334155; box-shadow: 0 8px 24px #0f172a08; }
+.network-map-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px; }
+.network-map-kicker { display: block; color: #005baa; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
+.network-map-heading h2 { margin: 4px 0; font-size: 19px; color: #0f172a; letter-spacing: normal; }
+.network-map-heading p { margin: 0; color: #64748b; font-size: 12px; }
+.network-map-tools { display: flex; gap: 7px; flex-wrap: wrap; }
+.network-map-tools .btn { gap: 5px; }
+.network-map-canvas { height: 530px; width: 100%; min-width: 0; isolation: isolate; z-index: 0; }
+.network-map-legend { padding: 12px 18px; display: flex; flex-wrap: wrap; gap: 9px 16px; border-top: 1px solid #e2e8f0; }
+.network-map-legend > span { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; }
+.network-map-legend .library-type-symbol { height: 25px; width: 25px; border-radius: 6px; }
+.network-map-legend .library-type-symbol svg { height: 18px; width: 18px; }
+.network-map-note, .network-map-nearest { padding: 0 18px 14px; margin: 0; color: #64748b; font-size: 12px; line-height: 1.6; }
+.network-map-nearest { color: #075985; font-weight: 600; }
+.network-user-key { width: 15px; height: 15px; display: inline-block; border-radius: 50%; background: #0284c7; border: 3px solid #fff; box-shadow: 0 0 0 2px #38bdf8; }
+.network-user-icon { background: none; border: 0; }
+.network-user-icon .network-user-key { width: 23px; height: 23px; box-shadow: 0 0 0 7px #38bdf840, 0 2px 8px #0f172a30; }
+.network-map-canvas .library-detail-overlay a.leaflet-popup-close-button { top: 10px; right: 8px; width: 26px; height: 26px; line-height: 24px; border-radius: 50%; background: #fff; color: #64748b; border: 1px solid #e2e8f0; }
+.public-visit-panel .network-map-card { margin: 0; }
+.public-visit-panel .network-map-heading { padding: 14px; }
+.public-visit-panel .network-map-heading h2 { font-size: 17px; }
+.reading-checkin-side > .member-panel:first-child .member-mini-list { max-height: 400px; overflow-y: auto; }
+@media (max-width: 575px) {
+    .network-map-canvas { height: 510px; }
+    .network-map-heading { padding: 14px; }
+    .network-map-tools { width: 100%; }
+    .network-map-tools .btn { flex: 1; }
+    .network-map-heading h2 { font-size: 17px; }
+}

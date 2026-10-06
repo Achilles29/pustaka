@@ -600,4 +600,113 @@ Setelah vertical slice disetujui, baru:
 | Tanggal | Perubahan |
 |---|---|
 | 2026-08-13 | Dokumen rencana lengkap pertama dibuat untuk review lanjutan. |
+| 2026-08-13 | Ditambahkan arsitektur campaign berbasis Season. Campaign yang sudah ada ditetapkan sebagai Season 1; Season 2 direncanakan sebagai RPG eksplorasi interaktif. |
 
+## 18. Pengembangan Season
+
+### Season 1 — The First Quest
+
+Seluruh chapter English RPG yang sudah tersedia menjadi **Season 1**. Season menjadi lapisan navigasi baru: pemain membuka halaman RPG, memilih season, lalu melihat peta chapter seperti sebelumnya. Progress, unlock, loot, dan history chapter tetap kompatibel dengan data lama.
+
+Kriteria implementasi Season 1:
+
+- [x] Tabel season dan relasi episode tersedia.
+- [x] Episode lama otomatis masuk ke Season 1.
+- [x] Halaman awal pemain menampilkan kartu season, bukan daftar chapter langsung.
+- [x] Halaman detail season menampilkan chapter, progres, dan status unlock.
+- [x] Admin dapat melihat season, membuat season, dan mengatur episode di dalamnya.
+- [x] Link lama ke episode tetap bekerja.
+- [x] Reset progres chapter menghormati batas season.
+- [ ] Halaman laporan RPG menampilkan filter dan ringkasan per season.
+- [ ] Tambahkan pengaturan unlock antar-season dan prasyarat campaign.
+
+### Season 2 — World of Living Stories
+
+Season 2 akan memakai format eksplorasi top-down yang terinspirasi RPG klasik seperti *Suikoden*, namun memakai aset orisinal dan mekanik belajar yang aman untuk anak. Season 2 dibuat sebagai vertical slice terlebih dahulu sebelum diterapkan ke banyak area.
+
+Vertical slice awal (fondasi sudah dieksekusi):
+
+- [x] Peta desa kecil `Lanternbrook Village` dengan jalur, pohon, bangunan, dan collision;
+- [x] Hero pixel-art orisinal dengan idle, arah hadap, dan animasi langkah ringan;
+- [x] Kontrol keyboard (WASD/arrow) dan D-pad touch;
+- [x] Collision server-side dan tombol reduced-motion;
+- [x] Empat NPC dengan dialog Inggris, terjemahan, dan kosakata target;
+- [x] Quest log dengan objective utama dan progres 3 petunjuk;
+- [x] Satu quest eksplorasi `The Missing Story Sigils`;
+- [x] Reward XP dunia dan item inventory setelah quest diklaim;
+- [x] Autosave posisi, quest, dan interaksi pemain;
+- [x] UI dan dialog gameplay menggunakan bahasa Inggris; konten world slice ditanam langsung sebagai kode/migrasi tanpa menu CRUD admin Season 1;
+- [x] Latar desa pixel-art orisinal serta sprite sheet hero/NPC dipasang sebagai aset game;
+- [ ] Challenge vocabulary, listening, sentence, dan speaking sebagai interaksi NPC/objek;
+- [ ] Quest sampingan, pembukaan area bertahap, portrait ilustratif, dan animasi combat/victory.
+
+Fondasi data Season 2:
+
+- `learn_english_rpg_world_maps` untuk layout dan titik awal;
+- `learn_english_rpg_world_npcs` untuk posisi, dialog, dan kosakata NPC;
+- `learn_english_rpg_world_quests` untuk objective dan reward;
+- `learn_english_rpg_world_player_states` untuk posisi, arah, dan XP dunia;
+- `learn_english_rpg_world_player_quests` untuk status/progres quest;
+- `learn_english_rpg_world_interactions` untuk telemetry minimal dan audit.
+
+Urutan pengerjaan:
+
+1. Stabilkan Season 1 dan migrasikan seluruh chapter ke season.
+2. Buat halaman season dan detail season untuk pemain serta admin.
+3. Audit unlock, reset, report, dan history agar memakai season/chapter secara konsisten.
+4. [x] Buat prototipe peta Season 2 tanpa memindahkan gameplay Season 1.
+5. [x] Tambahkan satu hero, empat NPC, satu map, dan satu quest vertical slice.
+6. [x] Uji keyboard, touch, collision, reward, autosave, dan reduced motion dasar.
+7. [ ] Uji browser/device lengkap, performa mobile, dan aksesibilitas lanjutan.
+8. [ ] Baru lanjutkan produksi map, NPC, quest, dan chapter Season 2 secara bertahap.
+
+## 19. Season 1 Quality Gate — Hasil Eksekusi
+
+Audit awal Season 1 telah dijalankan terhadap 15 chapter dan 225 adegan aktif.
+
+- [x] Setiap chapter memiliki 15 adegan aktif.
+- [x] Distribusi challenge terukur: 105 choice, 45 listening, 45 sentence, dan 30 story.
+- [x] Tidak ditemukan dialog, prompt, kosakata, terjemahan, atau audio wajib yang kosong.
+- [x] Tidak ditemukan JSON pilihan rusak, jumlah kunci selain satu, atau pilihan duplikat.
+- [x] Urutan kunci pilihan diseimbangkan menjadi 50 posisi pertama, 51 posisi kedua, dan 49 posisi ketiga; pengacakan per pemain tetap aktif.
+- [x] Prompt dan pilihan story dibuat kontekstual per chapter, tidak lagi memakai template yang sama.
+- [x] Pengecoh generik pada 175 adegan diganti dengan pilihan yang relevan terhadap kosakata dan konteks chapter.
+- [x] Dialog duplikat antar-chapter diperbaiki.
+- [x] Editor admin kini menyediakan tipe challenge, audio text, dan jawaban Sentence Forge.
+- [x] Editor admin mempertahankan metadata `choice_code` dan `reputation_delta` saat story scene diedit.
+- [x] Season root, peta Season 1, detail chapter, laporan, progres pengguna, dan endpoint chapter diuji tanpa error PHP/database.
+
+Temuan yang masih menjadi pekerjaan lanjutan sebelum Season 1 dinyatakan final:
+
+- [ ] Review editorial manual untuk makna, tingkat kesulitan, dan kualitas pengecoh setiap adegan.
+- [ ] Validator server-side khusus Sentence Forge untuk memastikan token dan jawaban konsisten sebelum publish.
+- [ ] Filter laporan admin berdasarkan season dan agregasi completion/drop-off per chapter.
+- [ ] Uji browser/device lengkap serta baseline performa aset audio dan animasi.
+
+## 20. Season 2 Vertical Slice — Hasil Eksekusi
+
+Story development is now maintained separately in the [English Quest Story Bible](english_rpg_story/README.md). The first chapter concept, [Chapter 1 — The Missing Story Sigils](english_rpg_story/CHAPTER_01_LANTERNBROOK.md), has been approved for staged implementation. It expands the current short 3-NPC flow into six acts, multiple objectives, optional side quest, new supporting characters, checkpoints, contextual Hint/Translate assistance with XP cost, and a complete narrative ending. Exact costs remain subject to playtest balancing.
+
+Season 2 sekarang dapat dibuka dari `/belajar/english-quest`, lalu memilih kartu **World of Living Stories**. Route `/belajar/english-quest/season/2` menampilkan dunia interaktif pertama tanpa mengubah progres Season 1.
+
+- [x] Migrasi database Season 2 dijalankan dan dibuat idempotent: map, NPC, quest, state pemain, state quest, dan log interaksi.
+- [x] Map `Lanternbrook Village` berukuran 18×12 memiliki collision yang diperiksa server-side.
+- [x] Posisi pemain tersimpan setiap gerakan dan dibuat ulang saat halaman dibuka kembali.
+- [x] NPC Mira, Eli, Nova, dan Ren dapat diajak bicara ketika pemain berada di petak yang berdekatan.
+- [x] Quest `The Missing Story Sigils` berjalan dari mulai, mengumpulkan 3 petunjuk, hingga klaim hadiah.
+- [x] Klaim quest idempotent: status berubah menjadi `claimed`, XP dunia dan item `Lantern Story Sigil` diberikan satu kali.
+- [x] Uji manual end-to-end berhasil: gerak, collision, dialog, progres 0→3, klaim reward, dan penyimpanan state.
+- [x] Sidebar quest menjadi scroll container mandiri sehingga scroll objective tidak menggeser area game utama.
+- [x] Chapter 1 memiliki penutup eksplisit setelah kembali ke Mira: `Chapter 1 Complete` dan jalan menuju `Whispering Grove`.
+- [x] Area map dan sprite diperbesar, dengan animasi bob/footstep saat karakter bergerak.
+- [x] Arah hadap diperbarui segera saat tombol ditekan, termasuk ketika jalur sedang terhalang; perpindahan petak memakai transisi halus dan animasi langkah.
+- [x] Collision server-side diselaraskan dengan rumah, air mancur, pasar, dan area bangunan pada ilustrasi `Lanternbrook Village`.
+- [x] Petak NPC juga menjadi solid: pemain tidak dapat menembus atau bertumpuk dengan Mira, Eli, Nova, maupun Ren.
+- [x] Chapter 1 memakai dialog dua arah: Mira → Eli → Nova → Ren → Mira. Setiap NPC memberi pertanyaan pilihan ganda, jawaban salah dapat diulang, jawaban benar membuka tujuan berikutnya, dan jawaban clue terakhir membuka jalan baru.
+- [x] Pilihan jawaban memakai handler mouse, pointer, dan touch langsung agar tombol `Answer` aktif konsisten pada desktop maupun perangkat sentuh.
+- [x] Jawaban percakapan kini terkirim otomatis saat opsi dipilih; tombol submit manual disembunyikan.
+- [x] Layout world memakai lebar layar penuh proporsional, peta mengikuti tinggi viewport, dan sidebar desktop diperlebar serta diringkas agar terbaca tanpa scroll internal.
+- [x] Alur Chapter 1 diperpanjang menjadi delapan percakapan yang saling terhubung dengan kunjungan ulang Mira, Eli, dan Nova sebelum penutup terakhir.
+- [x] Progres Season 2 ditampilkan pada `/learn-english-rpg/progress/user/*`, lengkap dengan riwayat interaksi serta reset terpisah yang tidak menghapus progres Season 1.
+- [x] Latar desa dan sprite sheet hero/NPC pixel-art orisinal sudah dipasang.
+- [ ] Musik, efek suara lingkungan, combat, dan area lanjutan belum diproduksi.

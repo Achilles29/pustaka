@@ -1,4 +1,5 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<div class="container-xl pt-2 text-end"><a class="btn btn-outline-primary" href="<?= base_url('learn-progress/scope/flashcard/'.$deck['id']); ?>"><i class="ti ti-users"></i> Progres Deck</a></div>
 
 <div class="container-xl">
     <div class="page-header mb-3">
